@@ -1,0 +1,38 @@
+version: 1
+skill:
+  name: safe-reviewer
+  version: 1.0.0
+  description: Reviews local documentation without side effects.
+capabilities:
+  filesystem:
+    read: ["**/*.md"]
+    write: []
+    delete: []
+  network:
+    inbound: false
+    outbound: false
+    hosts: []
+  commands:
+    execute: false
+    allow: []
+  secrets:
+    read: []
+    expose: false
+  environment:
+    read: []
+  tools:
+    allow: ["git.read"]
+    deny: ["git.write", "git.push"]
+  mcp:
+    servers: []
+    tools: []
+  persistence: false
+  agent:
+    autonomous_actions: false
+    external_side_effects: false
+    confirm_destructive: true
+    confirm_external: true
+  resources:
+    max_runtime_seconds: 30
+    max_memory_mb: 128
+    max_tool_calls: 10

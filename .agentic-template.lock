@@ -1,0 +1,827 @@
+managed_files:
+    - checksum: sha256:6739c825460bc2a22b90cbac8f5932de2e016978725772825154da43288080c2
+      path: .agentic/codex/AGENTS.md
+      platform: codex
+      source: codex/AGENTS.md.j2
+    - checksum: sha256:7356417a277ea0af923040b19cb312221774052112a4d48a5678bec099848de1
+      path: .agents/skills/requirements-analyst/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:e402ea4ac332f783b0de12240ee02bcef00ef9e7171889611013ae4b83356e6e
+      path: .agents/skills/cost-based-planner/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:948a5e49cd91eab279710ae1c875179286396ec95b65dc72f2f79a00042a7c8e
+      path: .agents/skills/architecture-reviewer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:4fbcda0838a0a30dd81adc301cd721110bb5c3f51ee18ae12eb360575ad70b5d
+      path: .agents/skills/threat-modeler/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:74368c90b0159ae1da51031b4eaedbf07f9480ad9c16dd5c762cefecb3516e3c
+      path: .agents/skills/safe-implementer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:2f640fb0724650c8f21b5d20e9d79e9b1cbfaba3b8bd872372cf395aef1909d7
+      path: .agents/skills/test-strategy-engineer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:8337c3090c1d42c6a735be19ca1a7ddc0c7a316149caea73a97bbda1fcee1794
+      path: .agents/skills/verification-reviewer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:a42ca1fa06b8a38c8e29ac663a373fc400856ab01997e1850526b50f91b65326
+      path: .agents/skills/security-reviewer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:a7a365e70569f5c5ce347b677d373c31edcbb27ff445e97e12b9e647651cdda9
+      path: .agents/skills/secrets-reviewer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:6abd60bf4f770dc35006829f20801512f8f5f13a8071508bf1b1324e709ddba3
+      path: .agents/skills/dependency-supply-chain-reviewer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:e2b4d547df2d6eda79b2adecd222799d4feddb9e3c70c11f491af2e321779b9d
+      path: .agents/skills/ci-cd-reviewer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:27868e3e79010c667cde714ea3a79350e28be89cf23249e7afa03924e2a5fa3c
+      path: .agents/skills/iac-gitops-reviewer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:f0cc3bfc9f0d9a4a177aaeedb262f24e42fb70427aa7cb2842ea9d24b68083e1
+      path: .agents/skills/compliance-governance-reviewer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:8d57ec6c90d55502f40775ce2195acbe38f5deedecbb2218ea1417942347789b
+      path: .agents/skills/release-readiness-reviewer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:dd701a2230cb82dc5a8ebe21b478fde81d7fe9ca5f454d7533d1f80e245f7387
+      path: .agents/skills/observability-reviewer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:a07ac1646b13dda1adb7be2f08dd23ca6d404903fc6cc2dfb540d918c7f73e5e
+      path: .agents/skills/incident-postmortem-assistant/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:11c75de60ee3cf4bb739bb52225ee2114b1ac8f9373016a588b7c1cf70bdb9c9
+      path: .agents/skills/documentation-maintainer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:6056d29061e083813ea438101c164ec63499b7236dd21d572f2dac8349d9f56d
+      path: .agents/skills/universal-skill-creator/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:873a6818a335ccbef136bea41ac5ef25d8f788e86d64d372b8ee479c1a51e687
+      path: .agents/skills/dora-readiness-reviewer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:2312b6d7c0f02505b2d486dd0ab0b3868e73e28b5fa2e3dcbdc9628313fc7d0c
+      path: .agents/skills/ict-risk-management-reviewer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:a649289112a5cfdbf34e9f9d9250bd802f8e0d5d10af1a220db03afd7e5141ea
+      path: .agents/skills/ict-third-party-risk-reviewer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:e31b123525fe560e9ad20070ffa5b354b336dac91f1017166887adbebd70e225
+      path: .agents/skills/ict-incident-reporting-reviewer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:e0ee08b0b5d5686f9e57654380bbdb8aaf849d73ab74f946a0ca33d1522a693f
+      path: .agents/skills/operational-resilience-tester/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:407f1bdaea3a9fe12620c79a3b7fc4bf1e1c46cf4a657e1930b6e8b8814bfdf0
+      path: .agents/skills/audit-evidence-reviewer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:fa260ad28f0dbbda19ad3df6454e4ee21e7cbe360ea48f73a09324089e67a5fc
+      path: .agents/skills/control-mapping-reviewer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:03b0780efd9f05cb14213e57e074e8920e9ecff45ba94660c524e4a5554795d1
+      path: .agents/skills/outsourcing-exit-strategy-reviewer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:4874ce0258ffdb84281077580566341c358a898e3493a20470fc43209ba37841
+      path: .agents/skills/documentation-governance-reviewer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:ee5e6679088181993204c482f2bd253d9202d668e5599dc2fae61f488867fd17
+      path: .agents/skills/runbook-playbook-maintainer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:661f85d7941c7505b20f8a4dda5b4bb53c91ea0756f0eee359f5d076b008edf0
+      path: .agents/skills/architecture-decision-recorder/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:63a304cba60df8bec09ae3715e279b4050e1cb61551eadbc5c3f6f48501a56d6
+      path: .agents/skills/audit-traceability-maintainer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:041ca049cc6bff147563b081f07582044ff80ba44d7445688872e020b93e3c50
+      path: .agents/skills/policy-documentation-maintainer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:457cd3d02bad02886ab0dcf270175dd51d339f4c5a5afecc68971e40f9770132
+      path: .agents/skills/evidence-package-creator/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:a962a6c18e9d13b725aa914c890b3135609ed4236ee1d0f4aa74bee30b47b7dd
+      path: .agents/skills/devsecops-maturity-reviewer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:4e7d24565c0be6cf1ec03dd05535dba594311daf42e59df4853ac54b872294b7
+      path: .agents/skills/pipeline-security-architect/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:31fbd321b218bdc370f1515dd01a4921482e9d49a0049cfb0e6e2365e33ae845
+      path: .agents/skills/software-supply-chain-architect/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:598ff10e00c67bb1b59911ba5047763cc50d75fad2a7965ac193b62b8fd84583
+      path: .agents/skills/policy-as-code-engineer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:383cbd9e72cf08a6f64d9742add56fb055855220d7aa82a0b92aac59a410fefc
+      path: .agents/skills/secure-developer-platform-reviewer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:21f6808a9d523ce0a4712654aeacdf7f345d152dcbd29c7b17fcf1845319b52b
+      path: .agents/skills/vulnerability-management-coordinator/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:e411c5dfeab93052fcc78dce63ce154f1f6fa8768b8bac6ad0eddb0d643404f0
+      path: .agents/skills/cloud-landing-zone-reviewer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:1bd1928a64a92eaef5430a0ca5a463da83367fdd11a95fb6d316ffd43f122171
+      path: .agents/skills/cloud-governance-reviewer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:b564344b7d7b38ad5ad372959be6b062003c9d061064afea755be7bbb4186174
+      path: .agents/skills/finops-reviewer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:efc97a221f2b24c532da12bc160ce05632370b3c5e227ca87a289914ea0f90ff
+      path: .agents/skills/sre-reliability-reviewer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:911d09e685f47a8d2810779452b95393c78b812ca3bee12ca9967f0e80f07ed9
+      path: .agents/skills/kubernetes-platform-reviewer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:eca9506d8e32b55ea4325f33ce0d89c8e740ad7df8cb42138a446acad110690a
+      path: .agents/skills/gitops-operations-reviewer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:c89bf949a35f5e1a71faa7f71bc431c23ffd45e1173aa1c4ea0f99c3aef00ba5
+      path: .agents/skills/aiops-signal-correlation-reviewer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:82f00917ca0b2877bcd033ccdaa51b61c3bd2c2a2bbd10639d309443e3ad2130
+      path: .agents/skills/alert-quality-reviewer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:7e6315df5e0d4ec1b79eab230aa52d01d452331ce2a5801c43ff0e6bbff05fb5
+      path: .agents/skills/auto-remediation-reviewer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:abb18278c752752bc39dc11de1787b8680a0fd94c95f858d2b1aaa0f4bc7dbff
+      path: .agents/skills/mlops-governance-reviewer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:f60b577b1495df4f6e2b6d4797f5204d00e8a7715b8398fd8dfee81281b20fca
+      path: .agents/skills/llmops-security-reviewer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:8432f6d8aa6c2bba5c179f0058d1ea3bc46d3d6aa2eea2923c42828e50576a3f
+      path: .agents/skills/ai-change-risk-reviewer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:4344aca27af0eee0602139f5fc2fb072bdebc52c93c8b68ace8247f176e23ab1
+      path: .agents/skills/privacy-data-protection-reviewer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:3a9358ff66a352e610a227c0788adfd9be04daade14f0326a7138f2eadad24fe
+      path: .agents/skills/api-contract-reviewer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:1d03338aa9b47080288e049b637bf8f16d19e12dd348eb2389c2cba2ad0a8914
+      path: .agents/skills/secure-design-reviewer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:c7323e84c27a4f71ceda588db8863976a86bdbe7c2d6c8f5b0d0cb19e598085e
+      path: .agents/skills/policy-as-code-reviewer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:b5c8a02460186ae740ebb799042ba1bbe8918109ef4d6066d53f26aec6cfaaa8
+      path: .agents/skills/container-security-reviewer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:3636943a2f056bf5808194b0902e05928179e7da55181f7357ebb453eb3d4b25
+      path: .agents/skills/identity-access-reviewer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:bf8aa6655aff7b711d7eb4654c3be8aebca509710164b1c85a4e5b666e13aaab
+      path: .agents/skills/risk-acceptance-reviewer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:d494f85c79bc6eb553708d97ccff200359b7c3a131aef71b9cfcb9f0b49cb6e4
+      path: .agents/skills/secure-code-reviewer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:a069f7910614d1d26a14f396ebba98abfa6514454ff884de41dc0651911f345e
+      path: .agents/skills/performance-scalability-reviewer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:42b7f0cca7d70c9084761882a07351400e5f2e8138c9d45c9cb3e8d9e38424f3
+      path: .agents/skills/migration-change-reviewer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:766c60b1403d66ac4c2e904142a240e875fad0f11fc9ce13082ccef45ec2a329
+      path: .agents/skills/sbom-vulnerability-management-reviewer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:12770953a14372122d3e6b199d6a1b1d2f9d706c17d1db55cd1e4eea444b8520
+      path: .agents/skills/developer-experience-reviewer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:cf550f997c5da149c5ec74f085896981f24e925154b20a3ae8a6318193925ee1
+      path: .agents/skills/resilience-reviewer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:b15a30381f7ee73a90e2e7e2886bb727b0846bca853c4df65bec1e66b6a527db
+      path: .agents/skills/backup-restore-reviewer/SKILL.md
+      platform: codex
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:e0be2532292d90a73d1677ae03199ac468775997f6a26f616815c894999602cf
+      path: .agentic/claude/AGENTS.md
+      platform: claude
+      source: claude/CLAUDE.md.j2
+    - checksum: sha256:7356417a277ea0af923040b19cb312221774052112a4d48a5678bec099848de1
+      path: .claude/skills/requirements-analyst/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:e402ea4ac332f783b0de12240ee02bcef00ef9e7171889611013ae4b83356e6e
+      path: .claude/skills/cost-based-planner/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:948a5e49cd91eab279710ae1c875179286396ec95b65dc72f2f79a00042a7c8e
+      path: .claude/skills/architecture-reviewer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:4fbcda0838a0a30dd81adc301cd721110bb5c3f51ee18ae12eb360575ad70b5d
+      path: .claude/skills/threat-modeler/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:74368c90b0159ae1da51031b4eaedbf07f9480ad9c16dd5c762cefecb3516e3c
+      path: .claude/skills/safe-implementer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:2f640fb0724650c8f21b5d20e9d79e9b1cbfaba3b8bd872372cf395aef1909d7
+      path: .claude/skills/test-strategy-engineer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:8337c3090c1d42c6a735be19ca1a7ddc0c7a316149caea73a97bbda1fcee1794
+      path: .claude/skills/verification-reviewer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:a42ca1fa06b8a38c8e29ac663a373fc400856ab01997e1850526b50f91b65326
+      path: .claude/skills/security-reviewer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:a7a365e70569f5c5ce347b677d373c31edcbb27ff445e97e12b9e647651cdda9
+      path: .claude/skills/secrets-reviewer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:6abd60bf4f770dc35006829f20801512f8f5f13a8071508bf1b1324e709ddba3
+      path: .claude/skills/dependency-supply-chain-reviewer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:e2b4d547df2d6eda79b2adecd222799d4feddb9e3c70c11f491af2e321779b9d
+      path: .claude/skills/ci-cd-reviewer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:27868e3e79010c667cde714ea3a79350e28be89cf23249e7afa03924e2a5fa3c
+      path: .claude/skills/iac-gitops-reviewer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:f0cc3bfc9f0d9a4a177aaeedb262f24e42fb70427aa7cb2842ea9d24b68083e1
+      path: .claude/skills/compliance-governance-reviewer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:8d57ec6c90d55502f40775ce2195acbe38f5deedecbb2218ea1417942347789b
+      path: .claude/skills/release-readiness-reviewer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:dd701a2230cb82dc5a8ebe21b478fde81d7fe9ca5f454d7533d1f80e245f7387
+      path: .claude/skills/observability-reviewer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:a07ac1646b13dda1adb7be2f08dd23ca6d404903fc6cc2dfb540d918c7f73e5e
+      path: .claude/skills/incident-postmortem-assistant/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:11c75de60ee3cf4bb739bb52225ee2114b1ac8f9373016a588b7c1cf70bdb9c9
+      path: .claude/skills/documentation-maintainer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:6056d29061e083813ea438101c164ec63499b7236dd21d572f2dac8349d9f56d
+      path: .claude/skills/universal-skill-creator/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:873a6818a335ccbef136bea41ac5ef25d8f788e86d64d372b8ee479c1a51e687
+      path: .claude/skills/dora-readiness-reviewer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:2312b6d7c0f02505b2d486dd0ab0b3868e73e28b5fa2e3dcbdc9628313fc7d0c
+      path: .claude/skills/ict-risk-management-reviewer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:a649289112a5cfdbf34e9f9d9250bd802f8e0d5d10af1a220db03afd7e5141ea
+      path: .claude/skills/ict-third-party-risk-reviewer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:e31b123525fe560e9ad20070ffa5b354b336dac91f1017166887adbebd70e225
+      path: .claude/skills/ict-incident-reporting-reviewer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:e0ee08b0b5d5686f9e57654380bbdb8aaf849d73ab74f946a0ca33d1522a693f
+      path: .claude/skills/operational-resilience-tester/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:407f1bdaea3a9fe12620c79a3b7fc4bf1e1c46cf4a657e1930b6e8b8814bfdf0
+      path: .claude/skills/audit-evidence-reviewer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:fa260ad28f0dbbda19ad3df6454e4ee21e7cbe360ea48f73a09324089e67a5fc
+      path: .claude/skills/control-mapping-reviewer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:03b0780efd9f05cb14213e57e074e8920e9ecff45ba94660c524e4a5554795d1
+      path: .claude/skills/outsourcing-exit-strategy-reviewer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:4874ce0258ffdb84281077580566341c358a898e3493a20470fc43209ba37841
+      path: .claude/skills/documentation-governance-reviewer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:ee5e6679088181993204c482f2bd253d9202d668e5599dc2fae61f488867fd17
+      path: .claude/skills/runbook-playbook-maintainer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:661f85d7941c7505b20f8a4dda5b4bb53c91ea0756f0eee359f5d076b008edf0
+      path: .claude/skills/architecture-decision-recorder/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:63a304cba60df8bec09ae3715e279b4050e1cb61551eadbc5c3f6f48501a56d6
+      path: .claude/skills/audit-traceability-maintainer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:041ca049cc6bff147563b081f07582044ff80ba44d7445688872e020b93e3c50
+      path: .claude/skills/policy-documentation-maintainer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:457cd3d02bad02886ab0dcf270175dd51d339f4c5a5afecc68971e40f9770132
+      path: .claude/skills/evidence-package-creator/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:a962a6c18e9d13b725aa914c890b3135609ed4236ee1d0f4aa74bee30b47b7dd
+      path: .claude/skills/devsecops-maturity-reviewer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:4e7d24565c0be6cf1ec03dd05535dba594311daf42e59df4853ac54b872294b7
+      path: .claude/skills/pipeline-security-architect/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:31fbd321b218bdc370f1515dd01a4921482e9d49a0049cfb0e6e2365e33ae845
+      path: .claude/skills/software-supply-chain-architect/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:598ff10e00c67bb1b59911ba5047763cc50d75fad2a7965ac193b62b8fd84583
+      path: .claude/skills/policy-as-code-engineer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:383cbd9e72cf08a6f64d9742add56fb055855220d7aa82a0b92aac59a410fefc
+      path: .claude/skills/secure-developer-platform-reviewer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:21f6808a9d523ce0a4712654aeacdf7f345d152dcbd29c7b17fcf1845319b52b
+      path: .claude/skills/vulnerability-management-coordinator/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:e411c5dfeab93052fcc78dce63ce154f1f6fa8768b8bac6ad0eddb0d643404f0
+      path: .claude/skills/cloud-landing-zone-reviewer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:1bd1928a64a92eaef5430a0ca5a463da83367fdd11a95fb6d316ffd43f122171
+      path: .claude/skills/cloud-governance-reviewer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:b564344b7d7b38ad5ad372959be6b062003c9d061064afea755be7bbb4186174
+      path: .claude/skills/finops-reviewer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:efc97a221f2b24c532da12bc160ce05632370b3c5e227ca87a289914ea0f90ff
+      path: .claude/skills/sre-reliability-reviewer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:911d09e685f47a8d2810779452b95393c78b812ca3bee12ca9967f0e80f07ed9
+      path: .claude/skills/kubernetes-platform-reviewer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:eca9506d8e32b55ea4325f33ce0d89c8e740ad7df8cb42138a446acad110690a
+      path: .claude/skills/gitops-operations-reviewer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:c89bf949a35f5e1a71faa7f71bc431c23ffd45e1173aa1c4ea0f99c3aef00ba5
+      path: .claude/skills/aiops-signal-correlation-reviewer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:82f00917ca0b2877bcd033ccdaa51b61c3bd2c2a2bbd10639d309443e3ad2130
+      path: .claude/skills/alert-quality-reviewer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:7e6315df5e0d4ec1b79eab230aa52d01d452331ce2a5801c43ff0e6bbff05fb5
+      path: .claude/skills/auto-remediation-reviewer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:abb18278c752752bc39dc11de1787b8680a0fd94c95f858d2b1aaa0f4bc7dbff
+      path: .claude/skills/mlops-governance-reviewer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:f60b577b1495df4f6e2b6d4797f5204d00e8a7715b8398fd8dfee81281b20fca
+      path: .claude/skills/llmops-security-reviewer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:8432f6d8aa6c2bba5c179f0058d1ea3bc46d3d6aa2eea2923c42828e50576a3f
+      path: .claude/skills/ai-change-risk-reviewer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:4344aca27af0eee0602139f5fc2fb072bdebc52c93c8b68ace8247f176e23ab1
+      path: .claude/skills/privacy-data-protection-reviewer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:3a9358ff66a352e610a227c0788adfd9be04daade14f0326a7138f2eadad24fe
+      path: .claude/skills/api-contract-reviewer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:1d03338aa9b47080288e049b637bf8f16d19e12dd348eb2389c2cba2ad0a8914
+      path: .claude/skills/secure-design-reviewer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:c7323e84c27a4f71ceda588db8863976a86bdbe7c2d6c8f5b0d0cb19e598085e
+      path: .claude/skills/policy-as-code-reviewer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:b5c8a02460186ae740ebb799042ba1bbe8918109ef4d6066d53f26aec6cfaaa8
+      path: .claude/skills/container-security-reviewer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:3636943a2f056bf5808194b0902e05928179e7da55181f7357ebb453eb3d4b25
+      path: .claude/skills/identity-access-reviewer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:bf8aa6655aff7b711d7eb4654c3be8aebca509710164b1c85a4e5b666e13aaab
+      path: .claude/skills/risk-acceptance-reviewer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:d494f85c79bc6eb553708d97ccff200359b7c3a131aef71b9cfcb9f0b49cb6e4
+      path: .claude/skills/secure-code-reviewer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:a069f7910614d1d26a14f396ebba98abfa6514454ff884de41dc0651911f345e
+      path: .claude/skills/performance-scalability-reviewer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:42b7f0cca7d70c9084761882a07351400e5f2e8138c9d45c9cb3e8d9e38424f3
+      path: .claude/skills/migration-change-reviewer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:766c60b1403d66ac4c2e904142a240e875fad0f11fc9ce13082ccef45ec2a329
+      path: .claude/skills/sbom-vulnerability-management-reviewer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:12770953a14372122d3e6b199d6a1b1d2f9d706c17d1db55cd1e4eea444b8520
+      path: .claude/skills/developer-experience-reviewer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:cf550f997c5da149c5ec74f085896981f24e925154b20a3ae8a6318193925ee1
+      path: .claude/skills/resilience-reviewer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:b15a30381f7ee73a90e2e7e2886bb727b0846bca853c4df65bec1e66b6a527db
+      path: .claude/skills/backup-restore-reviewer/SKILL.md
+      platform: claude
+      source: internal/scaffold/skill_templates.go
+    - checksum: sha256:d49b44b974e828c0f402a2d57fdac16d99fa86956bfaa66185ce76be076eee3a
+      path: .claude/agents/requirements-analyst.md
+      platform: claude
+      source: claude/agent.md.j2
+    - checksum: sha256:ffdb57c3579259b4244287db05fd054cec01775653575a602bb6d97d5bb2743c
+      path: .claude/agents/architecture-reviewer.md
+      platform: claude
+      source: claude/agent.md.j2
+    - checksum: sha256:dcdba3eb7cf3988a338f8f0e0c199042804806a17313032ffb311afdec73dda7
+      path: .claude/agents/devsecops-reviewer.md
+      platform: claude
+      source: claude/agent.md.j2
+    - checksum: sha256:dada0066fae00d735a5dbbc6c14ad3bb65c8d66ab85453e2f5d63021f74aa1e0
+      path: .claude/agents/security-reviewer.md
+      platform: claude
+      source: claude/agent.md.j2
+    - checksum: sha256:eb95cbf3b2c711c21d0d7a1a7f6fa3a09e57bb58b70a2a9f5ecb50e76b3a6532
+      path: .claude/agents/ci-cd-reviewer.md
+      platform: claude
+      source: claude/agent.md.j2
+    - checksum: sha256:6273ef5ffda862cd5bdebcd64902bd63178d101ead8ac71478ba70acbfa8758e
+      path: .claude/agents/iac-gitops-reviewer.md
+      platform: claude
+      source: claude/agent.md.j2
+    - checksum: sha256:79899f6ef223e0088c9f977dfb18a392616d46ed1c8f7fc0fa8c5743f93cc7bc
+      path: .claude/agents/test-runner.md
+      platform: claude
+      source: claude/agent.md.j2
+    - checksum: sha256:98eff2d283930f5294c3415a9623836a47c7e8cd33937629461bc228592d5b54
+      path: .claude/agents/release-readiness-reviewer.md
+      platform: claude
+      source: claude/agent.md.j2
+    - checksum: sha256:b51825c3b70537abec8d003dfe048afcaaf5248836e6e03308c5f7a7ea49b930
+      path: .claude/agents/incident-postmortem-assistant.md
+      platform: claude
+      source: claude/agent.md.j2
+    - checksum: sha256:e79c464869ccac8a183ab582e75560cb38d30111ba344f43273d0f4a4d338dd4
+      path: .github/copilot-instructions.md
+      platform: github-copilot
+      source: github-copilot/copilot-instructions.md.j2
+    - checksum: sha256:ebdab30cd23a7485bcc0e05431986085960f282e5a539e65394ea85d9bde3352
+      path: .agentic/github-copilot/AGENTS.md
+      platform: github-copilot
+      source: shared/platform-reference.md.j2
+    - checksum: sha256:e998b157ea77ea7311e9df66fae30d915710a62f451df72d922a7a199cba1cbc
+      path: .github/prompts/requirements-analyst.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:a8b1a76597dd4f8f5ab3375b9311d4b140d5c85aaf041468869cbb60c60474cb
+      path: .github/prompts/cost-based-planner.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:1efb4cd69f8ecd9ee3f17f24c032e5d4ad5e8ebd9d97eb1cd49a874009447757
+      path: .github/prompts/architecture-reviewer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:a746c2e006cbc1099e4a6aa549e95487b0bc7d9003cc08b3a1242eaf9617c8fc
+      path: .github/prompts/threat-modeler.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:b2d0a773cf0b1e56a1f11b1fb0f090e13e2f11df53089c2fae01ac548e58aa38
+      path: .github/prompts/safe-implementer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:f41d95d0f1421d20c4173bb97a69c98bd4703facc2cbd0c2a0f0b948912387cc
+      path: .github/prompts/test-strategy-engineer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:e57dcc2a696d85b121c037f5a4e4a872c1cc71b632bd96baefa86677de790e8a
+      path: .github/prompts/verification-reviewer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:27c5389f5dc5343f42f9d5df788483ccf367c896f1124f860af2e9fe6eaaca22
+      path: .github/prompts/security-reviewer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:7aaa1eb6ece4f6f8bd2e5a7950f248b7a247d81deafc8e7b33ce0d30187a0025
+      path: .github/prompts/secrets-reviewer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:c0506c9e511509d434d7ab632208f7ab74d295b25258af6b2526b4f83abff578
+      path: .github/prompts/dependency-supply-chain-reviewer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:c8a4c8a0458bd3e6b88e5e6740b1166be63f3d29434b062c2723ef47909739f8
+      path: .github/prompts/ci-cd-reviewer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:cc9211e30b15b5f982ec4a28ea9fa2a3ba953dc68b559460401e36d9a295004d
+      path: .github/prompts/iac-gitops-reviewer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:05794be3d938120075c17f7e58f53daa3038f20cbc37bf99ae52d00575860bae
+      path: .github/prompts/compliance-governance-reviewer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:b26149ee7b748a1e6a7fc0cfce94f7602b391069d01d1a88550a399e13de33b7
+      path: .github/prompts/release-readiness-reviewer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:966f9bf6172014d23d92ba642be5a520a6db7803dbbc1c306880e82e0e754983
+      path: .github/prompts/observability-reviewer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:f16ab8bafc2eddd587028fa725c985b231ecc8c6a4a23e7a60bdc0047e691dfd
+      path: .github/prompts/incident-postmortem-assistant.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:c1b634a2675bfc1ebb03bbfb72f8574fa28635cc675a9aabc37d6fd662f23b87
+      path: .github/prompts/documentation-maintainer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:164c6386ab8d01afe4fc8cecba601389968c2f8f17dbc8d23435c3a71aa21f84
+      path: .github/prompts/universal-skill-creator.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:a6e3b55b3209b8c5bb975ea7a1487b4a4d303051ce50fc0f5faa032bb39d681c
+      path: .github/prompts/dora-readiness-reviewer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:fb1cba0f317205b042e8d32de4e809a192724111dfb44c98b458f502910d075a
+      path: .github/prompts/ict-risk-management-reviewer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:9954718e3a1fa1c7025838e705dc2aa61ed3059671213bceccac1c8f4dae0fbe
+      path: .github/prompts/ict-third-party-risk-reviewer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:75ca35bfc330074f2aa34f5e97e3cc6639c6f716f38fef1e8e0624dc5c115318
+      path: .github/prompts/ict-incident-reporting-reviewer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:4b1b1d52ca81b286612a3d48646ad08db870a5117216ecb7fd26482917dbd881
+      path: .github/prompts/operational-resilience-tester.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:c1ca43f998ddb4d57642371035bd9ef917c6f3b42e9727c6ccbee92c2e6f2885
+      path: .github/prompts/audit-evidence-reviewer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:06cb1f1a4fb31cfb265396f400f1eb57cc9bc73f2518795a98637ffd0db49fe8
+      path: .github/prompts/control-mapping-reviewer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:8c2bb60b9bbdca306658384492ee0f729b1ef5c2f1dcead8a0ab90c6dc54b715
+      path: .github/prompts/outsourcing-exit-strategy-reviewer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:ad058f76ba513fd7fcb8a2afdeb2295d18e5af3d17f35882398aab6e1e53121c
+      path: .github/prompts/documentation-governance-reviewer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:7521a9e94aa3ad341090f2ea46358efffad760823ae533cb5058dde6ebfcf0c4
+      path: .github/prompts/runbook-playbook-maintainer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:f4143a1fdf1f0c20e39c03f80a474cba863b19ce5071d7db3460ab8cb1c1b6e9
+      path: .github/prompts/architecture-decision-recorder.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:6889bd86c0e565fc2d1f056a01ee8a0b54250ad1fad41d8ce5b1816781789b42
+      path: .github/prompts/audit-traceability-maintainer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:49de5ec0b49c09bee93ee4db6d44ec8f8c09017362783db8a1bfd0d6eabe5845
+      path: .github/prompts/policy-documentation-maintainer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:a2adf343bc3749b01e48755f7b90eb507efdfc9174d9771e82b36bacd4de599a
+      path: .github/prompts/evidence-package-creator.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:1f94e24b12126d2fee990d0b7df9570d002d0f3fe4f0dece9d35c907a042bcf4
+      path: .github/prompts/devsecops-maturity-reviewer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:8a92323d842de19e548fa4fd6c76779af4caaee75a58beef0c4a93f03b3004b0
+      path: .github/prompts/pipeline-security-architect.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:ff4de3a6020433cfbd304e2a8e597506cb04c67b069a8ca99d3c71b55755df36
+      path: .github/prompts/software-supply-chain-architect.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:525513c8180e5e286e6e7c14b55642b91a3a23478976fdad59b96af4388e4d99
+      path: .github/prompts/policy-as-code-engineer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:dd6b32a55449f7c747f88cd5638caff82842f6e2a55bbb9f8ea95feab8597e1d
+      path: .github/prompts/secure-developer-platform-reviewer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:327ab286a52f0e30c0cdc84e5b5c7f5e59ba90f6f74f5eb3633c1b5b3d75c032
+      path: .github/prompts/vulnerability-management-coordinator.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:2d6209f251f3c7ace653184f5ae8d81b8d1be3ee40aff7de850cc9b527bd8a9a
+      path: .github/prompts/cloud-landing-zone-reviewer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:287bf09a09e8dbcb39ca8fd4745fdba175b1140d6953ee643e1bb2ce3e84f5c5
+      path: .github/prompts/cloud-governance-reviewer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:e66153833b2b4e6dd1754cec4528c4125cd98b56fdc62b04610620532a9978af
+      path: .github/prompts/finops-reviewer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:06f572a8948d3dd98344a2522bf2bf75468b860925e275cadc7b91a3d3b9b95e
+      path: .github/prompts/sre-reliability-reviewer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:32717fe2a30b3bedb56001d64ca14569bc57f8d08ea6f69624154b464008fe31
+      path: .github/prompts/kubernetes-platform-reviewer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:efa7eb0994805fac6855da91eb7c07acb14fed297edc460fb206aeb0d6057153
+      path: .github/prompts/gitops-operations-reviewer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:97fa6d818644669e536274a6c6715312fe0248ded9f1c50291e78e789bda73ec
+      path: .github/prompts/aiops-signal-correlation-reviewer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:661b3409e48caa3edbe8213bc2cb3f5fcd238bfa7a1b77ff1e82256f8e4c6c9f
+      path: .github/prompts/alert-quality-reviewer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:e25d47fd9a1d0e9efbfe945efa57efa0d6b8040a66f19cab2373dc91fa7b8670
+      path: .github/prompts/auto-remediation-reviewer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:f9b6cd05b5db159053822c111fec87fac58193e7fa3696b35f0e5a892ac2ec36
+      path: .github/prompts/mlops-governance-reviewer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:e10e8732971e1ff48b984d993259f4bfd0e66a7d6efe69e271d129f70d411a9b
+      path: .github/prompts/llmops-security-reviewer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:d5c480184ee92cd2790d56ce40fc22f4c5312b1f299f56502ac367142f9f7e87
+      path: .github/prompts/ai-change-risk-reviewer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:49e6409bd7cc9023519c6dd4cfb56fdc264d2ee4425b1fc63ee7439c7e19ec26
+      path: .github/prompts/privacy-data-protection-reviewer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:8fc5f2f7e9ab4df7b901d4ea770a2decfbdf7e6054db0ef0684e405d0d067df6
+      path: .github/prompts/api-contract-reviewer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:9118bfa2676fd7a31f3ff5385980b47d3b438fb5e880fbbdab066354c590a15b
+      path: .github/prompts/secure-design-reviewer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:0217a8c6f112156662afcb0ce7e6adf76c1630714787c7d67d0133114c4c5f5f
+      path: .github/prompts/policy-as-code-reviewer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:3ac3913d48c8beecc9f70a61c3fe56f483c920ddfafa7bd56ff0faca383a3aa0
+      path: .github/prompts/container-security-reviewer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:7af76110dc124481efa6daa1b05571d604890f3d919e6e9fdfdc03d74dee44f2
+      path: .github/prompts/identity-access-reviewer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:f48ff19aba22bbf0a5a76f3f3872f2fb30ac4f4ba59119b9eae6c0cb94b411d4
+      path: .github/prompts/risk-acceptance-reviewer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:73a99e95e03a34fd573db6a9d2fe91dbfd68f9fef66caa4ff0513f5137b9e668
+      path: .github/prompts/secure-code-reviewer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:d059b8445e2ef924294dd1bb9534abb78b276dc47ad9e6eb31547f5647faa4d6
+      path: .github/prompts/performance-scalability-reviewer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:be8d4183edee59832601cfb6944d816f2520bb31784d7c08ad8de29ca5490ced
+      path: .github/prompts/migration-change-reviewer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:0b2f56b876910145cbc1cdbb578361b7ee463e4be7aafe00bdae41ed499f7bc7
+      path: .github/prompts/sbom-vulnerability-management-reviewer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:4d68760d1ed0b50bb3d3fedb1375249abfd671b1cbbc2466fece718ede93a165
+      path: .github/prompts/developer-experience-reviewer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:c30a54c4827e90977a7b356ca1647b019f2ca868e6ba8d6096a067a58c27a519
+      path: .github/prompts/resilience-reviewer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:54df13b8bc4a61eef08646b7f26fde3c8c8e952a111e7da6d0cbb44ede01d0a8
+      path: .github/prompts/backup-restore-reviewer.prompt.md
+      platform: github-copilot
+      source: github-copilot/prompt.prompt.md.j2
+    - checksum: sha256:fd41800e053d2f766faf000236797bc0b1d4bd5c75aefba616de3b5ba77663b4
+      path: AGENTS.md
+      platform: shared
+      source: shared/AGENTS.index.md.j2
+target: default
+version: "1"

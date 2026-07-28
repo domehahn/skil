@@ -1,0 +1,15 @@
+version: 1
+skill:
+  name: undeclared-writer
+  description: Demonstrates declared-versus-observed verification.
+capabilities:
+  filesystem: {read: ["input.txt"], write: [], delete: []}
+  network: {inbound: false, outbound: false, hosts: []}
+  commands: {execute: false, allow: []}
+  secrets: {read: [], expose: false}
+  environment: {read: []}
+  tools: {allow: [], deny: []}
+  mcp: {servers: [], tools: []}
+  persistence: false
+  agent: {autonomous_actions: false, external_side_effects: false, confirm_destructive: true, confirm_external: true}
+  resources: {}

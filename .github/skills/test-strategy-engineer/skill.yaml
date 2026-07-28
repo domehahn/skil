@@ -1,0 +1,11 @@
+name: test-strategy-engineer
+version: 0.1.0
+description: Describe what this skill helps an agent do.
+owners:
+    - platform-engineering
+license: MIT
+entrypoint: SKILL.md
+compatible_with:
+    - claude-code
+    - github-copilot
+    - codex

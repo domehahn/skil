@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/domehahn/skil/schemas/policy-v1.schema.json",
+  "title": "skil Policy v1",
+  "type": "object",
+  "required": ["version"],
+  "additionalProperties": false,
+  "properties": {
+    "version": {"const": 1},
+    "maximum_severity": {"enum": ["INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL"]},
+    "required_analysis": {"type": "array", "items": {"type": "string"}},
+    "forbidden_capabilities": {"type": "array", "items": {"type": "string"}},
+    "allowed_capabilities": {"type": "array", "items": {"type": "string"}},
+    "forbidden_rules": {"type": "array", "items": {"type": "string"}},
+    "minimum_scans": {"type": "integer", "minimum": 0},
+    "required_scanners": {"type": "array", "items": {"type": "string"}},
+    "trusted_scanners": {"type": "array", "items": {"type": "string"}},
+    "trusted_scanner_keys": {"type": "object", "additionalProperties": {"type": "array", "items": {"type": "string"}}},
+    "trusted_signers": {"type": "object", "additionalProperties": {"type": "string"}},
+    "trusted_builders": {"type": "array", "items": {"type": "string"}},
+    "trusted_builder_keys": {"type": "object", "additionalProperties": {"type": "array", "items": {"type": "string"}}},
+    "allowed_repositories": {"type": "array", "items": {"type": "string"}},
+    "allowed_registries": {"type": "array", "items": {"type": "string"}},
+    "max_attestation_age": {"type": "string"},
+    "max_evidence_age": {"type": "string"},
+    "require_artifact_digest": {"type": "boolean"},
+    "require_signature": {"type": "boolean"},
+    "require_provenance": {"type": "boolean"},
+    "require_provenance_signature": {"type": "boolean"}
+  }
+}

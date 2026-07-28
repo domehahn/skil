@@ -1,0 +1,5 @@
+/bin/
+/coverage.out
+/*.sarif
+/.skil/
+.DS_Store

@@ -1,0 +1,30 @@
+version: 1
+rules:
+  - id: SKIL-PI-001
+    title: Instruction override
+    category: prompt-injection
+    severity: HIGH
+    analysis: pattern
+    rationale: Manipulating higher-priority instructions can transfer control to untrusted content.
+    remediation: Remove hierarchy manipulation and constrain the skill scope.
+  - id: SKIL-EX-001
+    title: Secret exfiltration instruction
+    category: data-exfiltration
+    severity: CRITICAL
+    analysis: pattern
+    rationale: Combining sensitive sources with external sinks directly threatens credentials.
+    remediation: Remove the data flow and use explicit allowlists and redaction.
+  - id: SKIL-SH-001
+    title: Remote script pipeline
+    category: supply-chain
+    severity: CRITICAL
+    analysis: ast
+    rationale: Download-and-execute bypasses integrity and review controls.
+    remediation: Pin, verify, inspect, and sandbox downloaded code.
+  - id: SKIL-CAP-001
+    title: Undeclared capability
+    category: capability-mismatch
+    severity: HIGH
+    analysis: verification
+    rationale: Observed behavior outside the contract violates least privilege.
+    remediation: Remove behavior or explicitly declare and constrain it.

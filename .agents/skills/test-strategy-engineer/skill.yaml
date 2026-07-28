@@ -1,0 +1,11 @@
+compatible_with:
+    - claude-code
+    - github-copilot
+    - codex
+description: Describe what this skill helps an agent do.
+entrypoint: SKILL.md
+license: MIT
+name: test-strategy-engineer
+owners:
+    - platform-engineering
+version: 1.0.0

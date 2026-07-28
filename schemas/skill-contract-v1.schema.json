@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/domehahn/skil/schemas/skill-contract-v1.schema.json",
+  "title": "skil Skill Contract v1",
+  "type": "object",
+  "required": ["version", "skill", "capabilities"],
+  "additionalProperties": false,
+  "properties": {
+    "version": {"const": 1},
+    "owner": {"type": "string", "minLength": 1},
+    "entrypoint": {"type": "string", "minLength": 1},
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "agents": {"$ref": "#/$defs/strings"},
+        "platforms": {"$ref": "#/$defs/strings"},
+        "min_version": {"type": "string"}
+      }
+    },
+    "security": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requires_network", "requires_secrets", "writes_files", "runs_commands"],
+      "properties": {
+        "requires_network": {"type": "boolean"},
+        "requires_secrets": {"type": "boolean"},
+        "writes_files": {"type": "boolean"},
+        "runs_commands": {"type": "boolean"}
+      }
+    },
+    "skill": {
+      "type": "object",
+      "required": ["name", "description"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "version": {"type": "string"},
+        "description": {"type": "string", "minLength": 1}
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "required": ["filesystem", "network", "commands", "secrets", "environment", "tools", "mcp", "persistence", "agent"],
+      "additionalProperties": false,
+      "properties": {
+        "filesystem": {"$ref": "#/$defs/fs"},
+        "network": {"type": "object", "additionalProperties": false, "required": ["inbound", "outbound", "hosts"], "properties": {"inbound": {"type": "boolean"}, "outbound": {"type": "boolean"}, "hosts": {"$ref": "#/$defs/strings"}}},
+        "commands": {"type": "object", "additionalProperties": false, "required": ["execute", "allow"], "properties": {"execute": {"type": "boolean"}, "allow": {"$ref": "#/$defs/strings"}}},
+        "secrets": {"type": "object", "additionalProperties": false, "required": ["read", "expose"], "properties": {"read": {"$ref": "#/$defs/strings"}, "expose": {"type": "boolean"}}},
+        "environment": {"type": "object", "additionalProperties": false, "required": ["read"], "properties": {"read": {"$ref": "#/$defs/strings"}}},
+        "tools": {"type": "object", "additionalProperties": false, "required": ["allow", "deny"], "properties": {"allow": {"$ref": "#/$defs/strings"}, "deny": {"$ref": "#/$defs/strings"}}},
+        "mcp": {"type": "object", "additionalProperties": false, "required": ["servers", "tools"], "properties": {"servers": {"$ref": "#/$defs/strings"}, "tools": {"$ref": "#/$defs/strings"}}},
+        "persistence": {"type": "boolean"},
+        "agent": {"type": "object", "additionalProperties": false, "required": ["autonomous_actions", "external_side_effects", "confirm_destructive", "confirm_external"], "properties": {
+          "autonomous_actions": {"type": "boolean"}, "external_side_effects": {"type": "boolean"},
+          "confirm_destructive": {"type": "boolean"}, "confirm_external": {"type": "boolean"}
+        }},
+        "resources": {"type": "object", "additionalProperties": false, "properties": {
+          "max_runtime_seconds": {"type": "integer", "minimum": 0},
+          "max_memory_mb": {"type": "integer", "minimum": 0},
+          "max_network_bytes": {"type": "integer", "minimum": 0},
+          "max_tool_calls": {"type": "integer", "minimum": 0}
+        }}
+      }
+    }
+  },
+  "$defs": {
+    "strings": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "fs": {"type": "object", "additionalProperties": false, "required": ["read", "write", "delete"], "properties": {"read": {"$ref": "#/$defs/strings"}, "write": {"$ref": "#/$defs/strings"}, "delete": {"$ref": "#/$defs/strings"}}}
+  }
+}

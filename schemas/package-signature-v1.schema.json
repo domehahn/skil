@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/domehahn/skil/schemas/package-signature-v1.schema.json",
+  "title": "skil detached package signature v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "name", "package_version", "package_sha256", "content_manifest_sha256", "timestamp", "signature"],
+  "properties": {
+    "version": {"const": 1},
+    "name": {"type": "string", "minLength": 1},
+    "package_version": {"type": "string", "minLength": 1},
+    "package_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "content_manifest_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "timestamp": {"type": "string", "format": "date-time"},
+    "signature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "algorithm", "key_id", "value"],
+      "properties": {
+        "provider": {"const": "builtin.ed25519"},
+        "algorithm": {"const": "Ed25519"},
+        "key_id": {"type": "string", "minLength": 1},
+        "value": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

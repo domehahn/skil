@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/domehahn/skil/schemas/attestation-v1.schema.json",
+  "title": "skil Attestation v1",
+  "type": "object",
+  "required": ["version", "subject", "producer", "analysis", "result", "timestamp", "evidence"],
+  "properties": {
+    "version": {"const": 1},
+    "subject": {"type": "object", "additionalProperties": false, "required": ["name", "sha256"], "properties": {"name": {"type": "string"}, "version": {"type": "string"}, "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}}},
+    "producer": {"type": "object", "additionalProperties": false, "required": ["name", "version"], "properties": {"name": {"type": "string", "minLength": 1}, "version": {"type": "string", "minLength": 1}}},
+    "analysis": {"type": "array", "items": {"type": "string"}},
+    "result": {"type": "object", "additionalProperties": false, "required": ["status", "maximum_severity", "risk_score"], "properties": {
+      "status": {"enum": ["PASS", "WARN", "FAIL"]},
+      "maximum_severity": {"enum": ["INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL"]},
+      "risk_score": {"type": "integer", "minimum": 0, "maximum": 100}
+    }},
+    "timestamp": {"type": "string", "format": "date-time"},
+    "evidence": {"type": "array", "items": {"type": "object"}},
+    "signature": {
+      "type": "object",
+      "required": ["provider", "algorithm", "key_id", "value"],
+      "properties": {
+        "provider": {"const": "builtin.ed25519"},
+        "algorithm": {"const": "Ed25519"},
+        "key_id": {"type": "string", "minLength": 1},
+        "value": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

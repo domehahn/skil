@@ -1,0 +1,18 @@
+version: 1
+maximum_severity: MEDIUM
+required_analysis: [pattern, ast, taint, dependency, mcp]
+forbidden_capabilities: [network.outbound, secrets.read, commands.execute]
+forbidden_rules: [SKIL-PI-001, SKIL-EX-001]
+minimum_scans: 1
+trusted_scanners: [skil]
+trusted_scanner_keys: {}
+trusted_signers: {}
+trusted_builders: []
+trusted_builder_keys: {}
+allowed_repositories: []
+allowed_registries: []
+max_evidence_age: 7d
+require_artifact_digest: true
+require_signature: false
+require_provenance: false
+require_provenance_signature: false

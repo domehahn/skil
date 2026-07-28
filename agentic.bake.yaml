@@ -1,0 +1,281 @@
+version: "1"
+variables:
+    default_language: de
+    governance_level: standard
+    owner_team: platform-engineering
+    project_name: skil
+skill_sources:
+    defaults:
+        initial_version: 0.1.0
+        owner: platform-engineering
+        license: MIT
+        compatible_with:
+            - claude-code
+            - github-copilot
+            - codex
+skills:
+    source: agent-skills.lock
+    mode: reference
+targets:
+    all:
+        description: Generate all configured platform artifacts
+        inherits:
+            - claude
+            - codex
+            - copilot
+    claude:
+        description: Claude Code CLAUDE.md and project skills
+        platforms:
+            - claude-code
+        profiles:
+            - base
+            - devsecops
+        delivery: both
+        skills:
+            - requirements-analyst
+            - cost-based-planner
+            - architecture-reviewer
+            - threat-modeler
+            - safe-implementer
+            - test-strategy-engineer
+            - verification-reviewer
+            - security-reviewer
+            - secrets-reviewer
+            - dependency-supply-chain-reviewer
+            - ci-cd-reviewer
+            - iac-gitops-reviewer
+            - compliance-governance-reviewer
+            - release-readiness-reviewer
+            - observability-reviewer
+            - incident-postmortem-assistant
+            - documentation-maintainer
+            - universal-skill-creator
+            - dora-readiness-reviewer
+            - ict-risk-management-reviewer
+            - ict-third-party-risk-reviewer
+            - ict-incident-reporting-reviewer
+            - operational-resilience-tester
+            - audit-evidence-reviewer
+            - control-mapping-reviewer
+            - outsourcing-exit-strategy-reviewer
+            - documentation-governance-reviewer
+            - runbook-playbook-maintainer
+            - architecture-decision-recorder
+            - audit-traceability-maintainer
+            - policy-documentation-maintainer
+            - evidence-package-creator
+            - devsecops-maturity-reviewer
+            - pipeline-security-architect
+            - software-supply-chain-architect
+            - policy-as-code-engineer
+            - secure-developer-platform-reviewer
+            - vulnerability-management-coordinator
+            - cloud-landing-zone-reviewer
+            - cloud-governance-reviewer
+            - finops-reviewer
+            - sre-reliability-reviewer
+            - kubernetes-platform-reviewer
+            - gitops-operations-reviewer
+            - aiops-signal-correlation-reviewer
+            - alert-quality-reviewer
+            - auto-remediation-reviewer
+            - mlops-governance-reviewer
+            - llmops-security-reviewer
+            - ai-change-risk-reviewer
+            - privacy-data-protection-reviewer
+            - api-contract-reviewer
+            - secure-design-reviewer
+            - policy-as-code-reviewer
+            - container-security-reviewer
+            - identity-access-reviewer
+            - risk-acceptance-reviewer
+            - secure-code-reviewer
+            - performance-scalability-reviewer
+            - migration-change-reviewer
+            - sbom-vulnerability-management-reviewer
+            - developer-experience-reviewer
+            - resilience-reviewer
+            - backup-restore-reviewer
+        rules:
+            allow_autonomous_changes: false
+            forbid_env_file_access: true
+            forbid_secret_files: true
+            no_direct_push: true
+            require_diff_summary: true
+            require_merge_request: true
+            require_security_review: true
+            require_tests: true
+            require_validation_summary: true
+    codex:
+        description: Codex AGENTS.md and project skills
+        platforms:
+            - codex
+        profiles:
+            - base
+            - devsecops
+        delivery: both
+        skills:
+            - requirements-analyst
+            - cost-based-planner
+            - architecture-reviewer
+            - threat-modeler
+            - safe-implementer
+            - test-strategy-engineer
+            - verification-reviewer
+            - security-reviewer
+            - secrets-reviewer
+            - dependency-supply-chain-reviewer
+            - ci-cd-reviewer
+            - iac-gitops-reviewer
+            - compliance-governance-reviewer
+            - release-readiness-reviewer
+            - observability-reviewer
+            - incident-postmortem-assistant
+            - documentation-maintainer
+            - universal-skill-creator
+            - dora-readiness-reviewer
+            - ict-risk-management-reviewer
+            - ict-third-party-risk-reviewer
+            - ict-incident-reporting-reviewer
+            - operational-resilience-tester
+            - audit-evidence-reviewer
+            - control-mapping-reviewer
+            - outsourcing-exit-strategy-reviewer
+            - documentation-governance-reviewer
+            - runbook-playbook-maintainer
+            - architecture-decision-recorder
+            - audit-traceability-maintainer
+            - policy-documentation-maintainer
+            - evidence-package-creator
+            - devsecops-maturity-reviewer
+            - pipeline-security-architect
+            - software-supply-chain-architect
+            - policy-as-code-engineer
+            - secure-developer-platform-reviewer
+            - vulnerability-management-coordinator
+            - cloud-landing-zone-reviewer
+            - cloud-governance-reviewer
+            - finops-reviewer
+            - sre-reliability-reviewer
+            - kubernetes-platform-reviewer
+            - gitops-operations-reviewer
+            - aiops-signal-correlation-reviewer
+            - alert-quality-reviewer
+            - auto-remediation-reviewer
+            - mlops-governance-reviewer
+            - llmops-security-reviewer
+            - ai-change-risk-reviewer
+            - privacy-data-protection-reviewer
+            - api-contract-reviewer
+            - secure-design-reviewer
+            - policy-as-code-reviewer
+            - container-security-reviewer
+            - identity-access-reviewer
+            - risk-acceptance-reviewer
+            - secure-code-reviewer
+            - performance-scalability-reviewer
+            - migration-change-reviewer
+            - sbom-vulnerability-management-reviewer
+            - developer-experience-reviewer
+            - resilience-reviewer
+            - backup-restore-reviewer
+        rules:
+            allow_autonomous_changes: false
+            forbid_env_file_access: true
+            forbid_secret_files: true
+            no_direct_push: true
+            require_diff_summary: true
+            require_merge_request: true
+            require_security_review: true
+            require_tests: true
+            require_validation_summary: true
+    copilot:
+        description: GitHub Copilot repository instructions and prompt files
+        platforms:
+            - github-copilot
+        profiles:
+            - base
+            - devsecops
+            - documentation
+        delivery: both
+        skills:
+            - requirements-analyst
+            - cost-based-planner
+            - architecture-reviewer
+            - threat-modeler
+            - safe-implementer
+            - test-strategy-engineer
+            - verification-reviewer
+            - security-reviewer
+            - secrets-reviewer
+            - dependency-supply-chain-reviewer
+            - ci-cd-reviewer
+            - iac-gitops-reviewer
+            - compliance-governance-reviewer
+            - release-readiness-reviewer
+            - observability-reviewer
+            - incident-postmortem-assistant
+            - documentation-maintainer
+            - universal-skill-creator
+            - dora-readiness-reviewer
+            - ict-risk-management-reviewer
+            - ict-third-party-risk-reviewer
+            - ict-incident-reporting-reviewer
+            - operational-resilience-tester
+            - audit-evidence-reviewer
+            - control-mapping-reviewer
+            - outsourcing-exit-strategy-reviewer
+            - documentation-governance-reviewer
+            - runbook-playbook-maintainer
+            - architecture-decision-recorder
+            - audit-traceability-maintainer
+            - policy-documentation-maintainer
+            - evidence-package-creator
+            - devsecops-maturity-reviewer
+            - pipeline-security-architect
+            - software-supply-chain-architect
+            - policy-as-code-engineer
+            - secure-developer-platform-reviewer
+            - vulnerability-management-coordinator
+            - cloud-landing-zone-reviewer
+            - cloud-governance-reviewer
+            - finops-reviewer
+            - sre-reliability-reviewer
+            - kubernetes-platform-reviewer
+            - gitops-operations-reviewer
+            - aiops-signal-correlation-reviewer
+            - alert-quality-reviewer
+            - auto-remediation-reviewer
+            - mlops-governance-reviewer
+            - llmops-security-reviewer
+            - ai-change-risk-reviewer
+            - privacy-data-protection-reviewer
+            - api-contract-reviewer
+            - secure-design-reviewer
+            - policy-as-code-reviewer
+            - container-security-reviewer
+            - identity-access-reviewer
+            - risk-acceptance-reviewer
+            - secure-code-reviewer
+            - performance-scalability-reviewer
+            - migration-change-reviewer
+            - sbom-vulnerability-management-reviewer
+            - developer-experience-reviewer
+            - resilience-reviewer
+            - backup-restore-reviewer
+        rules:
+            allow_autonomous_changes: false
+            forbid_env_file_access: true
+            forbid_secret_files: true
+            no_direct_push: true
+            require_diff_summary: true
+            require_merge_request: true
+            require_security_review: true
+            require_tests: true
+            require_validation_summary: true
+    default:
+        description: Default target for this repository
+        inherits:
+            - claude
+            - codex
+            - copilot

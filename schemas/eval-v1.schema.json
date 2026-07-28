@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/domehahn/skil/schemas/eval-v1.schema.json",
+  "title": "skil Evaluation v1",
+  "type": "object",
+  "required": ["version", "name", "type", "input", "tools", "expect"],
+  "properties": {
+    "version": {"const": 1},
+    "name": {"type": "string", "minLength": 1},
+    "type": {"enum": ["behavioral", "adversarial"]},
+    "input": {"type": "object", "required": ["message"], "properties": {"message": {"type": "string"}}},
+    "context": {"type": "object"},
+    "environment": {"type": "object"},
+    "tools": {
+      "type": "object",
+      "required": ["available"],
+      "properties": {"available": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}},
+      "additionalProperties": false
+    },
+    "expect": {
+      "type": "object",
+      "properties": {
+        "required": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "allowed": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "forbidden": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "forbidden_capabilities": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "arguments": {"type": "object", "additionalProperties": {"type": "string"}},
+        "output_properties": {"type": "array", "items": {"enum": ["non_empty", "json", "no_secrets"]}, "uniqueItems": true},
+        "assertions": {"type": "array", "items": {"enum": ["no_external_side_effects", "no_errors", "no_forbidden_capabilities"]}, "uniqueItems": true}
+      },
+      "additionalProperties": false
+    },
+    "attack": {
+      "type": "object",
+      "required": ["category"],
+      "properties": {"category": {"type": "string", "minLength": 1}},
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,13 @@
+version: 1
+skill: {name: overprivileged, description: Declares broad permissions for testing.}
+capabilities:
+  filesystem: {read: ["**"], write: ["**"], delete: ["**"]}
+  network: {inbound: true, outbound: true, hosts: ["*"]}
+  commands: {execute: true, allow: ["*"]}
+  secrets: {read: ["*"], expose: true}
+  environment: {read: ["*"]}
+  tools: {allow: ["*"], deny: []}
+  mcp: {servers: ["*"], tools: ["*"]}
+  persistence: true
+  agent: {autonomous_actions: true, external_side_effects: true, confirm_destructive: false, confirm_external: false}
+  resources: {}

@@ -1,0 +1,15 @@
+version: 1
+skill:
+  name: readonly-review
+  description: Reviews a repository without changes.
+capabilities:
+  filesystem: {read: ["**"], write: [], delete: []}
+  network: {inbound: false, outbound: false, hosts: []}
+  commands: {execute: false, allow: []}
+  secrets: {read: [], expose: false}
+  environment: {read: []}
+  tools: {allow: ["git.read"], deny: ["git.write"]}
+  mcp: {servers: [], tools: []}
+  persistence: false
+  agent: {autonomous_actions: false, external_side_effects: false, confirm_destructive: true, confirm_external: true}
+  resources: {max_tool_calls: 3}

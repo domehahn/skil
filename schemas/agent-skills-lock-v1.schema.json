@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/domehahn/skil/schemas/agent-skills-lock-v1.schema.json",
+  "title": "agent-skills.lock v1",
+  "type": "object",
+  "required": ["version", "skills"],
+  "properties": {
+    "version": {"const": 1},
+    "skills": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "version", "source", "package_sha256", "content_manifest_sha256", "signature", "provenance"],
+        "properties": {
+          "name": {"type": "string", "minLength": 1},
+          "version": {"type": "string", "minLength": 1},
+          "source": {"type": "string", "minLength": 1},
+          "registry": {"type": "string"},
+          "package_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+          "content_manifest_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+          "source_commit": {"type": "string"},
+          "signature": {"type": "string", "minLength": 1},
+          "provenance": {"type": "string", "minLength": 1}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

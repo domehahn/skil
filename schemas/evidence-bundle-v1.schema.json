@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/domehahn/skil/schemas/evidence-bundle-v1.schema.json",
+  "title": "skil External Evidence Bundle v1",
+  "type": "object",
+  "required": ["version", "evidence", "payload", "signature"],
+  "additionalProperties": false,
+  "properties": {
+    "version": {"const": 1},
+    "evidence": {
+      "type": "object",
+      "required": ["type", "producer", "producer_version", "subject_digest", "timestamp", "payload_digest", "result"],
+      "properties": {
+        "type": {"const": "external-security-scan"},
+        "producer": {"type": "string", "minLength": 1},
+        "producer_version": {"type": "string"},
+        "subject_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "timestamp": {"type": "string", "format": "date-time"},
+        "payload_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "coverage": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "result": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "maximum_severity", "findings"],
+          "properties": {
+            "status": {"enum": ["PASS", "WARN", "FAIL"]},
+            "maximum_severity": {"enum": ["INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL"]},
+            "risk_score": {"type": "integer", "minimum": 0, "maximum": 100},
+            "findings": {"type": "integer", "minimum": 0}
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "payload": {"type": ["object", "array"]},
+    "signature": {
+      "type": "object",
+      "required": ["provider", "algorithm", "key_id", "value"],
+      "properties": {
+        "provider": {"const": "builtin.ed25519"},
+        "algorithm": {"const": "Ed25519"},
+        "key_id": {"type": "string", "minLength": 1},
+        "value": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    }
+  }
+}
