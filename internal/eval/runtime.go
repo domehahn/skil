@@ -6,12 +6,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os/exec"
+	"io"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"time"
 
+	"github.com/domehahn/skil/pkg/enforcement"
 	"github.com/domehahn/skil/pkg/skil"
 )
 
@@ -37,25 +38,33 @@ type ProcessRuntime struct {
 	Timeout     time.Duration
 	MaxOutput   int64
 	MaxMemoryMB int64
+	Contract    skil.SkillContract
+	Isolation   IsolationProvider
+	Tools       map[string]skil.GatewayTool
 }
 
-func (p ProcessRuntime) ID() string { return "process" }
+func (p ProcessRuntime) ID() string { return "isolated-process" }
 
-// Execute runs an explicit adapter executable without a shell. The adapter
-// receives one EvalRequest JSON document on stdin and must emit one EvalTrace
-// JSON document on stdout. Memory limits are rejected unless an external
-// sandbox provides that guarantee; this avoids claiming an unenforced limit.
+// Execute runs an explicit adapter through a mandatory isolation provider and
+// a host-mediated gateway. On every isolated step the adapter receives a
+// GatewayExchange and may return exactly one tool request or a final response.
+// Tool authorization, execution, and trace creation happen on the trusted host.
 func (p ProcessRuntime) Execute(ctx context.Context, request skil.EvalRequest) (skil.EvalTrace, error) {
 	var trace skil.EvalTrace
 	if strings.TrimSpace(p.Executable) == "" {
 		return trace, errors.New("process runtime executable is required")
+	}
+	if p.Isolation == nil {
+		return trace, errors.New("process runtime requires an isolation provider")
 	}
 	switch strings.ToLower(filepath.Base(p.Executable)) {
 	case "sh", "bash", "zsh", "fish", "cmd", "cmd.exe", "powershell", "pwsh":
 		return trace, errors.New("shell executables are not permitted as process runtime adapters")
 	}
 	if p.MaxMemoryMB > 0 {
-		return trace, errors.New("process runtime cannot enforce max_memory_mb; use a sandbox adapter with a hard memory limit")
+		if _, ok := p.Isolation.(ResourceIsolationProvider); !ok {
+			return trace, errors.New("isolation provider cannot enforce max_memory_mb")
+		}
 	}
 	if p.Timeout <= 0 {
 		return trace, errors.New("process runtime requires a positive timeout")
@@ -63,33 +72,189 @@ func (p ProcessRuntime) Execute(ctx context.Context, request skil.EvalRequest) (
 	if p.MaxOutput <= 0 {
 		p.MaxOutput = 1 << 20
 	}
-	payload, err := json.Marshal(request)
-	if err != nil {
-		return trace, err
-	}
 	runCtx, cancel := context.WithTimeout(ctx, p.Timeout)
 	defer cancel()
-	command := exec.CommandContext(runCtx, p.Executable, p.Args...)
-	command.Env = []string{"PATH=/usr/bin:/bin", "LANG=C", "LC_ALL=C"}
-	command.Stdin = bytes.NewReader(payload)
+	guard := enforcement.New(p.Contract)
+	results := []skil.GatewayResult{}
+	trustedCalls := []skil.ToolCall{}
+	trustedOperations := []skil.Operation{}
+	trustedErrors := []string{}
+	seenIDs := map[string]bool{}
+	maxSteps := p.Contract.Capabilities.Resources.MaxToolCalls
+	if maxSteps <= 0 || maxSteps > 64 {
+		maxSteps = 64
+	}
+	for step := 0; step <= maxSteps; step++ {
+		message, err := p.runGatewayStep(runCtx, skil.GatewayExchange{
+			Version: 1, Request: request, Results: results,
+		})
+		if err != nil {
+			return trace, err
+		}
+		switch message.Type {
+		case "tool_call":
+			if step == maxSteps {
+				return trace, errors.New("gateway step limit exceeded")
+			}
+			result, call, operations, err := p.executeGatewayTool(runCtx, request, guard, seenIDs, message)
+			if err != nil {
+				return trace, err
+			}
+			results = append(results, result)
+			trustedCalls = append(trustedCalls, call)
+			trustedOperations = append(trustedOperations, operations...)
+			if result.Error != "" {
+				trustedErrors = append(trustedErrors, "gateway tool "+message.Tool+": "+result.Error)
+			}
+		case "final":
+			if message.Final == nil {
+				return trace, errors.New("gateway final message requires a final trace")
+			}
+			if message.ID != "" || message.Tool != "" || len(message.Arguments) > 0 {
+				return trace, errors.New("gateway final message contains tool-call fields")
+			}
+			trace = *message.Final
+			if len(trace.ToolCalls) > 0 || len(trace.Operations) > 0 ||
+				len(trace.Capabilities) > 0 || len(trace.SideEffects) > 0 {
+				return skil.EvalTrace{}, errors.New("adapter final response contains host-owned trace fields")
+			}
+			trace.ToolCalls = trustedCalls
+			trace.Operations = trustedOperations
+			trace.Errors = append(trace.Errors, trustedErrors...)
+			for _, operation := range trustedOperations {
+				trace.Capabilities = appendUnique(trace.Capabilities, operation.Capability)
+				if operationHasSideEffect(operation) {
+					trace.SideEffects = append(trace.SideEffects, operation.Capability+":"+operation.Target)
+				}
+			}
+			return trace, nil
+		default:
+			return trace, fmt.Errorf("unsupported gateway message type %q", message.Type)
+		}
+	}
+	return trace, errors.New("gateway terminated without final response")
+}
+
+func (p ProcessRuntime) runGatewayStep(ctx context.Context, exchange skil.GatewayExchange) (skil.GatewayMessage, error) {
+	var message skil.GatewayMessage
+	payload, err := json.Marshal(exchange)
+	if err != nil {
+		return message, err
+	}
 	var stdout, stderr limitedBuffer
 	stdout.limit, stderr.limit = p.MaxOutput, 64<<10
-	command.Stdout, command.Stderr = &stdout, &stderr
-	if err := command.Run(); err != nil {
-		if errors.Is(runCtx.Err(), context.DeadlineExceeded) {
-			return trace, errors.New("process runtime deadline exceeded")
+	isolationRequest := IsolationRequest{Executable: p.Executable, Args: p.Args,
+		Environment: []string{"PATH=/usr/bin:/bin", "LANG=C", "LC_ALL=C"}, Stdin: payload}
+	var runErr error
+	if p.MaxMemoryMB > 0 {
+		const mebibyte = int64(1024 * 1024)
+		if p.MaxMemoryMB > (1<<63-1)/mebibyte {
+			return message, errors.New("max_memory_mb exceeds supported range")
 		}
-		return trace, fmt.Errorf("process runtime failed: %w: %s", err, strings.TrimSpace(stderr.String()))
+		runErr = p.Isolation.(ResourceIsolationProvider).RunWithLimits(ctx, isolationRequest,
+			IsolationLimits{MemoryBytes: p.MaxMemoryMB * mebibyte}, &stdout, &stderr)
+	} else {
+		runErr = p.Isolation.Run(ctx, isolationRequest, &stdout, &stderr)
+	}
+	if runErr != nil {
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			return message, errors.New("process runtime deadline exceeded")
+		}
+		detail := strings.TrimSpace(stderr.String())
+		if detail != "" {
+			return message, fmt.Errorf("isolated runtime failed: %w: %s", runErr, detail)
+		}
+		return message, fmt.Errorf("isolated runtime failed: %w", runErr)
 	}
 	if stdout.exceeded {
-		return trace, errors.New("process runtime output limit exceeded")
+		return message, errors.New("process runtime output limit exceeded")
 	}
 	decoder := json.NewDecoder(bytes.NewReader(stdout.Bytes()))
 	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&trace); err != nil {
-		return trace, fmt.Errorf("decode process runtime trace: %w", err)
+	if err := decoder.Decode(&message); err != nil {
+		return message, fmt.Errorf("decode gateway message: %w", err)
 	}
-	return trace, nil
+	var extra any
+	if err := decoder.Decode(&extra); !errors.Is(err, io.EOF) {
+		return message, errors.New("gateway must emit exactly one JSON value")
+	}
+	return message, nil
+}
+
+func (p ProcessRuntime) executeGatewayTool(ctx context.Context, request skil.EvalRequest, guard *enforcement.Enforcer,
+	seenIDs map[string]bool, message skil.GatewayMessage,
+) (skil.GatewayResult, skil.ToolCall, []skil.Operation, error) {
+	var result skil.GatewayResult
+	var call skil.ToolCall
+	if message.Final != nil || message.ID == "" || len(message.ID) > 128 || message.Tool == "" {
+		return result, call, nil, errors.New("invalid gateway tool request")
+	}
+	if seenIDs[message.ID] {
+		return result, call, nil, fmt.Errorf("duplicate gateway request id %q", message.ID)
+	}
+	seenIDs[message.ID] = true
+	if !contains(request.Test.Tools.Available, message.Tool) {
+		return result, call, nil, fmt.Errorf("gateway tool %q is unavailable in this evaluation", message.Tool)
+	}
+	tool, ok := p.Tools[message.Tool]
+	if !ok || tool == nil {
+		return result, call, nil, fmt.Errorf("gateway tool %q has no trusted host implementation", message.Tool)
+	}
+	operation, err := tool.Operation(message.Arguments)
+	if err != nil {
+		return result, call, nil, fmt.Errorf("derive gateway operation for %s: %w", message.Tool, err)
+	}
+	if operation.Capability == "" {
+		return result, call, nil, fmt.Errorf("gateway tool %q derived an empty capability", message.Tool)
+	}
+	callOperation := skil.Operation{Capability: "tools.call", Target: message.Tool}
+	operations := []skil.Operation{callOperation}
+	if err := guard.Authorize(callOperation); err != nil {
+		return result, call, nil, fmt.Errorf("gateway tool denied: %w", err)
+	}
+	if !reflect.DeepEqual(operation, callOperation) {
+		if err := guard.Authorize(operation); err != nil {
+			return result, call, nil, fmt.Errorf("gateway operation denied: %w", err)
+		}
+		operations = append(operations, operation)
+	}
+	value, err := tool.Execute(ctx, message.Arguments)
+	result = skil.GatewayResult{ID: message.ID, Result: value}
+	if err != nil {
+		result.Result = nil
+		result.Error = "tool execution failed"
+	}
+	encoded, marshalErr := json.Marshal(result)
+	if marshalErr != nil {
+		return skil.GatewayResult{}, call, nil, errors.New("gateway tool returned a non-JSON result")
+	}
+	if int64(len(encoded)) > p.MaxOutput {
+		return skil.GatewayResult{}, call, nil, errors.New("gateway tool result limit exceeded")
+	}
+	call = skil.ToolCall{Name: message.Tool, Arguments: message.Arguments, Allowed: true}
+	return result, call, operations, nil
+}
+
+func operationHasSideEffect(operation skil.Operation) bool {
+	if operation.External || operation.Destructive {
+		return true
+	}
+	switch operation.Capability {
+	case "filesystem.write", "filesystem.delete", "network.outbound", "network.inbound",
+		"secrets.expose", "mcp.tool", "persistence":
+		return true
+	default:
+		return false
+	}
+}
+
+func appendUnique(values []string, value string) []string {
+	for _, existing := range values {
+		if existing == value {
+			return values
+		}
+	}
+	return append(values, value)
 }
 
 type limitedBuffer struct {
@@ -118,6 +283,12 @@ type DeniedTool struct{ Name string }
 func (d DeniedTool) Call(map[string]any) (any, error) {
 	return nil, fmt.Errorf("tool %s denied", d.Name)
 }
+func (d DeniedTool) Operation(map[string]any) (skil.Operation, error) {
+	return skil.Operation{Capability: "tools.call", Target: d.Name}, nil
+}
+func (d DeniedTool) Execute(_ context.Context, arguments map[string]any) (any, error) {
+	return d.Call(arguments)
+}
 
 type FakeTool struct {
 	Name   string
@@ -125,6 +296,12 @@ type FakeTool struct {
 }
 
 func (f FakeTool) Call(map[string]any) (any, error) { return f.Result, nil }
+func (f FakeTool) Operation(map[string]any) (skil.Operation, error) {
+	return skil.Operation{Capability: "tools.call", Target: f.Name}, nil
+}
+func (f FakeTool) Execute(_ context.Context, arguments map[string]any) (any, error) {
+	return f.Call(arguments)
+}
 
 type RecordedTool struct {
 	Name   string
@@ -135,6 +312,12 @@ type RecordedTool struct {
 func (r *RecordedTool) Call(args map[string]any) (any, error) {
 	r.Calls = append(r.Calls, args)
 	return r.Result, nil
+}
+func (r *RecordedTool) Operation(map[string]any) (skil.Operation, error) {
+	return skil.Operation{Capability: "tools.call", Target: r.Name}, nil
+}
+func (r *RecordedTool) Execute(_ context.Context, arguments map[string]any) (any, error) {
+	return r.Call(arguments)
 }
 
 func Run(ctx context.Context, runtime skil.AgentRuntime, test skil.EvalSpec, artifact skil.Artifact, runs int) skil.EvalResult {

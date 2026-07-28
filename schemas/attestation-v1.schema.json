@@ -11,6 +11,7 @@
     "analysis": {"type": "array", "items": {"type": "string"}},
     "result": {"type": "object", "additionalProperties": false, "required": ["status", "maximum_severity", "risk_score"], "properties": {
       "status": {"enum": ["PASS", "WARN", "FAIL"]},
+      "verdict": {"enum": ["CLEAR", "REVIEW", "BLOCK"]},
       "maximum_severity": {"enum": ["INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL"]},
       "risk_score": {"type": "integer", "minimum": 0, "maximum": 100}
     }},

@@ -1,5 +1,7 @@
 package skil
 
+import "context"
+
 type EvalSpec struct {
 	Version     int               `json:"version" yaml:"version"`
 	Name        string            `json:"name" yaml:"name"`
@@ -30,9 +32,37 @@ type Attack struct {
 	Category string `json:"category" yaml:"category"`
 }
 type EvalRequest struct {
-	Test     EvalSpec
-	Artifact Artifact
-	Run      int
+	Test     EvalSpec `json:"test"`
+	Artifact Artifact `json:"artifact"`
+	Run      int      `json:"run"`
+}
+
+// GatewayTool is implemented by trusted host-side tools. Operation must derive
+// the enforceable capability from validated arguments; the untrusted adapter
+// never supplies its own authorization claim.
+type GatewayTool interface {
+	Operation(arguments map[string]any) (Operation, error)
+	Execute(context.Context, map[string]any) (any, error)
+}
+
+type GatewayResult struct {
+	ID     string `json:"id"`
+	Result any    `json:"result,omitempty"`
+	Error  string `json:"error,omitempty"`
+}
+
+type GatewayExchange struct {
+	Version int             `json:"version"`
+	Request EvalRequest     `json:"request"`
+	Results []GatewayResult `json:"results"`
+}
+
+type GatewayMessage struct {
+	Type      string         `json:"type"`
+	ID        string         `json:"id,omitempty"`
+	Tool      string         `json:"tool,omitempty"`
+	Arguments map[string]any `json:"arguments,omitempty"`
+	Final     *EvalTrace     `json:"final,omitempty"`
 }
 type ToolCall struct {
 	Name      string         `json:"name"`
@@ -40,12 +70,13 @@ type ToolCall struct {
 	Allowed   bool           `json:"allowed"`
 }
 type EvalTrace struct {
-	Messages     []string   `json:"messages"`
-	ToolCalls    []ToolCall `json:"tool_calls"`
-	Outputs      []string   `json:"outputs"`
-	SideEffects  []string   `json:"side_effects"`
-	Capabilities []string   `json:"capabilities"`
-	Errors       []string   `json:"errors"`
+	Messages     []string    `json:"messages"`
+	ToolCalls    []ToolCall  `json:"tool_calls"`
+	Operations   []Operation `json:"operations,omitempty"`
+	Outputs      []string    `json:"outputs"`
+	SideEffects  []string    `json:"side_effects"`
+	Capabilities []string    `json:"capabilities"`
+	Errors       []string    `json:"errors"`
 }
 type EvalRun struct {
 	Run        int       `json:"run"`

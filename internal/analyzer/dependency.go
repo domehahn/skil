@@ -1,11 +1,8 @@
 package analyzer
 
 import (
-	"bufio"
 	"context"
-	"encoding/json"
 	"fmt"
-	"regexp"
 	"sort"
 	"strings"
 
@@ -15,7 +12,6 @@ import (
 type Dependency struct{ provider skil.VulnerabilityProvider }
 
 var (
-	pipDep          = regexp.MustCompile(`^\s*([A-Za-z0-9_.-]+)\s*(?:==\s*([A-Za-z0-9_.+-]+))?`)
 	popularPackages = map[string][]string{
 		"PyPI": {"requests", "urllib3", "numpy", "pandas", "django", "flask", "boto3", "cryptography", "pydantic", "pytest", "setuptools", "python-dateutil", "colorama", "jellyfish"},
 		"npm":  {"react", "express", "lodash", "axios", "typescript", "webpack", "next", "vue", "angular", "cross-env", "eslint", "prettier"},
@@ -32,92 +28,26 @@ func (d *Dependency) Metadata() skil.AnalyzerMetadata {
 		types = append(types, "vulnerability")
 	}
 	return skil.AnalyzerMetadata{ID: "builtin.dependency", Version: "1.0.0",
-		Categories: []string{"dependency-security", "supply-chain"}, AnalysisTypes: types,
-		SupportedTypes: []string{"requirements.txt", "package.json", "go.mod"}}
+		Categories: []string{"dependency-trust"}, AnalysisTypes: types,
+		SupportedTypes: []string{"requirements.txt", "package.json", "package-lock.json", "go.mod",
+			"pyproject.toml", "poetry.lock", "uv.lock", "Cargo.toml", "Cargo.lock", "Gemfile.lock", "pom.xml"}}
 }
 func (d *Dependency) Analyze(ctx context.Context, ac skil.AnalysisContext) ([]skil.Finding, error) {
 	var out []skil.Finding
+	records, err := DiscoverDependencies(ac.Artifact)
+	if err != nil {
+		return nil, err
+	}
+	files := make(map[string]skil.File, len(ac.Artifact.Files))
 	for _, file := range ac.Artifact.Files {
-		base := strings.ToLower(file.Path)
-		switch {
-		case strings.HasSuffix(base, "requirements.txt"):
-			scanner := bufio.NewScanner(strings.NewReader(string(file.Data)))
-			line := 0
-			for scanner.Scan() {
-				line++
-				text := strings.TrimSpace(scanner.Text())
-				if text == "" || strings.HasPrefix(text, "#") {
-					continue
-				}
-				match := pipDep.FindStringSubmatch(text)
-				if len(match) < 2 {
-					continue
-				}
-				findings, err := d.inspect(ctx, file, line, "PyPI", match[1], value(match, 2), text)
-				if err != nil {
-					return nil, err
-				}
-				out = append(out, findings...)
-			}
-		case strings.HasSuffix(base, "package.json"):
-			var manifest struct {
-				Dependencies         map[string]string `json:"dependencies"`
-				DevDependencies      map[string]string `json:"devDependencies"`
-				OptionalDependencies map[string]string `json:"optionalDependencies"`
-				PeerDependencies     map[string]string `json:"peerDependencies"`
-			}
-			if err := json.Unmarshal(file.Data, &manifest); err != nil {
-				return nil, fmt.Errorf("parse %s: %w", file.Path, err)
-			}
-			dependencies := map[string]string{}
-			for _, section := range []map[string]string{manifest.Dependencies, manifest.DevDependencies, manifest.OptionalDependencies, manifest.PeerDependencies} {
-				for name, version := range section {
-					dependencies[name] = version
-				}
-			}
-			names := make([]string, 0, len(dependencies))
-			for name := range dependencies {
-				names = append(names, name)
-			}
-			sort.Strings(names)
-			for _, name := range names {
-				line, text := dependencyLine(file.Data, name)
-				findings, err := d.inspect(ctx, file, line, "npm", name, dependencies[name], text)
-				if err != nil {
-					return nil, err
-				}
-				out = append(out, findings...)
-			}
-		case strings.HasSuffix(base, "go.mod"):
-			inRequireBlock := false
-			for line, text := range lines(file.Data) {
-				fields := strings.Fields(strings.SplitN(text, "//", 2)[0])
-				if len(fields) == 0 {
-					continue
-				}
-				if fields[0] == "require" && len(fields) == 2 && fields[1] == "(" {
-					inRequireBlock = true
-					continue
-				}
-				if inRequireBlock && fields[0] == ")" {
-					inRequireBlock = false
-					continue
-				}
-				var name, version string
-				if inRequireBlock && len(fields) >= 2 {
-					name, version = fields[0], fields[1]
-				} else if len(fields) >= 3 && fields[0] == "require" {
-					name, version = fields[1], fields[2]
-				}
-				if name != "" {
-					findings, err := d.inspect(ctx, file, line+1, "Go", name, version, text)
-					if err != nil {
-						return nil, err
-					}
-					out = append(out, findings...)
-				}
-			}
+		files[file.Path] = file
+	}
+	for _, record := range records {
+		findings, err := d.inspect(ctx, files[record.File], record.Line, record.Ecosystem, record.Name, record.Version, record.Raw)
+		if err != nil {
+			return nil, err
 		}
+		out = append(out, findings...)
 	}
 	return out, nil
 }
@@ -134,17 +64,17 @@ func dependencyLine(data []byte, name string) (int, string) {
 
 func (d *Dependency) inspect(ctx context.Context, file skil.File, line int, ecosystem, name, version, text string) ([]skil.Finding, error) {
 	var out []skil.Finding
-	unpinned := version == "" || strings.ContainsAny(version, "^*~><") || strings.EqualFold(version, "latest")
+	unpinned := !dependencyIsExact(ecosystem, file.Path, version)
 	if unpinned {
 		rule := RulePattern{Rule: skil.Rule{ID: "SKIL-DEP-001", Title: "Unpinned dependency",
-			Category: "dependency-security", Severity: skil.SeverityMedium,
+			Category: "dependency-trust", Severity: skil.SeverityMedium,
 			Description: "Dependency " + name + " is not pinned to an exact version.", Analysis: "dependency",
 			Remediation: "Pin the dependency and verify its integrity."}, Confidence: .96}
 		out = append(out, makeFinding(rule, file, line, text))
 	}
 	if target, distance := typosquatTarget(ecosystem, name); target != "" {
 		rule := RulePattern{Rule: skil.Rule{ID: "SKIL-DEP-002", Title: "Suspicious dependency name",
-			Category: "supply-chain", Severity: skil.SeverityHigh,
+			Category: "dependency-trust", Severity: skil.SeverityHigh,
 			Description: fmt.Sprintf("Dependency %s is edit-distance %d from popular package %s.", name, distance, target), Analysis: "dependency",
 			Remediation: "Verify the package identity and publisher."}, Confidence: .8}
 		out = append(out, makeFinding(rule, file, line, text))
@@ -156,7 +86,7 @@ func (d *Dependency) inspect(ctx context.Context, file skil.File, line int, ecos
 		}
 		if reputation.Abandoned {
 			rule := RulePattern{Rule: skil.Rule{ID: "SKIL-DEP-ABANDONED", Title: "Abandoned dependency",
-				Category: "supply-chain", Severity: skil.SeverityMedium,
+				Category: "dependency-trust", Severity: skil.SeverityMedium,
 				Description: "Package reputation metadata marks the dependency as abandoned.", Analysis: "dependency",
 				Remediation: "Replace the package with an actively maintained alternative."}, Confidence: .9}
 			out = append(out, makeFinding(rule, file, line, text))
@@ -169,15 +99,42 @@ func (d *Dependency) inspect(ctx context.Context, file skil.File, line int, ecos
 		}
 		for _, vuln := range vulns {
 			rule := RulePattern{Rule: skil.Rule{ID: "SKIL-DEP-VULN", Title: "Known vulnerable dependency",
-				Category: "dependency-security", Severity: vuln.Severity,
+				Category: "dependency-trust", Severity: vuln.Severity,
 				Description: fmt.Sprintf("%s %s: %s", vuln.ID, name, vuln.Summary), Analysis: "dependency",
 				Remediation: "Upgrade to a patched version."}, Confidence: .99}
 			f := makeFinding(rule, file, line, text)
-			f.References = []string{vuln.ID}
+			f.References = vulnerabilityReferences(vuln)
 			out = append(out, f)
 		}
 	}
 	return out, nil
+}
+
+func vulnerabilityReferences(vulnerability skil.Vulnerability) []string {
+	seen := map[string]bool{}
+	references := make([]string, 0, len(vulnerability.Aliases)+1)
+	for _, reference := range append([]string{vulnerability.ID}, vulnerability.Aliases...) {
+		if reference != "" && !seen[reference] {
+			seen[reference] = true
+			references = append(references, reference)
+		}
+	}
+	sort.Strings(references)
+	return references
+}
+
+func dependencyIsExact(ecosystem, path, version string) bool {
+	if version == "" || strings.ContainsAny(version, "^*~><$[](), ") || strings.EqualFold(version, "latest") {
+		return false
+	}
+	lower := strings.ToLower(path)
+	if strings.HasSuffix(lower, ".lock") || strings.HasSuffix(lower, "package-lock.json") {
+		return true
+	}
+	if ecosystem == "crates.io" && strings.HasSuffix(lower, "cargo.toml") {
+		return strings.HasPrefix(version, "=")
+	}
+	return !strings.Contains(version, "${")
 }
 
 func typosquatTarget(ecosystem, candidate string) (string, int) {

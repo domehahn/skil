@@ -13,12 +13,15 @@ jobs:
         with:
           go-version: "1.24.x"
           cache: true
-      - run: gofmt -l cmd internal pkg | tee /tmp/gofmt && test ! -s /tmp/gofmt
+      - name: Install native security helpers
+        run: sudo apt-get update && sudo apt-get install -y bubblewrap yara
+      - run: go mod verify
+      - run: gofmt -l cmd internal pkg tests | tee /tmp/gofmt && test ! -s /tmp/gofmt
       - run: go vet ./...
       - run: go test -race -coverprofile=coverage.out ./...
+        env:
+          SKIL_REQUIRE_NATIVE_ISOLATION: "1"
       - run: go build -trimpath ./cmd/skil
-      - name: Install YARA
-        run: sudo apt-get update && sudo apt-get install -y yara
       - run: go run ./cmd/skil validate tests/fixtures/clean-skill
       - run: go run ./cmd/skil scan tests/fixtures/clean-skill --format sarif --output skil.sarif
       - run: go run ./cmd/skil policy check tests/fixtures/example --policy examples/policy.yaml
@@ -31,3 +34,59 @@ jobs:
           test "$code" -eq 1
       - name: Validate JSON schemas
         run: for schema in schemas/*.json; do jq empty "$schema"; done
+      - name: Generate SPDX SBOM
+        run: go run ./cmd/skil sbom . --output /tmp/skil.spdx.json && jq -e '.spdxVersion == "SPDX-2.3"' /tmp/skil.spdx.json
+  vulnerabilities:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: golang/govulncheck-action@v1
+        with:
+          go-version-file: go.mod
+          go-package: ./...
+  osv-provider:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Prove built-in OSV provider against a known advisory
+        shell: bash
+        run: |
+          set +e
+          go run ./cmd/skil scan tests/fixtures/security/osv-known-vulnerability --osv --format json --output osv-proof.json
+          code=$?
+          set -e
+          test "$code" -eq 1
+          jq -e '.findings[] | select(.rule_id == "SKIL-DEP-VULN" and (.references | index("GO-2021-0113")))' osv-proof.json
+      - uses: actions/upload-artifact@v6
+        with:
+          name: osv-provider-proof
+          path: osv-proof.json
+          if-no-files-found: error
+  windows-isolation:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Execute Windows AppContainer integration test
+        run: go test ./internal/eval -run TestNativeIsolationExecutesAdapterWhenAvailable -v
+        env:
+          SKIL_REQUIRE_NATIVE_ISOLATION: "1"
+  macos-isolation:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Execute macOS sandbox integration test
+        run: go test ./internal/eval -run TestNativeIsolationExecutesAdapterWhenAvailable -v
+        env:
+          SKIL_REQUIRE_NATIVE_ISOLATION: "1"

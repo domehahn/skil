@@ -1,0 +1,88 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            os: linux
+            arch: amd64
+          - runner: macos-14
+            os: darwin
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Verify and test source
+        run: go mod verify && go test ./...
+      - name: Build native binary
+        env:
+          RELEASE_VERSION: ${{ github.ref_name }}
+          RELEASE_OS: ${{ matrix.os }}
+          RELEASE_ARCH: ${{ matrix.arch }}
+        run: |
+          version="${RELEASE_VERSION#v}"
+          mkdir -p dist/package
+          go build -trimpath -ldflags "-s -w -X github.com/domehahn/skil/pkg/skil.Version=${version}" -o dist/package/skil ./cmd/skil
+          dist/package/skil sbom dist/package/skil --output "dist/skil_${RELEASE_VERSION}_${RELEASE_OS}_${RELEASE_ARCH}.spdx.json"
+          cp LICENSE THIRD_PARTY_NOTICES.md dist/package/
+          tar -C dist/package -czf "dist/skil_${RELEASE_VERSION}_${RELEASE_OS}_${RELEASE_ARCH}.tar.gz" skil LICENSE THIRD_PARTY_NOTICES.md
+      - name: Attest binary archive and SBOM
+        uses: actions/attest@v4
+        with:
+          subject-path: dist/skil_${{ github.ref_name }}_${{ matrix.os }}_${{ matrix.arch }}.tar.gz
+          sbom-path: dist/skil_${{ github.ref_name }}_${{ matrix.os }}_${{ matrix.arch }}.spdx.json
+      - name: Verify published build attestation
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh attestation verify "dist/skil_${{ github.ref_name }}_${{ matrix.os }}_${{ matrix.arch }}.tar.gz" --repo "${{ github.repository }}"
+      - uses: actions/upload-artifact@v6
+        with:
+          name: skil-${{ matrix.os }}-${{ matrix.arch }}
+          path: |
+            dist/*.tar.gz
+            dist/*.spdx.json
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: skil-*
+          path: release
+          merge-multiple: true
+      - name: Create checksums
+        working-directory: release
+        run: sha256sum *.tar.gz *.spdx.json > checksums.txt
+      - name: Attest release checksums
+        uses: actions/attest@v4
+        with:
+          subject-checksums: release/checksums.txt
+      - name: Publish immutable tag assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${GITHUB_REF_NAME}" release/* --verify-tag --generate-notes

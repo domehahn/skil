@@ -11,7 +11,9 @@ digests; and `report` only serializes.
 source -> safe loader -> artifact + digest
                          ├-> analyzers -> findings + coverage
 contract ----------------┴-> verification
-eval spec -> AgentRuntime -> trace + metrics
+eval spec -> isolated adapter -> tool request -> host gateway -> enforcer -> host tool
+                                  └-> bounded result -> adapter -> final output
+trusted gateway records -------------------------------> trace + metrics
 scan/eval evidence -> attestation -> policy decision
 ```
 
@@ -19,9 +21,10 @@ Core, scanner, semantic provider, policy engine, and eval harness have no
 backwards dependencies. Providers cannot acquire tools through their interface.
 The CLI composes modules and maps errors to stable exit codes.
 
-Optional analysis is composed per scan. Tree-sitter AST remains local. OSV,
-YARA, and semantic adapters are registered only by explicit CLI flags, so their
-coverage cannot be confused with the default offline scan.
+Optional analysis is composed through one shared CLI configuration used by
+scan, verification, attestation, policy, and installation. Tree-sitter AST
+remains local. OSV, YARA, and semantic adapters are registered only by explicit
+flags, so their coverage cannot be confused with the default offline scan.
 
 Assurance levels describe completed work, not safety: `UNVERIFIED`,
 `VALIDATED`, `STATIC_ANALYZED`, `SEMANTIC_ANALYZED`,

@@ -19,7 +19,7 @@ execution.
 - AC-03: package output, lockfiles, signatures, attestations, and provenance bind
   the raw `.tgz` SHA-256 separately from the reproducible content-manifest
   digest.
-- AC-04: canonical `skill.yaml` supports SkillSpec metadata and its
+- AC-04: canonical `skill.yaml` supports portable metadata and its
   `security.requires_network`, `requires_secrets`, `writes_files`, and
   `runs_commands` declarations while retaining detailed least-privilege
   capabilities.
@@ -28,14 +28,14 @@ execution.
 - AC-06: provenance is a signed DSSE envelope containing an in-toto Statement
   v1 with a SLSA Provenance v1 predicate, and policy binds builder identities to
   their permitted signing keys.
-- AC-07: the native scanner has the publicly documented 64-rule compatibility
-  concrete rules across structural, prompt, malware, dependency, MCP,
-  excessive-agency, and data-flow classes, including generic typosquatting,
-  package-reputation, and prose-intent checks.
-- AC-08: evaluation supports an explicit process adapter with deadlines,
-  bounded output, structured argv, minimal environment, and fail-closed
-  resource capability negotiation. Command authorization rejects shell syntax
-  and never invokes a shell.
+- AC-07: the native scanner has executable controls across structural,
+  instruction-integrity, malware, dependency, MCP, action-control, and
+  data-flow classes, including generic suspicious-name, package-reputation,
+  prose-intent, guardrail-integrity, and reflective Python execution checks.
+- AC-08: evaluation supports an explicit isolated adapter with deadlines,
+  bounded output, structured operations, minimal environment, and fail-closed
+  resource capability negotiation. Command authorization rejects shell syntax,
+  and missing native isolation support blocks execution.
 - AC-09: all positive and negative unit/contract/integration tests pass under
   `go test`, `go test -race`, and `go vet`; documentation describes only
   implemented guarantees.
@@ -60,9 +60,9 @@ execution.
 | AC-01 | install integration tests: missing gate, denied policy, valid chain |
 | AC-02 | evidence tests: altered payload, failing SARIF, wrong scanner key |
 | AC-03 | package/lock tests: archive-byte tamper and content digest distinction |
-| AC-04/05 | schema fixtures for native, SkillSpec-compatible, and invalid files |
+| AC-04/05 | schema fixtures for native, portable, and invalid files |
 | AC-06 | DSSE tests: PAE signature, subject mismatch, wrong builder key |
-| AC-07 | analyzer catalog/count plus typo, abandoned, and prose-intent fixtures |
+| AC-07 | native catalog uniqueness plus instruction-integrity and reflective-execution fixtures |
 | AC-08 | enforcer/process tests: shell syntax, timeout, output and resource caps |
 | AC-09 | repository test, race, vet, and CLI smoke checks |
 | AC-10 | `git status` and `git log -1` |
@@ -75,7 +75,7 @@ workflow; do not add an insecure bypass flag.
 
 ## Completion evidence
 
-- `GOWORK=off GOCACHE=/private/tmp/skil-final-cache go test ./...`
-- `GOWORK=off GOCACHE=/private/tmp/skil-final-cache go vet ./...`
-- `GOWORK=off GOCACHE=/private/tmp/skil-final-race-cache go test -race ./...`
+- `GOWORK=off GOCACHE=/private/tmp/skil-68-all-cache go test ./...`
+- `GOWORK=off GOCACHE=/private/tmp/skil-68-vet-cache go vet ./...`
+- `GOWORK=off GOCACHE=/private/tmp/skil-68-race-cache go test -race ./...`
 - No private-key, PEM, `.env`, PKCS#12, or PFX file is present in the baseline.

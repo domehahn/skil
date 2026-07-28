@@ -31,7 +31,7 @@ func writeJSON(w io.Writer, value any) error {
 	return encoder.Encode(value)
 }
 func writeTerminal(w io.Writer, r skil.ScanResult) error {
-	fmt.Fprintf(w, "skil security report\n\nArtifact: %s\nDigest:   sha256:%s\nStatus:   %s\nRisk:     %d/100\nCoverage: ", r.Artifact.Name, r.Artifact.Digest, r.Status, r.RiskScore)
+	fmt.Fprintf(w, "skil security report\n\nArtifact: %s\nDigest:   sha256:%s\nStatus:   %s\nVerdict:  %s\nRisk:     %d/100\nCoverage: ", r.Artifact.Name, r.Artifact.Digest, r.Status, r.Verdict, r.RiskScore)
 	keys := sortedCoverage(r.Coverage)
 	for i, key := range keys {
 		if i > 0 {
@@ -50,7 +50,7 @@ func writeTerminal(w io.Writer, r skil.ScanResult) error {
 	return nil
 }
 func writeMarkdown(w io.Writer, r skil.ScanResult) error {
-	fmt.Fprintf(w, "# skil security report\n\n- Artifact: `%s`\n- Digest: `sha256:%s`\n- Status: **%s**\n- Risk: **%d/100**\n\n## Findings\n\n", r.Artifact.Name, r.Artifact.Digest, r.Status, r.RiskScore)
+	fmt.Fprintf(w, "# skil security report\n\n- Artifact: `%s`\n- Digest: `sha256:%s`\n- Status: **%s**\n- Verdict: **%s**\n- Risk: **%d/100**\n\n## Findings\n\n", r.Artifact.Name, r.Artifact.Digest, r.Status, r.Verdict, r.RiskScore)
 	if len(r.Findings) == 0 {
 		_, err := fmt.Fprintln(w, "No findings.")
 		return err

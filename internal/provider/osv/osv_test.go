@@ -17,7 +17,7 @@ func TestQueryAndPagination(t *testing.T) {
 		}
 		body := `{"vulns":[{"id":"GHSA-2","summary":"also bad"}]}`
 		if calls == 1 {
-			body = `{"vulns":[{"id":"GHSA-1","summary":"bad","affected":[{"ecosystem_specific":{"severity":"CRITICAL"}}]}],"next_page_token":"next"}`
+			body = `{"vulns":[{"id":"GHSA-1","aliases":["GO-TEST-1"],"summary":"bad","affected":[{"ecosystem_specific":{"severity":"CRITICAL"}}]}],"next_page_token":"next"}`
 		}
 		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(body)), Header: make(http.Header)}, nil
 	})}
@@ -27,6 +27,9 @@ func TestQueryAndPagination(t *testing.T) {
 	}
 	if len(items) != 2 || items[0].Severity != "CRITICAL" || calls != 2 {
 		t.Fatalf("%#v calls=%d", items, calls)
+	}
+	if len(items[0].Aliases) != 1 || items[0].Aliases[0] != "GO-TEST-1" {
+		t.Fatalf("aliases were not retained: %#v", items[0])
 	}
 }
 

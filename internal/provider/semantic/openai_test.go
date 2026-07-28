@@ -20,7 +20,7 @@ func TestStructuredNoToolSemanticRequest(t *testing.T) {
 		if request["tool_choice"] != "none" || request["tools"] != nil || request["response_format"] == nil {
 			t.Errorf("unsafe semantic request: %#v", request)
 		}
-		content := `{"findings":[{"category":"excessive-agency","severity":"HIGH","confidence":0.9,"title":"Broad agency","message":"Unbounded action","file":"SKILL.md","start_line":1,"end_line":1,"remediation":"Constrain it"}]}`
+		content := `{"findings":[{"control":"scope_expansion","severity":"HIGH","confidence":0.9,"title":"Broad agency","message":"Unbounded action","file":"SKILL.md","start_line":1,"end_line":1,"remediation":"Constrain it"}]}`
 		body, _ := json.Marshal(map[string]any{"choices": []any{map[string]any{"message": map[string]any{"content": content}}}})
 		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(string(body))), Header: make(http.Header)}, nil
 	})}
@@ -33,7 +33,7 @@ func TestStructuredNoToolSemanticRequest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(findings) != 1 || findings[0].RuleID != "SKIL-SEM-001" {
+	if len(findings) != 1 || findings[0].RuleID != "SKIL-INTENT-SCOPE" {
 		t.Fatalf("%#v", findings)
 	}
 }
@@ -52,5 +52,30 @@ func TestSemanticRejectsToolsAndUnknownFiles(t *testing.T) {
 	}
 	if _, err := New(Config{Endpoint: "http://169.254.169.254/latest", Model: "x"}); err == nil {
 		t.Fatal("expected metadata endpoint rejection")
+	}
+}
+
+func TestNativeIntentControlsHaveDistinctRuleIDs(t *testing.T) {
+	want := map[string]string{
+		"description_mismatch":      "SKIL-INTENT-DESCRIPTION",
+		"context_misuse":            "SKIL-INTENT-CONTEXT",
+		"scope_expansion":           "SKIL-INTENT-SCOPE",
+		"implementation_divergence": "SKIL-INTENT-IMPLEMENTATION",
+	}
+	for control, ruleID := range want {
+		items := []semanticFinding{{
+			Control: control, Severity: "HIGH", Confidence: .8,
+			Title: control, Message: "evidence", File: "SKILL.md", StartLine: 1, EndLine: 1,
+			Remediation: "review",
+		}}
+		findings, err := normalizeFindings(items, skil.SemanticRequest{
+			ArtifactDigest: "abc", Files: map[string]string{"SKILL.md": "content"},
+		}, "test")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(findings) != 1 || findings[0].RuleID != ruleID {
+			t.Fatalf("%s normalized to %#v", control, findings)
+		}
 	}
 }

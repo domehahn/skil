@@ -8,7 +8,8 @@ import (
 	"time"
 )
 
-const Version = "0.1.0"
+// Version is overridden from the release tag through -ldflags.
+var Version = "0.1.0"
 
 type Severity string
 
@@ -27,6 +28,14 @@ const (
 	StatusWarn  Status = "WARN"
 	StatusFail  Status = "FAIL"
 	StatusError Status = "ERROR"
+)
+
+type Verdict string
+
+const (
+	VerdictClear  Verdict = "CLEAR"
+	VerdictReview Verdict = "REVIEW"
+	VerdictBlock  Verdict = "BLOCK"
 )
 
 type Location struct {
@@ -106,6 +115,7 @@ type ScanResult struct {
 	SchemaVersion string                   `json:"schema_version"`
 	Artifact      Artifact                 `json:"artifact"`
 	Status        Status                   `json:"status"`
+	Verdict       Verdict                  `json:"verdict"`
 	RiskScore     int                      `json:"risk_score"`
 	Maximum       Severity                 `json:"maximum_severity"`
 	Findings      []Finding                `json:"findings"`
@@ -147,6 +157,7 @@ type SemanticRequest struct {
 type Vulnerability struct {
 	Package, Version, ID, Summary string
 	Severity                      Severity
+	Aliases                       []string
 }
 
 type VulnerabilityProvider interface {

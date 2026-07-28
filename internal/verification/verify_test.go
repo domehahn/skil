@@ -39,3 +39,13 @@ func TestOverdeclarationWarns(t *testing.T) {
 		t.Fatalf("expected least-privilege warning: %#v", result)
 	}
 }
+
+func TestCapabilityEvidenceDrivesObservationForNewAnalyzers(t *testing.T) {
+	result := Verify(skil.SkillContract{}, []skil.Finding{{
+		RuleID:   "SKIL-PY-REFLECT-EXEC",
+		Evidence: map[string]any{"capability": "commands.execute", "command": "system"},
+	}})
+	if result.Status != skil.StatusFail || !result.Observed.CommandsExecute {
+		t.Fatalf("capability evidence was not enforced: %#v", result)
+	}
+}

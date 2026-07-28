@@ -61,3 +61,23 @@ func TestEnforcerRequiresStructuredCommandArguments(t *testing.T) {
 		t.Fatal("argv outside the allowed prefix must be rejected")
 	}
 }
+
+func TestEnforcerDerivesExternalAndDestructiveRiskFromCapability(t *testing.T) {
+	contract := skil.SkillContract{Capabilities: skil.Capabilities{
+		Filesystem: skil.FilesystemCapability{
+			Write: []string{"output/**"}, Delete: []string{"output/**"},
+		},
+		Agent: skil.AgentCapability{
+			ExternalSideEffects: true, ConfirmExternal: true, ConfirmDestructive: true,
+		},
+	}}
+	enforcer := New(contract)
+	if err := enforcer.Authorize(skil.Operation{Capability: "filesystem.write", Target: "output/result.txt"}); err == nil {
+		t.Fatal("filesystem writes must derive external confirmation requirements")
+	}
+	if err := enforcer.Authorize(skil.Operation{
+		Capability: "filesystem.delete", Target: "output/result.txt", Confirmed: true,
+	}); err != nil {
+		t.Fatalf("confirmed allowed delete failed: %v", err)
+	}
+}

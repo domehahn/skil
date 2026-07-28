@@ -40,7 +40,7 @@ func Verify(contract skil.SkillContract, findings []skil.Finding) Result {
 	check("filesystem.write", len(c.Filesystem.Write) > 0, observed.FilesystemWrite, skil.SeverityHigh, "SKIL-FS-001", "SKIL-TAINT-FILESYSTEM")
 	check("filesystem.delete", len(c.Filesystem.Delete) > 0, observed.FilesystemDelete, skil.SeverityCritical, "SKIL-SH-003")
 	check("secrets.read", len(c.Secrets.Read) > 0, observed.SecretsRead, skil.SeverityCritical, "SKIL-SEC-001")
-	check("persistence", c.Persistence, observed.Persistence, skil.SeverityHigh, "SKIL-MP-001")
+	check("persistence", c.Persistence, observed.Persistence, skil.SeverityHigh, "SKIL-PERSISTENCE-STARTUP")
 	check("external_side_effects", c.Agent.ExternalSideEffects, observed.ExternalSideEffects, skil.SeverityHigh, "SKIL-EX-", "SKIL-TAINT-NETWORK")
 	checkValues := func(name string, observedValues, allowedValues []string, matcher func(string, []string) bool) {
 		for _, value := range observedValues {
@@ -91,6 +91,24 @@ func Verify(contract skil.SkillContract, findings []skil.Finding) Result {
 func Infer(findings []skil.Finding) skil.ObservedCapabilities {
 	var o skil.ObservedCapabilities
 	for _, f := range findings {
+		if capability, _ := f.Evidence["capability"].(string); capability != "" {
+			switch capability {
+			case "network.outbound":
+				o.NetworkOutbound = true
+			case "commands.execute":
+				o.CommandsExecute = true
+			case "filesystem.write":
+				o.FilesystemWrite = true
+			case "filesystem.delete":
+				o.FilesystemDelete = true
+			case "secrets.read":
+				o.SecretsRead = true
+			case "persistence":
+				o.Persistence = true
+			case "external.side_effect":
+				o.ExternalSideEffects = true
+			}
+		}
 		switch {
 		case f.RuleID == "SKIL-NET-001" || f.RuleID == "SKIL-SH-001" || strings.Contains(f.RuleID, "TAINT-NETWORK"):
 			o.NetworkOutbound = true
@@ -103,7 +121,7 @@ func Infer(findings []skil.Finding) skil.ObservedCapabilities {
 			o.CommandsExecute = true
 		case f.RuleID == "SKIL-SEC-001":
 			o.SecretsRead = true
-		case f.RuleID == "SKIL-MP-001":
+		case f.RuleID == "SKIL-PERSISTENCE-STARTUP":
 			o.Persistence = true
 		}
 		if strings.HasPrefix(f.RuleID, "SKIL-EX-") || strings.Contains(f.RuleID, "TAINT-NETWORK") {
@@ -193,7 +211,7 @@ func Findings(result Result, artifact skil.Artifact) []skil.Finding {
 	for _, mismatch := range result.Mismatches {
 		fp := stable(mismatch.Capability, artifact.Digest)
 		out = append(out, skil.Finding{
-			ID: "F-" + strings.ToUpper(fp[:12]), RuleID: "SKIL-CAP-001", Category: "capability-mismatch",
+			ID: "F-" + strings.ToUpper(fp[:12]), RuleID: "SKIL-CAP-001", Category: "contract-conformance",
 			Severity: mismatch.Severity, Confidence: 1, Title: "Capability contract mismatch",
 			Message:     fmt.Sprintf("Capability %s has a %s contract mismatch.", mismatch.Capability, mismatch.Kind),
 			Evidence:    map[string]any{"capability": mismatch.Capability, "source_findings": mismatch.Evidence},

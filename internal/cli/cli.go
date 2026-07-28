@@ -26,6 +26,7 @@ import (
 	"github.com/domehahn/skil/internal/provider/osv"
 	semanticprovider "github.com/domehahn/skil/internal/provider/semantic"
 	"github.com/domehahn/skil/internal/report"
+	"github.com/domehahn/skil/internal/sbom"
 	"github.com/domehahn/skil/internal/signing"
 	"github.com/domehahn/skil/internal/verification"
 	"github.com/domehahn/skil/pkg/skil"
@@ -43,6 +44,32 @@ const (
 type App struct {
 	Out, Err io.Writer
 	Registry *analyzer.Registry
+}
+
+type analysisFlags struct {
+	staticOnly           *bool
+	useOSV               *bool
+	yaraRules            *string
+	yaraBinary           *string
+	useSemantic          *bool
+	semanticEndpoint     *string
+	semanticModel        *string
+	semanticKeyEnv       *string
+	semanticAllowPrivate *bool
+}
+
+func bindAnalysisFlags(fs *flag.FlagSet) analysisFlags {
+	return analysisFlags{
+		staticOnly:           fs.Bool("static-only", false, "disable semantic providers"),
+		useOSV:               fs.Bool("osv", false, "query osv.dev for pinned dependency vulnerabilities"),
+		yaraRules:            fs.String("yara-rules", "", "trusted YARA source-rules file"),
+		yaraBinary:           fs.String("yara-binary", "yara", "YARA executable"),
+		useSemantic:          fs.Bool("semantic", false, "enable external semantic analysis"),
+		semanticEndpoint:     fs.String("semantic-endpoint", "https://api.openai.com/v1/chat/completions", "OpenAI-compatible chat endpoint"),
+		semanticModel:        fs.String("semantic-model", "", "semantic model identifier"),
+		semanticKeyEnv:       fs.String("semantic-api-key-env", "OPENAI_API_KEY", "environment variable containing API key"),
+		semanticAllowPrivate: fs.Bool("semantic-allow-private", false, "allow explicitly configured private/local semantic endpoint"),
+	}
 }
 
 func New(out, errOut io.Writer) *App {
@@ -86,6 +113,10 @@ func (a *App) Run(ctx context.Context, args []string) int {
 		code = a.packageBuild(args[1:])
 	case "install":
 		code = a.install(ctx, args[1:])
+	case "update":
+		code = a.update(ctx, args[1:])
+	case "uninstall":
+		code = a.uninstall(args[1:])
 	case "lock":
 		code = a.lock(args[1:])
 	case "evidence":
@@ -102,6 +133,8 @@ func (a *App) Run(ctx context.Context, args []string) int {
 		code = a.capabilities(args[1:])
 	case "inspect":
 		code = a.inspect(args[1:])
+	case "sbom":
+		code = a.sbom(args[1:])
 	default:
 		fmt.Fprintf(a.Err, "unknown command %q\n", args[0])
 		a.help()
@@ -117,22 +150,25 @@ Usage:
   skil validate <skill> [--format json]
   skil scan <skill> [--static-only] [--osv] [--yara-rules file] [--semantic --semantic-model model]
              [--format terminal|json|markdown|sarif] [--output file] [--baseline file]
-  skil verify <skill> [--format json]
-  skil eval <skill> [--test file] [--runtime mock|process] [--runtime-command executable] [--runs N]
-  skil attest <skill> [--output file] [--signing-key key.pem] [--key-id id]
+  skil verify <skill> [--format json] [--osv] [--yara-rules file] [--semantic --semantic-model model]
+  skil eval <skill> [--test file] [--runtime mock|isolated] [--runtime-command executable] [--runs N]
+  skil attest <skill> [--output file] [--signing-key key.pem] [--osv] [--yara-rules file] [--semantic --semantic-model model]
   skil provenance create <skill.tgz> --repository URL --commit SHA --builder ID --signing-key key.pem
   skil key generate --output key.pem
   skil package build <skill> --output skill.tgz
   skil package sign <skill.tgz> --signing-key key.pem --output package-signature.json
-  skil install <skill.tgz> --destination dir --policy file --package-signature file --attestation file --provenance file
+  skil install <skill.tgz> --destination dir --policy file --package-signature file --attestation file --provenance file [analysis flags]
+  skil update <skill.tgz> --destination dir --policy file --package-signature file --attestation file --provenance file [analysis flags]
+  skil uninstall <name> --destination dir [--lock agent-skills.lock]
   skil lock verify <skill.tgz> --lock agent-skills.lock
   skil evidence sign <skill> --sarif report.sarif --signing-key key.pem --output evidence.json
-  skil policy check <skill> --policy file [--package-signature file] [--attestation file] [--provenance file]
+  skil policy check <skill> --policy file [--package-signature file] [--attestation file] [--provenance file] [analysis flags]
   skil baseline create <skill> [--output file] [--approved-by name] [--reason text]
   skil rules list | show <rule-id>
   skil analyzers list
   skil capabilities
   skil inspect <skill>
+  skil sbom <skill> [--output sbom.spdx.json]
 
 Exit codes: 0 passed, 1 security/policy gate failed, 2 invalid input/config, 3 internal failure.
 `)
@@ -184,56 +220,12 @@ func (a *App) scan(ctx context.Context, args []string) int {
 	fs := newFlags("scan", a.Err)
 	format := fs.String("format", "terminal", "output format")
 	output := fs.String("output", "", "output file")
-	staticOnly := fs.Bool("static-only", false, "disable semantic providers")
-	useOSV := fs.Bool("osv", false, "query osv.dev for pinned dependency vulnerabilities")
-	yaraRules := fs.String("yara-rules", "", "trusted YARA source-rules file")
-	yaraBinary := fs.String("yara-binary", "yara", "YARA executable")
-	useSemantic := fs.Bool("semantic", false, "enable external semantic analysis")
-	semanticEndpoint := fs.String("semantic-endpoint", "https://api.openai.com/v1/chat/completions", "OpenAI-compatible chat endpoint")
-	semanticModel := fs.String("semantic-model", "", "semantic model identifier")
-	semanticKeyEnv := fs.String("semantic-api-key-env", "OPENAI_API_KEY", "environment variable containing API key")
-	semanticAllowPrivate := fs.Bool("semantic-allow-private", false, "allow explicitly configured private/local semantic endpoint")
 	baselinePath := fs.String("baseline", "", "baseline file")
+	analysis := bindAnalysisFlags(fs)
 	if code := parse(fs, args, 1); code != ExitOK {
 		return code
 	}
-	if *staticOnly && *useSemantic {
-		return a.inputError(errors.New("--static-only and --semantic are mutually exclusive"))
-	}
-	var vulnerabilityProvider skil.VulnerabilityProvider
-	if *useOSV {
-		vulnerabilityProvider = osv.New()
-	}
-	registry := analyzer.DefaultRegistry(vulnerabilityProvider)
-	if *yaraRules != "" {
-		yaraAnalyzer, err := analyzer.NewYARA(*yaraBinary, *yaraRules)
-		if err != nil {
-			return a.inputError(err)
-		}
-		if err := registry.Register(yaraAnalyzer); err != nil {
-			return a.internalError(err)
-		}
-	}
-	if *useSemantic {
-		if *semanticModel == "" {
-			return a.inputError(errors.New("--semantic-model is required with --semantic"))
-		}
-		fmt.Fprintf(a.Err, "semantic analysis: provider=openai-compatible model=%s endpoint=%s transmission=all text files up to 1 MiB tools=none\n",
-			*semanticModel, *semanticEndpoint)
-		provider, err := semanticprovider.New(semanticprovider.Config{Endpoint: *semanticEndpoint, Model: *semanticModel,
-			APIKey: os.Getenv(*semanticKeyEnv), AllowPrivate: *semanticAllowPrivate})
-		if err != nil {
-			return a.inputError(err)
-		}
-		semanticAnalyzer, err := analyzer.NewSemantic(provider)
-		if err != nil {
-			return a.internalError(err)
-		}
-		if err := registry.Register(semanticAnalyzer); err != nil {
-			return a.internalError(err)
-		}
-	}
-	result, _, err := a.performScanWithRegistry(ctx, fs.Arg(0), *baselinePath, registry)
+	result, _, err := a.performScanConfigured(ctx, fs.Arg(0), *baselinePath, analysis)
 	if err != nil {
 		return a.inputError(err)
 	}
@@ -254,10 +246,11 @@ func (a *App) scan(ctx context.Context, args []string) int {
 func (a *App) verify(ctx context.Context, args []string) int {
 	fs := newFlags("verify", a.Err)
 	format := fs.String("format", "terminal", "terminal or json")
+	analysis := bindAnalysisFlags(fs)
 	if code := parse(fs, args, 1); code != ExitOK {
 		return code
 	}
-	scan, contract, err := a.performScan(ctx, fs.Arg(0), "")
+	scan, contract, err := a.performScanConfigured(ctx, fs.Arg(0), "", analysis)
 	if err != nil {
 		return a.inputError(err)
 	}
@@ -284,10 +277,11 @@ func (a *App) attest(ctx context.Context, args []string) int {
 	output := fs.String("output", "", "output file")
 	signingKey := fs.String("signing-key", "", "PKCS#8 PEM Ed25519 private key")
 	keyID := fs.String("key-id", "", "trusted signing key identifier (defaults to public-key fingerprint)")
+	analysis := bindAnalysisFlags(fs)
 	if code := parse(fs, args, 1); code != ExitOK {
 		return code
 	}
-	scan, _, err := a.performScan(ctx, fs.Arg(0), "")
+	scan, _, err := a.performScanConfigured(ctx, fs.Arg(0), "", analysis)
 	if err != nil {
 		return a.inputError(err)
 	}
@@ -466,7 +460,19 @@ func (a *App) packageSign(args []string) int {
 }
 
 func (a *App) install(ctx context.Context, args []string) int {
-	fs := newFlags("install", a.Err)
+	return a.installOrUpdate(ctx, args, false)
+}
+
+func (a *App) update(ctx context.Context, args []string) int {
+	return a.installOrUpdate(ctx, args, true)
+}
+
+func (a *App) installOrUpdate(ctx context.Context, args []string, replace bool) int {
+	command := "install"
+	if replace {
+		command = "update"
+	}
+	fs := newFlags(command, a.Err)
 	destination := fs.String("destination", "", "installation root")
 	lockPath := fs.String("lock", "agent-skills.lock", "lockfile to update")
 	expectedDigest := fs.String("expected-package-digest", "", "required package-blob SHA-256")
@@ -475,6 +481,7 @@ func (a *App) install(ctx context.Context, args []string) int {
 	attestationPath := fs.String("attestation", "", "signed scan attestation")
 	provenancePath := fs.String("provenance", "", "signed DSSE SLSA provenance")
 	evidencePaths := fs.String("evidence", "", "comma-separated signed external evidence bundles")
+	analysis := bindAnalysisFlags(fs)
 	if code := parse(fs, args, 1); code != ExitOK {
 		return code
 	}
@@ -525,7 +532,7 @@ func (a *App) install(ctx context.Context, args []string) int {
 		}
 		externalEvidence = append(externalEvidence, bundle)
 	}
-	scan, _, err := a.performScan(ctx, fs.Arg(0), "")
+	scan, _, err := a.performScanConfigured(ctx, fs.Arg(0), "", analysis)
 	if err != nil {
 		return a.inputError(err)
 	}
@@ -538,27 +545,133 @@ func (a *App) install(ctx context.Context, args []string) int {
 	if !safePackageIdentity(contract.Skill.Name) || !safePackageIdentity(contract.Skill.Version) {
 		return a.inputError(errors.New("skill name/version is unsafe for installation"))
 	}
-	target := filepath.Join(*destination, contract.Skill.Name+"-"+contract.Skill.Version)
-	if err := packagecheck.Install(target, art); err != nil {
+	lock, err := lockfile.Load(*lockPath)
+	if err != nil {
 		return a.inputError(err)
 	}
-	lock, err := lockfile.Load(*lockPath)
-	if err == nil {
-		lock = lockfile.Put(lock, lockfile.Entry{
-			Name: contract.Skill.Name, Version: contract.Skill.Version, Source: fs.Arg(0),
-			PackageSHA256: art.PackageDigest, ContentSHA256: art.Digest,
-			Signature: *packageSignaturePath, Provenance: *provenancePath,
-		})
-		err = lockfile.Write(*lockPath, lock)
+	previous, installed := lockfile.Find(lock, contract.Skill.Name)
+	if installed && !replace {
+		return a.inputError(fmt.Errorf("skill %s is already installed; use skil update", contract.Skill.Name))
 	}
+	target := filepath.Join(*destination, contract.Skill.Name+"-"+contract.Skill.Version)
+	previousTarget := ""
+	if installed {
+		if !safePackageIdentity(previous.Version) {
+			return a.inputError(errors.New("installed skill version is unsafe"))
+		}
+		previousTarget = filepath.Join(*destination, previous.Name+"-"+previous.Version)
+	}
+	backup := ""
+	if installed {
+		if err := verifyInstalledTarget(previous, previousTarget); err != nil {
+			return a.inputError(err)
+		}
+		backup, err = reserveSiblingPath(filepath.Dir(previousTarget), ".skil-update-backup-")
+		if err != nil {
+			return a.inputError(err)
+		}
+		if err := os.Rename(previousTarget, backup); err != nil {
+			return a.inputError(fmt.Errorf("stage previous installation: %w", err))
+		}
+	}
+	if err := packagecheck.Install(target, art); err != nil {
+		if backup != "" {
+			_ = os.Rename(backup, previousTarget)
+		}
+		return a.inputError(err)
+	}
+	lock = lockfile.Put(lock, lockfile.Entry{
+		Name: contract.Skill.Name, Version: contract.Skill.Version, Source: fs.Arg(0),
+		PackageSHA256: art.PackageDigest, ContentSHA256: art.Digest,
+		Signature: *packageSignaturePath, Provenance: *provenancePath,
+	})
+	err = lockfile.Write(*lockPath, lock)
 	if err != nil {
 		_ = os.RemoveAll(target)
+		if backup != "" {
+			_ = os.Rename(backup, previousTarget)
+		}
 		return a.inputError(fmt.Errorf("update lockfile; installation rolled back: %w", err))
+	}
+	if backup != "" {
+		if err := os.RemoveAll(backup); err != nil {
+			return a.inputError(fmt.Errorf("remove previous installation backup: %w", err))
+		}
 	}
 	return boolCode(writeJSON(a.Out, map[string]string{
 		"installed": target, "lockfile": *lockPath, "package_sha256": art.PackageDigest,
-		"content_manifest_sha256": art.Digest, "policy_decision": decision.Decision,
+		"content_manifest_sha256": art.Digest, "policy_decision": decision.Decision, "operation": command,
 	}), a)
+}
+
+func (a *App) uninstall(args []string) int {
+	fs := newFlags("uninstall", a.Err)
+	destination := fs.String("destination", "", "installation root")
+	lockPath := fs.String("lock", "agent-skills.lock", "lockfile to update")
+	if code := parse(fs, args, 1); code != ExitOK {
+		return code
+	}
+	name := fs.Arg(0)
+	if *destination == "" || !safePackageIdentity(name) {
+		return a.inputError(errors.New("--destination and a safe skill name are required"))
+	}
+	lock, err := lockfile.Load(*lockPath)
+	if err != nil {
+		return a.inputError(err)
+	}
+	entry, ok := lockfile.Find(lock, name)
+	if !ok {
+		return a.inputError(fmt.Errorf("skill %s is not installed", name))
+	}
+	if !safePackageIdentity(entry.Version) {
+		return a.inputError(errors.New("installed skill version is unsafe"))
+	}
+	target := filepath.Join(*destination, entry.Name+"-"+entry.Version)
+	if err := verifyInstalledTarget(entry, target); err != nil {
+		return a.inputError(err)
+	}
+	quarantine, err := reserveSiblingPath(filepath.Dir(target), ".skil-uninstall-")
+	if err != nil {
+		return a.inputError(err)
+	}
+	if err := os.Rename(target, quarantine); err != nil {
+		return a.inputError(fmt.Errorf("stage uninstall: %w", err))
+	}
+	if err := lockfile.Write(*lockPath, lockfile.Remove(lock, name)); err != nil {
+		_ = os.Rename(quarantine, target)
+		return a.inputError(fmt.Errorf("update lockfile; uninstall rolled back: %w", err))
+	}
+	if err := os.RemoveAll(quarantine); err != nil {
+		return a.inputError(fmt.Errorf("remove uninstalled skill: %w", err))
+	}
+	return boolCode(writeJSON(a.Out, map[string]string{
+		"uninstalled": name, "removed": target, "lockfile": *lockPath,
+	}), a)
+}
+
+func verifyInstalledTarget(entry lockfile.Entry, target string) error {
+	if entry.ContentSHA256 == "" {
+		return errors.New("destructive lifecycle operation requires a native content_manifest_sha256 lock")
+	}
+	installed, err := artifact.Load(target, artifact.Options{})
+	if err != nil {
+		return fmt.Errorf("load installed target: %w", err)
+	}
+	if installed.Digest != entry.ContentSHA256 {
+		return fmt.Errorf("installed target content digest mismatch: expected %s, got %s", entry.ContentSHA256, installed.Digest)
+	}
+	return nil
+}
+
+func reserveSiblingPath(parent, pattern string) (string, error) {
+	path, err := os.MkdirTemp(parent, pattern)
+	if err != nil {
+		return "", err
+	}
+	if err := os.Remove(path); err != nil {
+		return "", err
+	}
+	return path, nil
 }
 
 func (a *App) lock(args []string) int {
@@ -674,6 +787,7 @@ func (a *App) policyCheck(ctx context.Context, args []string) int {
 	provenancePath := fs.String("provenance", "", "provenance JSON or YAML")
 	packageSignaturePath := fs.String("package-signature", "", "detached package signature JSON or YAML")
 	evidencePaths := fs.String("evidence", "", "comma-separated signed external evidence bundles")
+	analysis := bindAnalysisFlags(fs)
 	if code := parse(fs, args[1:], 1); code != ExitOK {
 		return code
 	}
@@ -684,7 +798,7 @@ func (a *App) policyCheck(ctx context.Context, args []string) int {
 	if err != nil {
 		return a.inputError(err)
 	}
-	scan, contract, err := a.performScan(ctx, fs.Arg(0), "")
+	scan, contract, err := a.performScanConfigured(ctx, fs.Arg(0), "", analysis)
 	if err != nil {
 		return a.inputError(err)
 	}
@@ -769,14 +883,14 @@ func (a *App) evaluate(ctx context.Context, args []string) int {
 	fs := newFlags("eval", a.Err)
 	testPath := fs.String("test", "", "behavioral test YAML")
 	runtimeName := fs.String("runtime", "mock", "runtime id")
-	runtimeCommand := fs.String("runtime-command", "", "explicit process adapter executable")
+	runtimeCommand := fs.String("runtime-command", "", "executable for the isolated adapter")
 	runtimeArgs := fs.String("runtime-args", "", "comma-separated process adapter arguments")
 	maxOutput := fs.Int64("max-output-bytes", 1<<20, "maximum runtime stdout bytes")
 	runs := fs.Int("runs", 1, "number of runs")
 	if code := parse(fs, args, 1); code != ExitOK {
 		return code
 	}
-	if *runtimeName != "mock" && *runtimeName != "process" {
+	if *runtimeName != "mock" && *runtimeName != "isolated" {
 		return a.inputError(fmt.Errorf("runtime %q is unavailable", *runtimeName))
 	}
 	art, err := artifact.Load(fs.Arg(0), artifact.Options{})
@@ -811,17 +925,23 @@ func (a *App) evaluate(ctx context.Context, args []string) int {
 		return a.inputError(errors.New("invalid eval version or type"))
 	}
 	var runtime skil.AgentRuntime = eval.MockRuntime{}
-	if *runtimeName == "process" {
+	if *runtimeName == "isolated" {
 		if *runtimeCommand == "" {
-			return a.inputError(errors.New("--runtime-command is required for process runtime"))
+			return a.inputError(errors.New("--runtime-command is required for isolated runtime"))
 		}
 		contract, _, err := contracts.Find(art)
 		if err != nil {
 			return a.inputError(err)
 		}
 		timeout := time.Duration(contract.Capabilities.Resources.MaxRuntimeSeconds) * time.Second
+		isolation, err := eval.NewNativeIsolation()
+		if err != nil {
+			return a.inputError(err)
+		}
 		runtime = eval.ProcessRuntime{Executable: *runtimeCommand, Args: splitNonEmpty(*runtimeArgs),
-			Timeout: timeout, MaxOutput: *maxOutput, MaxMemoryMB: contract.Capabilities.Resources.MaxMemoryMB}
+			Timeout: timeout, MaxOutput: *maxOutput, MaxMemoryMB: contract.Capabilities.Resources.MaxMemoryMB,
+			Contract: *contract, Isolation: isolation,
+			Tools: map[string]skil.GatewayTool{"artifact.read": eval.NewArtifactReadTool(art)}}
 	}
 	result := eval.Run(ctx, runtime, spec, art, *runs)
 	_ = writeJSON(a.Out, result)
@@ -861,9 +981,16 @@ func (a *App) capabilities(args []string) int {
 		return a.inputError(errors.New("capabilities takes no arguments"))
 	}
 	value := map[string]any{"analysis": map[string]bool{"pattern": true, "ast": true, "taint": true, "dependency": true, "mcp": true, "yara": false, "semantic": false, "behavioral": true},
-		"providers": map[string][]string{"agent_runtime": {"mock", "process"}, "vulnerabilities": {"osv.dev"}, "semantic": {"openai-compatible"},
+		"providers": map[string][]string{"agent_runtime": {"mock", "isolated"}, "vulnerabilities": {"osv.dev"}, "semantic": {"openai-compatible"},
 			"malware": {"yara-cli"}, "signing": {"builtin.ed25519"}, "evidence_importers": {"signed-sarif"}},
-		"runtime_enforcement": true, "package_lockfile": true}
+		"package_lockfile": true}
+	isolation, isolationErr := eval.NewNativeIsolation()
+	nativeIsolation := map[string]any{"available": isolationErr == nil}
+	if isolationErr == nil {
+		nativeIsolation["provider"] = isolation.ID()
+	}
+	value["native_isolation"] = nativeIsolation
+	value["runtime_enforcement"] = isolationErr == nil
 	if _, err := exec.LookPath("yara"); err == nil {
 		value["analysis"].(map[string]bool)["yara"] = true
 	}
@@ -887,8 +1014,90 @@ func (a *App) inspect(args []string) int {
 	return boolCode(writeJSON(a.Out, result), a)
 }
 
+func (a *App) sbom(args []string) int {
+	fs := newFlags("sbom", a.Err)
+	output := fs.String("output", "", "SPDX JSON output file")
+	if code := parse(fs, args, 1); code != ExitOK {
+		return code
+	}
+	source := fs.Arg(0)
+	document, binaryErr := sbom.CreateGoBinary(source)
+	if binaryErr != nil {
+		if !errors.Is(binaryErr, sbom.ErrNotGoBinary) {
+			return a.inputError(binaryErr)
+		}
+		art, err := artifact.Load(source, artifact.Options{})
+		if err != nil {
+			return a.inputError(err)
+		}
+		document, err = sbom.Create(art)
+		if err != nil {
+			return a.inputError(err)
+		}
+	}
+	writer, closeFn, err := outputWriter(a.Out, *output)
+	if err != nil {
+		return a.inputError(err)
+	}
+	defer closeFn()
+	return boolCode(writeJSON(writer, document), a)
+}
+
 func (a *App) performScan(ctx context.Context, source, baselinePath string) (skil.ScanResult, *skil.SkillContract, error) {
 	return a.performScanWithRegistry(ctx, source, baselinePath, a.Registry)
+}
+
+func (a *App) performScanConfigured(ctx context.Context, source, baselinePath string, flags analysisFlags) (skil.ScanResult, *skil.SkillContract, error) {
+	registry, err := a.analysisRegistry(flags)
+	if err != nil {
+		return skil.ScanResult{}, nil, err
+	}
+	return a.performScanWithRegistry(ctx, source, baselinePath, registry)
+}
+
+func (a *App) analysisRegistry(flags analysisFlags) (*analyzer.Registry, error) {
+	if flags.staticOnly == nil {
+		return nil, errors.New("analysis flags are not initialized")
+	}
+	if *flags.staticOnly && *flags.useSemantic {
+		return nil, errors.New("--static-only and --semantic are mutually exclusive")
+	}
+	var vulnerabilityProvider skil.VulnerabilityProvider
+	if *flags.useOSV {
+		vulnerabilityProvider = osv.New()
+	}
+	registry := analyzer.DefaultRegistry(vulnerabilityProvider)
+	if *flags.yaraRules != "" {
+		yaraAnalyzer, err := analyzer.NewYARA(*flags.yaraBinary, *flags.yaraRules)
+		if err != nil {
+			return nil, err
+		}
+		if err := registry.Register(yaraAnalyzer); err != nil {
+			return nil, err
+		}
+	}
+	if *flags.useSemantic {
+		if *flags.semanticModel == "" {
+			return nil, errors.New("--semantic-model is required with --semantic")
+		}
+		fmt.Fprintf(a.Err, "semantic analysis: provider=openai-compatible model=%s endpoint=%s transmission=all text files up to 1 MiB tools=none\n",
+			*flags.semanticModel, *flags.semanticEndpoint)
+		provider, err := semanticprovider.New(semanticprovider.Config{
+			Endpoint: *flags.semanticEndpoint, Model: *flags.semanticModel,
+			APIKey: os.Getenv(*flags.semanticKeyEnv), AllowPrivate: *flags.semanticAllowPrivate,
+		})
+		if err != nil {
+			return nil, err
+		}
+		semanticAnalyzer, err := analyzer.NewSemantic(provider)
+		if err != nil {
+			return nil, err
+		}
+		if err := registry.Register(semanticAnalyzer); err != nil {
+			return nil, err
+		}
+	}
+	return registry, nil
 }
 
 func (a *App) performScanWithRegistry(ctx context.Context, source, baselinePath string, registry *analyzer.Registry) (skil.ScanResult, *skil.SkillContract, error) {
@@ -908,6 +1117,7 @@ func (a *App) performScanWithRegistry(ctx context.Context, source, baselinePath 
 		verified := verification.Verify(*contract, result.Findings)
 		result.Findings = append(result.Findings, verification.Findings(verified, art)...)
 		result.Maximum, result.RiskScore, result.Status = analyzer.Risk(result.Findings, result.Coverage)
+		result.Verdict = analyzer.Verdict(result.Maximum, result.RiskScore, result.Coverage)
 	}
 	if baselinePath != "" {
 		base, err := baseline.Load(baselinePath)
@@ -916,6 +1126,7 @@ func (a *App) performScanWithRegistry(ctx context.Context, source, baselinePath 
 		}
 		result.Findings = baseline.Apply(result.Findings, base, time.Now().UTC())
 		result.Maximum, result.RiskScore, result.Status = analyzer.Risk(result.Findings, result.Coverage)
+		result.Verdict = analyzer.Verdict(result.Maximum, result.RiskScore, result.Coverage)
 	}
 	result.GeneratedAt = time.Now().UTC()
 	return result, contract, nil

@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/domehahn/skil/schemas/runtime-gateway-v1.schema.json",
+  "title": "skil runtime gateway message v1",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "request", "results"],
+      "properties": {
+        "version": { "const": 1 },
+        "request": { "type": "object" },
+        "results": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id"],
+            "properties": {
+              "id": { "type": "string", "minLength": 1, "maxLength": 128 },
+              "result": {},
+              "error": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "id", "tool"],
+      "properties": {
+        "type": { "const": "tool_call" },
+        "id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "tool": { "type": "string", "minLength": 1 },
+        "arguments": { "type": "object" }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "final"],
+      "properties": {
+        "type": { "const": "final" },
+        "final": { "type": "object" }
+      }
+    }
+  ]
+}

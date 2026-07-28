@@ -39,6 +39,11 @@
         "description": {"type": "string", "minLength": 1}
       }
     },
+    "capabilities": {"$ref": "#/$defs/capabilities"}
+  },
+  "$defs": {
+    "strings": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "fs": {"type": "object", "additionalProperties": false, "required": ["read", "write", "delete"], "properties": {"read": {"$ref": "#/$defs/strings"}, "write": {"$ref": "#/$defs/strings"}, "delete": {"$ref": "#/$defs/strings"}}},
     "capabilities": {
       "type": "object",
       "required": ["filesystem", "network", "commands", "secrets", "environment", "tools", "mcp", "persistence", "agent"],
@@ -64,9 +69,5 @@
         }}
       }
     }
-  },
-  "$defs": {
-    "strings": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
-    "fs": {"type": "object", "additionalProperties": false, "required": ["read", "write", "delete"], "properties": {"read": {"$ref": "#/$defs/strings"}, "write": {"$ref": "#/$defs/strings"}, "delete": {"$ref": "#/$defs/strings"}}}
   }
 }

@@ -28,7 +28,7 @@ var (
 func NewTaint() *Taint { return &Taint{} }
 func (t *Taint) Metadata() skil.AnalyzerMetadata {
 	return skil.AnalyzerMetadata{ID: "builtin.taint", Version: "1.0.0",
-		Categories: []string{"taint-flow", "data-exfiltration"}, AnalysisTypes: []string{"taint"},
+		Categories: []string{"data-flow"}, AnalysisTypes: []string{"taint"},
 		SupportedTypes: []string{"py", "js", "ts"}}
 }
 
@@ -63,7 +63,7 @@ func (t *Taint) Analyze(_ context.Context, ac skil.AnalysisContext) ([]skil.Find
 					}
 					rule := RulePattern{Rule: skil.Rule{
 						ID:    "SKIL-TAINT-" + strings.ToUpper(strings.ReplaceAll(sink.name, " ", "-")),
-						Title: "Tainted data reaches " + sink.name, Category: "taint-flow",
+						Title: "Tainted data reaches " + sink.name, Category: "data-flow",
 						Severity: sink.severity, Description: "Data from " + source + " reaches " + sink.name + ".",
 						Analysis: "taint", Remediation: "Validate, constrain, and sanitize data before the sink.",
 					}, Confidence: .78}

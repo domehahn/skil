@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -70,6 +71,38 @@ func TestPackageInstallAndLockWorkflow(t *testing.T) {
 	if code := app.Run(context.Background(), []string{"lock", "verify", archive, "--lock", lockPath}); code != ExitOK {
 		t.Fatalf("lock verify failed: code=%d stderr=%s", code, errOut.String())
 	}
+	out.Reset()
+	errOut.Reset()
+	if code := app.Run(context.Background(), []string{"update", archive, "--destination", installRoot, "--lock", lockPath,
+		"--policy", policyPath, "--package-signature", signaturePath, "--attestation", attestationPath, "--provenance", provenancePath}); code != ExitOK {
+		t.Fatalf("update failed: code=%d stderr=%s", code, errOut.String())
+	}
+	tampered := filepath.Join(installRoot, "safe-reviewer-1.0.0", "unexpected.txt")
+	if err := os.WriteFile(tampered, []byte("tampered"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	out.Reset()
+	errOut.Reset()
+	if code := app.Run(context.Background(), []string{"uninstall", "safe-reviewer", "--destination", installRoot, "--lock", lockPath}); code != ExitInput ||
+		!strings.Contains(errOut.String(), "digest mismatch") {
+		t.Fatalf("tampered uninstall was not rejected: code=%d stderr=%s", code, errOut.String())
+	}
+	if err := os.Remove(tampered); err != nil {
+		t.Fatal(err)
+	}
+	out.Reset()
+	errOut.Reset()
+	if code := app.Run(context.Background(), []string{"uninstall", "safe-reviewer", "--destination", installRoot, "--lock", lockPath}); code != ExitOK {
+		t.Fatalf("uninstall failed: code=%d stderr=%s", code, errOut.String())
+	}
+	if _, err := os.Stat(filepath.Join(installRoot, "safe-reviewer-1.0.0")); !os.IsNotExist(err) {
+		t.Fatalf("uninstalled target still exists: %v", err)
+	}
+	out.Reset()
+	errOut.Reset()
+	if code := app.Run(context.Background(), []string{"lock", "verify", archive, "--lock", lockPath}); code != ExitInput {
+		t.Fatalf("removed lock entry still verifies: code=%d stderr=%s", code, errOut.String())
+	}
 }
 
 func TestInstallHasNoUngatedPath(t *testing.T) {
@@ -122,5 +155,50 @@ func TestOptionalAnalyzerArgumentsFailSafely(t *testing.T) {
 	errOut.Reset()
 	if code := app.Run(context.Background(), []string{"scan", fixture(t, "clean-skill"), "--semantic"}); code != ExitInput {
 		t.Fatalf("expected missing model rejection, got %d", code)
+	}
+}
+
+func TestEvidenceAndGateCommandsShareAnalyzerFlags(t *testing.T) {
+	for _, command := range [][]string{
+		{"verify", fixture(t, "clean-skill"), "--static-only", "--semantic", "--semantic-model", "x"},
+		{"attest", fixture(t, "clean-skill"), "--static-only", "--semantic", "--semantic-model", "x"},
+		{"policy", "check", fixture(t, "clean-skill"), "--policy", filepath.Join("..", "..", "examples", "policy.yaml"), "--static-only", "--semantic", "--semantic-model", "x"},
+	} {
+		var out, errOut bytes.Buffer
+		code := New(&out, &errOut).Run(context.Background(), command)
+		if code != ExitInput || !strings.Contains(errOut.String(), "mutually exclusive") {
+			t.Fatalf("%v did not use shared analyzer validation: code=%d stderr=%s", command, code, errOut.String())
+		}
+	}
+}
+
+func TestSBOMAndCapabilitiesContracts(t *testing.T) {
+	var out, errOut bytes.Buffer
+	app := New(&out, &errOut)
+	if code := app.Run(context.Background(), []string{"sbom", fixture(t, "clean-skill")}); code != ExitOK {
+		t.Fatalf("sbom failed: code=%d stderr=%s", code, errOut.String())
+	}
+	if !strings.Contains(out.String(), `"spdxVersion": "SPDX-2.3"`) {
+		t.Fatalf("unexpected SBOM: %s", out.String())
+	}
+	out.Reset()
+	errOut.Reset()
+	if code := app.Run(context.Background(), []string{"capabilities"}); code != ExitOK {
+		t.Fatalf("capabilities failed: code=%d stderr=%s", code, errOut.String())
+	}
+	if strings.Contains(out.String(), `"process"`) || !strings.Contains(out.String(), `"isolated"`) {
+		t.Fatalf("runtime capability is stale: %s", out.String())
+	}
+	var capabilities struct {
+		RuntimeEnforcement bool `json:"runtime_enforcement"`
+		NativeIsolation    struct {
+			Available bool `json:"available"`
+		} `json:"native_isolation"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &capabilities); err != nil {
+		t.Fatal(err)
+	}
+	if capabilities.RuntimeEnforcement != capabilities.NativeIsolation.Available {
+		t.Fatalf("runtime enforcement availability is inconsistent: %s", out.String())
 	}
 }

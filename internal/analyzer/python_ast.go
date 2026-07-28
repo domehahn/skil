@@ -18,10 +18,19 @@ type PythonAST struct{}
 
 func NewPythonAST() *PythonAST { return &PythonAST{} }
 
+func (p *PythonAST) Rules() []skil.Rule {
+	return []skil.Rule{{
+		ID: "SKIL-PY-REFLECT-EXEC", Title: "Reflective Python execution", Category: "dynamic-execution",
+		Severity: skil.SeverityHigh, Analysis: "ast", AppliesTo: []string{"py"},
+		Description: "Python reflectively resolves and invokes an execution sink.",
+		Remediation: "Use an explicit, reviewable function call and remove reflective execution.",
+	}}
+}
+
 func (p *PythonAST) Metadata() skil.AnalyzerMetadata {
 	return skil.AnalyzerMetadata{
 		ID: "builtin.python-ast", Version: "1.0.0",
-		Categories:    []string{"dangerous-code", "tool-misuse", "data-exfiltration"},
+		Categories:    []string{"dynamic-execution", "data-boundary"},
 		AnalysisTypes: []string{"ast"}, SupportedTypes: []string{"py"},
 	}
 }
@@ -61,6 +70,12 @@ var pythonCalls = map[string]astRule{
 }
 
 func pyRule(id, title, category, description, remediation, capability string, severity skil.Severity) astRule {
+	switch category {
+	case "dangerous-code":
+		category = "dynamic-execution"
+	case "tool-misuse", "data-exfiltration":
+		category = "data-boundary"
+	}
 	return astRule{id, title, category, description, remediation, capability, severity, .99}
 }
 
@@ -122,6 +137,10 @@ func (p *PythonAST) Analyze(ctx context.Context, ac skil.AnalysisContext) ([]ski
 			}
 			function := node.ChildByFieldName("function")
 			if function == nil {
+				return
+			}
+			if target, ok := reflectiveGetattrSink(function, file.Data, aliases); ok {
+				emit(node, target, pyRule("SKIL-PY-REFLECT-EXEC", "Reflective Python execution", "dynamic-execution", "Python reflectively resolves and invokes an execution sink.", "Use an explicit, reviewable function call and remove reflective execution.", "commands.execute", skil.SeverityHigh))
 				return
 			}
 			target := resolvePythonTarget(function.Utf8Text(file.Data), aliases)
@@ -263,6 +282,29 @@ func dynamicGetattr(call *tree_sitter.Node) bool {
 	}
 	name := args.NamedChild(1)
 	return name != nil && name.Kind() != "string"
+}
+
+func reflectiveGetattrSink(function *tree_sitter.Node, source []byte, aliases map[string]string) (string, bool) {
+	if function == nil || function.Kind() != "call" {
+		return "", false
+	}
+	getter := function.ChildByFieldName("function")
+	args := function.ChildByFieldName("arguments")
+	if getter == nil || args == nil || resolvePythonTarget(getter.Utf8Text(source), aliases) != "getattr" || args.NamedChildCount() < 2 {
+		return "", false
+	}
+	object, attribute := args.NamedChild(0), args.NamedChild(1)
+	if object == nil || attribute == nil || attribute.Kind() != "string" {
+		return "", false
+	}
+	module := resolvePythonTarget(object.Utf8Text(source), aliases)
+	name := strings.Trim(attribute.Utf8Text(source), `"'`)
+	dangerous := (module == "os" && (name == "system" || strings.HasPrefix(name, "exec"))) ||
+		(module == "builtins" && (name == "exec" || name == "eval" || name == "compile"))
+	if !dangerous {
+		return "", false
+	}
+	return "getattr(" + module + ", " + name + ")", true
 }
 
 func writeMode(call *tree_sitter.Node, source []byte) bool {

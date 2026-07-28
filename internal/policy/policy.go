@@ -175,6 +175,7 @@ func Check(p Policy, in Input) Result {
 			}
 		}
 		if in.Attestation.Result.Status != in.Scan.Status ||
+			in.Attestation.Result.Verdict != in.Scan.Verdict ||
 			in.Attestation.Result.MaximumSeverity != in.Scan.Maximum ||
 			in.Attestation.Result.RiskScore != in.Scan.RiskScore {
 			add("attestation-result", in.Scan, in.Attestation.Result, "attested verdict does not match the current scan")

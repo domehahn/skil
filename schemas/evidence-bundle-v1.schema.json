@@ -24,6 +24,7 @@
           "required": ["status", "maximum_severity", "findings"],
           "properties": {
             "status": {"enum": ["PASS", "WARN", "FAIL"]},
+            "verdict": {"enum": ["CLEAR", "REVIEW", "BLOCK"]},
             "maximum_severity": {"enum": ["INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL"]},
             "risk_score": {"type": "integer", "minimum": 0, "maximum": 100},
             "findings": {"type": "integer", "minimum": 0}

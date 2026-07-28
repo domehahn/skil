@@ -42,3 +42,35 @@ func TestPythonASTDynamicGetattrAndWriteMode(t *testing.T) {
 		t.Fatalf("%#v", findings)
 	}
 }
+
+func TestPythonASTReflectiveGetattrSink(t *testing.T) {
+	source := `import os as operating
+import builtins as bi
+
+getattr(operating, "system")("id")
+getattr(operating, "execvp")("id", ["id"])
+getattr(bi, "exec")(payload)
+getattr(os, "path")
+getattr(helper, "render")()
+getter = getattr(os, "system")
+text = "getattr(os, 'system')('id')"
+`
+	findings, err := NewPythonAST().Analyze(context.Background(), skil.AnalysisContext{Artifact: artifactWith("run.py", source)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ast9 []skil.Finding
+	for _, finding := range findings {
+		if finding.RuleID == "SKIL-PY-REFLECT-EXEC" {
+			ast9 = append(ast9, finding)
+		}
+	}
+	if len(ast9) != 3 {
+		t.Fatalf("reflective execution findings = %d, want 3: %#v", len(ast9), findings)
+	}
+	for _, finding := range ast9 {
+		if finding.Evidence["capability"] != "commands.execute" {
+			t.Fatalf("missing command capability evidence: %#v", finding)
+		}
+	}
+}

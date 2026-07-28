@@ -27,7 +27,7 @@ capabilities:
 	}
 }
 
-func TestContractAcceptsSkillSpecSecurityMetadataAndChecksConsistency(t *testing.T) {
+func TestContractAcceptsPortableSecurityMetadataAndChecksConsistency(t *testing.T) {
 	document := []byte(`version: 1
 skill: {name: reviewer, version: 1.0.0, description: Reviews code}
 owner: platform-security
@@ -55,11 +55,38 @@ capabilities:
 		t.Fatal(err)
 	}
 	if contract.Security == nil || contract.Owner != "platform-security" {
-		t.Fatalf("SkillSpec metadata not retained: %#v", contract)
+		t.Fatalf("portable metadata not retained: %#v", contract)
 	}
 	inconsistent := append([]byte(nil), document...)
 	inconsistent = []byte(strings.Replace(string(inconsistent), "runs_commands: false", "runs_commands: true", 1))
 	if _, err := Parse(inconsistent); err == nil {
 		t.Fatal("inconsistent security summary must be rejected")
+	}
+}
+
+func TestPortableContractNormalizesFailClosed(t *testing.T) {
+	document := []byte(`contract_version: 1
+name: reviewer
+version: 1.2.3
+description: Reviews changes
+owner: platform
+entrypoint: SKILL.md
+security:
+  requires_network: false
+  requires_secrets: false
+  writes_files: false
+  runs_commands: false
+`)
+	contract, err := Parse(document)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if contract.Skill.Name != "reviewer" || contract.Skill.Version != "1.2.3" ||
+		contract.Security == nil || !contract.Capabilities.Agent.ConfirmExternal {
+		t.Fatalf("portable contract was not normalized safely: %#v", contract)
+	}
+	active := []byte(strings.Replace(string(document), "requires_network: false", "requires_network: true", 1))
+	if _, err := Parse(active); err == nil {
+		t.Fatal("active portable posture without a concrete allowlist must fail closed")
 	}
 }

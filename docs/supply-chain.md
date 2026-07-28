@@ -19,11 +19,23 @@ archive, evaluates policy over package signature, attestation, provenance and
 configured external evidence, then installs atomically and updates a lockfile
 that pins source, both digests, signature, and provenance references. Remote
 registries remain disabled until a hardened fetch boundary is implemented.
+`skil update` and `skil uninstall` verify the installed content digest before
+moving or deleting anything and roll back the directory when the lock update
+fails.
+
+For import interoperability, lock readers also accept `artifact` as the source
+alias and `sha256` as the package-blob digest. These aliases are normalized on
+read. No content-manifest digest is invented or conflated with the package
+digest; native lock output continues to retain both identities.
 
 Attestations, package statements, scanner evidence, and DSSE provenance use
 Ed25519. Policies verify their exact subjects against explicitly trusted public
 keys, scanner-key and builder-key bindings, repositories, and registries.
 
-A future Skill BOM maps skill scripts, dependencies, tools, MCP servers,
-external APIs, knowledge sources, models, and capabilities into CycloneDX or
-SPDX rather than inventing another component standard.
+`skil sbom` emits deterministic SPDX 2.3 JSON. Skill directories and archives
+use the same manifest inventory as static analysis. Go executables use embedded
+build information and the exact binary SHA-256, so test fixtures and unrelated
+workspace manifests cannot contaminate a release SBOM. Tagged release binaries
+are built natively because Tree-sitter requires CGO; their archives, checksums,
+and binary-derived SPDX documents are published with GitHub OIDC attestations.
+See the [release runbook](release-runbook.md).

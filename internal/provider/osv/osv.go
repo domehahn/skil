@@ -119,7 +119,10 @@ func (p *Provider) Query(ctx context.Context, ecosystem, name, version string) (
 			if summary == "" {
 				summary = shorten(item.Details, 240)
 			}
-			out = append(out, skil.Vulnerability{Package: name, Version: version, ID: item.ID, Summary: summary, Severity: recordSeverity(item)})
+			out = append(out, skil.Vulnerability{
+				Package: name, Version: version, ID: item.ID, Summary: summary,
+				Severity: recordSeverity(item), Aliases: append([]string(nil), item.Aliases...),
+			})
 		}
 		if decoded.NextPageToken == "" {
 			return out, nil

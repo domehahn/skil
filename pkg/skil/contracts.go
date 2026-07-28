@@ -22,7 +22,7 @@ type Compatibility struct {
 	MinVersion string   `json:"min_version,omitempty" yaml:"min_version,omitempty"`
 }
 
-// SecurityPosture is the interoperable SkillSpec summary. Capabilities remains
+// SecurityPosture is the portable security summary. Capabilities remains
 // the enforceable least-privilege declaration and must be consistent with it.
 type SecurityPosture struct {
 	RequiresNetwork bool `json:"requires_network" yaml:"requires_network"`

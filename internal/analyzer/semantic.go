@@ -19,7 +19,7 @@ func NewSemantic(provider skil.SemanticProvider) (*Semantic, error) {
 }
 func (s *Semantic) Metadata() skil.AnalyzerMetadata {
 	return skil.AnalyzerMetadata{ID: "semantic." + s.provider.ID(), Version: "1.0.0",
-		Categories:    []string{"excessive-agency", "tool-misuse", "trigger-abuse", "capability-mismatch"},
+		Categories:    []string{"action-control", "tool-boundary", "activation-integrity", "contract-conformance", "intent-integrity"},
 		AnalysisTypes: []string{"semantic"}, SupportedTypes: []string{"text"}}
 }
 func (s *Semantic) Analyze(ctx context.Context, ac skil.AnalysisContext) ([]skil.Finding, error) {

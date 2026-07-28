@@ -10,7 +10,11 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["name", "version", "source", "package_sha256", "content_manifest_sha256", "signature", "provenance"],
+        "required": ["name", "version", "signature", "provenance"],
+        "allOf": [
+          {"anyOf": [{"required": ["source"]}, {"required": ["artifact"]}]},
+          {"anyOf": [{"required": ["package_sha256"]}, {"required": ["sha256"]}]}
+        ],
         "properties": {
           "name": {"type": "string", "minLength": 1},
           "version": {"type": "string", "minLength": 1},
@@ -18,6 +22,8 @@
           "registry": {"type": "string"},
           "package_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
           "content_manifest_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+          "artifact": {"type": "string", "minLength": 1},
+          "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
           "source_commit": {"type": "string"},
           "signature": {"type": "string", "minLength": 1},
           "provenance": {"type": "string", "minLength": 1}

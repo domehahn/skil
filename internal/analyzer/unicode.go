@@ -15,7 +15,7 @@ type Unicode struct{}
 func NewUnicode() *Unicode { return &Unicode{} }
 func (u *Unicode) Metadata() skil.AnalyzerMetadata {
 	return skil.AnalyzerMetadata{ID: "builtin.obfuscation", Version: "1.0.0",
-		Categories: []string{"integrity", "prompt-injection"}, AnalysisTypes: []string{"pattern"},
+		Categories: []string{"artifact-integrity", "instruction-integrity"}, AnalysisTypes: []string{"pattern"},
 		SupportedTypes: []string{"text"}}
 }
 
@@ -41,7 +41,7 @@ func (u *Unicode) Analyze(_ context.Context, ac skil.AnalysisContext) ([]skil.Fi
 				decoded, err := base64.StdEncoding.DecodeString(match[1])
 				if err == nil && mostlyPrintable(decoded) && suspiciousDecoded(string(decoded)) {
 					rule := RulePattern{Rule: skil.Rule{ID: "SKIL-OBF-001", Title: "Encoded security-sensitive instruction",
-						Category: "prompt-injection", Severity: skil.SeverityHigh,
+						Category: "instruction-integrity", Severity: skil.SeverityHigh,
 						Description: "Base64 content decodes to security-sensitive instructions.", Analysis: "pattern",
 						Remediation: "Store reviewable plaintext and remove encoded instructions."}, Confidence: .85}
 					out = append(out, makeFinding(rule, file, line+1, text))

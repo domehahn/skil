@@ -21,11 +21,11 @@ func Create(scan skil.ScanResult) skil.Attestation {
 	sort.Strings(analysis)
 	e := skil.Evidence{Type: "security-scan", Producer: "skil", ProducerVer: skil.Version,
 		SubjectDigest: scan.Artifact.SubjectDigest(), Timestamp: time.Now().UTC(), PayloadDigest: FindingsDigest(scan.Findings),
-		Result: skil.EvidenceResult{Status: scan.Status, MaximumSeverity: scan.Maximum, RiskScore: scan.RiskScore, Findings: len(scan.Findings)}}
+		Result: skil.EvidenceResult{Status: scan.Status, Verdict: scan.Verdict, MaximumSeverity: scan.Maximum, RiskScore: scan.RiskScore, Findings: len(scan.Findings)}}
 	return skil.Attestation{
 		Version: 1, Subject: skil.Subject{Name: scan.Artifact.Name, Version: scan.Artifact.Version, SHA256: scan.Artifact.SubjectDigest()},
 		Producer: skil.Producer{Name: "skil", Version: skil.Version}, Analysis: analysis,
-		Result:    skil.AttestResult{Status: scan.Status, MaximumSeverity: scan.Maximum, RiskScore: scan.RiskScore},
+		Result:    skil.AttestResult{Status: scan.Status, Verdict: scan.Verdict, MaximumSeverity: scan.Maximum, RiskScore: scan.RiskScore},
 		Timestamp: time.Now().UTC(), Evidence: []skil.Evidence{e},
 	}
 }

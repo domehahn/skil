@@ -23,10 +23,12 @@ type Entry struct {
 	Source        string `json:"source" yaml:"source"`
 	Registry      string `json:"registry,omitempty" yaml:"registry,omitempty"`
 	PackageSHA256 string `json:"package_sha256" yaml:"package_sha256"`
-	ContentSHA256 string `json:"content_manifest_sha256" yaml:"content_manifest_sha256"`
+	ContentSHA256 string `json:"content_manifest_sha256,omitempty" yaml:"content_manifest_sha256,omitempty"`
 	SourceCommit  string `json:"source_commit,omitempty" yaml:"source_commit,omitempty"`
 	Signature     string `json:"signature" yaml:"signature"`
 	Provenance    string `json:"provenance" yaml:"provenance"`
+	Artifact      string `json:"artifact,omitempty" yaml:"artifact,omitempty"`
+	SHA256        string `json:"sha256,omitempty" yaml:"sha256,omitempty"`
 }
 
 var sha256Pattern = regexp.MustCompile(`^[a-f0-9]{64}$`)
@@ -48,9 +50,21 @@ func Load(path string) (File, error) {
 	if lock.Version != 1 {
 		return lock, fmt.Errorf("unsupported lockfile version %d", lock.Version)
 	}
-	for _, entry := range lock.Skills {
+	for index := range lock.Skills {
+		entry := &lock.Skills[index]
+		if entry.SHA256 != "" {
+			if entry.PackageSHA256 != "" && entry.PackageSHA256 != entry.SHA256 {
+				return lock, errors.New("lockfile contains conflicting sha256 and package_sha256 values")
+			}
+			entry.PackageSHA256 = entry.SHA256
+		}
+		if entry.Artifact != "" && entry.Source == "" {
+			entry.Source = entry.Artifact
+		}
+		entry.SHA256, entry.Artifact = "", ""
 		if entry.Name == "" || entry.Version == "" || entry.Source == "" ||
-			!sha256Pattern.MatchString(entry.PackageSHA256) || !sha256Pattern.MatchString(entry.ContentSHA256) ||
+			!sha256Pattern.MatchString(entry.PackageSHA256) ||
+			(entry.ContentSHA256 != "" && !sha256Pattern.MatchString(entry.ContentSHA256)) ||
 			entry.Signature == "" || entry.Provenance == "" {
 			return lock, errors.New("lockfile contains an incomplete skill entry")
 		}
@@ -70,6 +84,26 @@ func Put(lock File, entry Entry) File {
 		lock.Skills = append(lock.Skills, entry)
 	}
 	sort.Slice(lock.Skills, func(i, j int) bool { return lock.Skills[i].Name < lock.Skills[j].Name })
+	return lock
+}
+
+func Find(lock File, name string) (Entry, bool) {
+	for _, entry := range lock.Skills {
+		if entry.Name == name {
+			return entry, true
+		}
+	}
+	return Entry{}, false
+}
+
+func Remove(lock File, name string) File {
+	filtered := lock.Skills[:0]
+	for _, entry := range lock.Skills {
+		if entry.Name != name {
+			filtered = append(filtered, entry)
+		}
+	}
+	lock.Skills = filtered
 	return lock
 }
 
@@ -114,7 +148,7 @@ func Verify(lock File, name, version, source, packageDigest, contentDigest strin
 			continue
 		}
 		if entry.Version != version || entry.Source != source || entry.PackageSHA256 != packageDigest ||
-			entry.ContentSHA256 != contentDigest {
+			(entry.ContentSHA256 != "" && entry.ContentSHA256 != contentDigest) {
 			return fmt.Errorf("locked skill %s does not match version/source/package/content digest", name)
 		}
 		return nil

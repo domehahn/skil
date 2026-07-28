@@ -18,10 +18,15 @@ memory, tools, MCP servers, organizational systems, CI/CD, and registries.
 - scanning never executes skill code or makes hidden network requests
 - contracts and policies fail closed on security-relevant invalid state
 - semantic requests label content untrusted and expose no tool channel
-- behavioral execution is explicit and mock-only by default
+- behavioral execution is explicit, mock-only by default, and externally
+  executable only through native isolation plus a host-mediated tool gateway
+- adapter-owned authorization and audit claims are rejected; registered host
+  tools derive operations and are checked before execution
 - analysis coverage prevents a partial scan from masquerading as full assurance
 
-Residual risk includes static-analysis evasion, unknown dependencies, compromised
-providers, malicious but policy-compliant behavior, TOCTOU after verification,
-and real-runtime sandbox failure. Deployments must independently enforce runtime
-permissions and reverify digests at install time.
+Residual risk includes static-analysis evasion, unknown dependencies,
+compromised providers, malicious but policy-compliant behavior, TOCTOU after
+verification, platform sandbox vulnerabilities, and compromised host-tool
+implementations.
+Deployments must reverify digests at install time and may layer stronger
+container or VM isolation around behavioral evaluation.

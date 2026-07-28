@@ -30,6 +30,7 @@ func (e *Enforcer) Authorize(operation skil.Operation) error {
 	if operation.Capability == "" {
 		return errors.New("operation capability is required")
 	}
+	operation = classifyOperationRisk(operation)
 	if limit := e.contract.Capabilities.Resources.MaxRuntimeSeconds; limit > 0 &&
 		time.Since(e.started) > time.Duration(limit)*time.Second {
 		return errors.New("maximum runtime exceeded")
@@ -63,6 +64,18 @@ func (e *Enforcer) Authorize(operation skil.Operation) error {
 		e.networkBytes += operation.NetworkBytes
 	}
 	return nil
+}
+
+func classifyOperationRisk(operation skil.Operation) skil.Operation {
+	switch operation.Capability {
+	case "filesystem.write", "filesystem.delete", "network.outbound", "network.inbound",
+		"secrets.expose", "mcp.tool", "persistence":
+		operation.External = true
+	}
+	if operation.Capability == "filesystem.delete" {
+		operation.Destructive = true
+	}
+	return operation
 }
 
 func (e *Enforcer) authorizeCapability(operation skil.Operation) error {

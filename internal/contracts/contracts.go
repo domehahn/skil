@@ -17,26 +17,67 @@ func Find(artifact skil.Artifact) (*skil.SkillContract, string, error) {
 	for _, file := range artifact.Files {
 		for _, name := range names {
 			if strings.EqualFold(filepath.ToSlash(file.Path), name) {
-				var contract skil.SkillContract
-				if err := strictYAML(file.Data, &contract); err != nil {
+				contract, err := Parse(file.Data)
+				if err != nil {
 					return nil, file.Path, fmt.Errorf("parse contract: %w", err)
-				}
-				if err := Validate(contract); err != nil {
-					return nil, file.Path, err
 				}
 				return &contract, file.Path, nil
 			}
 		}
 	}
-	return nil, "", errors.New("no skill contract found (expected skil.yaml)")
+	return nil, "", errors.New("no skill contract found (expected skill.yaml or skil.yaml)")
 }
 
 func Parse(data []byte) (skil.SkillContract, error) {
+	var shape map[string]any
+	if err := yaml.Unmarshal(data, &shape); err != nil {
+		return skil.SkillContract{}, err
+	}
+	if _, native := shape["skill"]; !native {
+		return parsePortable(data)
+	}
 	var c skil.SkillContract
 	if err := strictYAML(data, &c); err != nil {
 		return c, err
 	}
 	return c, Validate(c)
+}
+
+type portableContract struct {
+	ContractVersion int                  `json:"contract_version" yaml:"contract_version"`
+	Name            string               `json:"name" yaml:"name"`
+	Version         string               `json:"version" yaml:"version"`
+	Description     string               `json:"description" yaml:"description"`
+	Owner           string               `json:"owner" yaml:"owner"`
+	Entrypoint      string               `json:"entrypoint" yaml:"entrypoint"`
+	Compatibility   *skil.Compatibility  `json:"compatibility,omitempty" yaml:"compatibility,omitempty"`
+	Security        skil.SecurityPosture `json:"security" yaml:"security"`
+	Capabilities    *skil.Capabilities   `json:"capabilities,omitempty" yaml:"capabilities,omitempty"`
+}
+
+func parsePortable(data []byte) (skil.SkillContract, error) {
+	if err := schemas.ValidateYAML("portable-skill-contract-v1.schema.json", data); err != nil {
+		return skil.SkillContract{}, err
+	}
+	var portable portableContract
+	decoder := yaml.NewDecoder(strings.NewReader(string(data)))
+	decoder.KnownFields(true)
+	if err := decoder.Decode(&portable); err != nil {
+		return skil.SkillContract{}, err
+	}
+	capabilities := skil.Capabilities{Agent: skil.AgentCapability{ConfirmDestructive: true, ConfirmExternal: true}}
+	if portable.Capabilities != nil {
+		capabilities = *portable.Capabilities
+	} else if portable.Security.RequiresNetwork || portable.Security.RequiresSecrets ||
+		portable.Security.WritesFiles || portable.Security.RunsCommands {
+		return skil.SkillContract{}, errors.New("portable contracts with active security capabilities require a detailed capabilities section")
+	}
+	contract := skil.SkillContract{
+		Version: 1, Skill: skil.SkillIdentity{Name: portable.Name, Version: portable.Version, Description: portable.Description},
+		Owner: portable.Owner, Entrypoint: portable.Entrypoint, Compatibility: portable.Compatibility,
+		Security: &portable.Security, Capabilities: capabilities,
+	}
+	return contract, Validate(contract)
 }
 
 func Validate(c skil.SkillContract) error {

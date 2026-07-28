@@ -25,6 +25,7 @@ type EvidenceBundle struct {
 
 type EvidenceResult struct {
 	Status          Status   `json:"status" yaml:"status"`
+	Verdict         Verdict  `json:"verdict,omitempty" yaml:"verdict,omitempty"`
 	MaximumSeverity Severity `json:"maximum_severity" yaml:"maximum_severity"`
 	RiskScore       int      `json:"risk_score,omitempty" yaml:"risk_score,omitempty"`
 	Findings        int      `json:"findings" yaml:"findings"`
@@ -51,6 +52,7 @@ type Producer struct {
 }
 type AttestResult struct {
 	Status          Status   `json:"status" yaml:"status"`
+	Verdict         Verdict  `json:"verdict,omitempty" yaml:"verdict,omitempty"`
 	MaximumSeverity Severity `json:"maximum_severity" yaml:"maximum_severity"`
 	RiskScore       int      `json:"risk_score" yaml:"risk_score"`
 }

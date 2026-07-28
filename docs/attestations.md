@@ -3,7 +3,8 @@
 Evidence records its type, producer/version, timestamp, payload digest, and
 subject artifact digest. Packaged artifacts use the raw archive SHA-256;
 directories use their reproducible content-manifest SHA-256. An attestation
-summarizes completed analyses and result status for one exact subject.
+summarizes completed analyses, result status, and the native
+`CLEAR`/`REVIEW`/`BLOCK` verdict for one exact subject.
 
 `skil key generate` creates a PKCS#8 Ed25519 private key without overwriting an
 existing file and prints the public key plus its fingerprint. `skil attest
