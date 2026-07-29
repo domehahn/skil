@@ -90,6 +90,7 @@ func (p *PythonAST) Analyze(ctx context.Context, ac skil.AnalysisContext) ([]ski
 			return nil, fmt.Errorf("%s: %w", file.Path, err)
 		}
 		aliases := collectAliases(tree.RootNode(), file.Data)
+		reflectiveVars := collectReflectiveAliases(tree.RootNode(), file.Data, aliases)
 		emit := func(node *tree_sitter.Node, target string, rule astRule) {
 			rp := RulePattern{Rule: skil.Rule{ID: rule.id, Title: rule.title, Category: rule.category,
 				Severity: rule.severity, Description: rule.description, Analysis: "ast", AppliesTo: []string{"py"},
@@ -139,9 +140,21 @@ func (p *PythonAST) Analyze(ctx context.Context, ac skil.AnalysisContext) ([]ski
 			if function == nil {
 				return
 			}
-			if target, ok := reflectiveGetattrSink(function, file.Data, aliases); ok {
-				emit(node, target, pyRule("SKIL-PY-REFLECT-EXEC", "Reflective Python execution", "dynamic-execution", "Python reflectively resolves and invokes an execution sink.", "Use an explicit, reviewable function call and remove reflective execution.", "commands.execute", skil.SeverityHigh))
+			if sink, ok := reflectiveGetattrSink(function, file.Data, aliases); ok {
+				emit(node, sink.target, pyRule("SKIL-PY-REFLECT-EXEC", "Reflective Python execution", "dynamic-execution", "Python reflectively resolves and invokes an execution sink.", "Use an explicit, reviewable function call and remove reflective execution.", "commands.execute", skil.SeverityHigh))
+				if underlying, ok := reflectiveUnderlyingRule(sink); ok {
+					emit(node, sink.target, underlying)
+				}
 				return
+			}
+			if function.Kind() == "identifier" {
+				if sink, ok := reflectiveVars[function.Utf8Text(file.Data)]; ok {
+					emit(node, sink.target, pyRule("SKIL-PY-REFLECT-EXEC", "Reflective Python execution", "dynamic-execution", "Python reflectively resolves and invokes an execution sink.", "Use an explicit, reviewable function call and remove reflective execution.", "commands.execute", skil.SeverityHigh))
+					if underlying, ok := reflectiveUnderlyingRule(sink); ok {
+						emit(node, sink.target, underlying)
+					}
+					return
+				}
 			}
 			target := resolvePythonTarget(function.Utf8Text(file.Data), aliases)
 			rule, found := pythonCalls[target]
@@ -306,27 +319,77 @@ func dynamicGetattr(call *tree_sitter.Node) bool {
 	return name != nil && name.Kind() != "string"
 }
 
-func reflectiveGetattrSink(function *tree_sitter.Node, source []byte, aliases map[string]string) (string, bool) {
+// reflectiveSink is a resolved `getattr(module, "name")` reference to a
+// dangerous sink, retaining the module/name so callers can also compose the
+// equivalent direct-call rule (e.g. builtins.exec resolves to the same
+// SKIL-PY-001 finding a literal `exec(...)` call would produce).
+type reflectiveSink struct {
+	target, module, name string
+}
+
+// collectReflectiveAliases finds simple assignments of the form
+// `name = getattr(module, "attr")` where the resolved target is a dangerous
+// execution sink, so a later call through the local variable (`name(...)`)
+// is still recognized as reflective execution even though the getattr call
+// and its invocation are separated. This extends the same alias-resolution
+// layer used for import aliases to value aliases of a reflective sink.
+func collectReflectiveAliases(root *tree_sitter.Node, source []byte, aliases map[string]string) map[string]reflectiveSink {
+	reflective := map[string]reflectiveSink{}
+	walkNode(root, func(node *tree_sitter.Node) {
+		if node.Kind() != "assignment" {
+			return
+		}
+		left := node.ChildByFieldName("left")
+		right := node.ChildByFieldName("right")
+		if left == nil || right == nil || left.Kind() != "identifier" || right.Kind() != "call" {
+			return
+		}
+		if sink, ok := reflectiveGetattrSink(right, source, aliases); ok {
+			reflective[left.Utf8Text(source)] = sink
+		}
+	})
+	return reflective
+}
+
+func reflectiveGetattrSink(function *tree_sitter.Node, source []byte, aliases map[string]string) (reflectiveSink, bool) {
 	if function == nil || function.Kind() != "call" {
-		return "", false
+		return reflectiveSink{}, false
 	}
 	getter := function.ChildByFieldName("function")
 	args := function.ChildByFieldName("arguments")
 	if getter == nil || args == nil || resolvePythonTarget(getter.Utf8Text(source), aliases) != "getattr" || args.NamedChildCount() < 2 {
-		return "", false
+		return reflectiveSink{}, false
 	}
 	object, attribute := args.NamedChild(0), args.NamedChild(1)
 	if object == nil || attribute == nil || attribute.Kind() != "string" {
-		return "", false
+		return reflectiveSink{}, false
 	}
 	module := resolvePythonTarget(object.Utf8Text(source), aliases)
 	name := strings.Trim(attribute.Utf8Text(source), `"'`)
 	dangerous := (module == "os" && (name == "system" || strings.HasPrefix(name, "exec"))) ||
 		(module == "builtins" && (name == "exec" || name == "eval" || name == "compile"))
 	if !dangerous {
-		return "", false
+		return reflectiveSink{}, false
 	}
-	return "getattr(" + module + ", " + name + ")", true
+	return reflectiveSink{target: "getattr(" + module + ", " + name + ")", module: module, name: name}, true
+}
+
+// reflectiveUnderlyingRule maps a resolved reflective getattr(module, name)
+// sink to the same rule a direct, non-reflective call would have produced
+// (e.g. getattr(builtins, "exec") behaves like a literal exec(...) call).
+// Composing this from the existing pythonCalls table keeps a reflective
+// exec/eval/system call classified consistently with its direct form.
+func reflectiveUnderlyingRule(sink reflectiveSink) (astRule, bool) {
+	switch {
+	case sink.module == "builtins" && (sink.name == "exec" || sink.name == "eval" || sink.name == "compile"):
+		rule, ok := pythonCalls[sink.name]
+		return rule, ok
+	case sink.module == "os" && (sink.name == "system" || strings.HasPrefix(sink.name, "exec")):
+		rule, ok := pythonCalls["os.system"]
+		return rule, ok
+	default:
+		return astRule{}, false
+	}
 }
 
 func writeMode(call *tree_sitter.Node, source []byte) bool {

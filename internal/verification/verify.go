@@ -9,6 +9,12 @@ import (
 	"github.com/domehahn/skil/pkg/skil"
 )
 
+// capabilityMismatchRuleID identifies findings produced by Findings() below.
+// Infer() must treat this rule ID as opaque verification output, never as
+// raw capability evidence, to avoid feeding verification results back into
+// verification input.
+const capabilityMismatchRuleID = "SKIL-CAP-001"
+
 type Mismatch struct {
 	Capability string        `json:"capability" yaml:"capability"`
 	Kind       string        `json:"kind" yaml:"kind"`
@@ -91,6 +97,13 @@ func Verify(contract skil.SkillContract, findings []skil.Finding) Result {
 func Infer(findings []skil.Finding) skil.ObservedCapabilities {
 	var o skil.ObservedCapabilities
 	for _, f := range findings {
+		if f.RuleID == capabilityMismatchRuleID {
+			// Verification output must never be fed back into inference: a
+			// capability-mismatch finding (e.g. "overdeclared") records the
+			// *absence* of observed evidence and would otherwise be
+			// misread as proof the capability was in fact observed.
+			continue
+		}
 		if capability, _ := f.Evidence["capability"].(string); capability != "" {
 			switch capability {
 			case "network.outbound":
@@ -211,7 +224,7 @@ func Findings(result Result, artifact skil.Artifact) []skil.Finding {
 	for _, mismatch := range result.Mismatches {
 		fp := stable(mismatch.Capability, artifact.Digest)
 		out = append(out, skil.Finding{
-			ID: "F-" + strings.ToUpper(fp[:12]), RuleID: "SKIL-CAP-001", Category: "contract-conformance",
+			ID: "F-" + strings.ToUpper(fp[:12]), RuleID: capabilityMismatchRuleID, Category: "contract-conformance",
 			Severity: mismatch.Severity, Confidence: 1, Title: "Capability contract mismatch",
 			Message:     fmt.Sprintf("Capability %s has a %s contract mismatch.", mismatch.Capability, mismatch.Kind),
 			Evidence:    map[string]any{"capability": mismatch.Capability, "source_findings": mismatch.Evidence},

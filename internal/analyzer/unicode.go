@@ -28,8 +28,8 @@ func (u *Unicode) Analyze(_ context.Context, ac skil.AnalysisContext) ([]skil.Fi
 			continue
 		}
 		for line, text := range lines(file.Data) {
-			hasInvisible := strings.ContainsAny(text, "\u200b\u200c\u200d\u2060\ufeff")
-			hasRTL := strings.ContainsAny(text, "\u202a\u202b\u202d\u202e\u2066\u2067\u2068\u2069")
+			hasInvisible := suspiciousInvisible(text)
+			hasRTL := strings.ContainsAny(text, "‪‫‭‮⁦⁧⁨⁩")
 			if hasInvisible || hasRTL {
 				rule := RulePattern{Rule: skil.Rule{ID: "SKIL-UNI-001", Title: "Unicode deception control",
 					Category: "integrity", Severity: skil.SeverityHigh,
@@ -46,11 +46,11 @@ func (u *Unicode) Analyze(_ context.Context, ac skil.AnalysisContext) ([]skil.Fi
 				finding.Evidence["decoded_tag_text"] = truncate(decoded, 160)
 				out = append(out, finding)
 			}
-			if token := mixedScriptHostname(text); token != "" {
-				rule := RulePattern{Rule: skil.Rule{ID: "SKIL-UNI-002", Title: "Unicode hostname confusable",
+			if token := mixedScriptToken(text); token != "" {
+				rule := RulePattern{Rule: skil.Rule{ID: "SKIL-UNI-002", Title: "Unicode confusable identifier or hostname",
 					Category: "artifact-integrity", Severity: skil.SeverityHigh,
-					Description: "A hostname-like token mixes Latin and Cyrillic characters.", Analysis: "pattern",
-					Remediation: "Use an ASCII or IDNA-normalized reviewed hostname."}, Confidence: .96}
+					Description: "A token mixes Latin with a visually confusable script (Cyrillic or Greek).", Analysis: "pattern",
+					Remediation: "Use an ASCII or IDNA-normalized reviewed identifier or hostname."}, Confidence: .96}
 				finding := makeFinding(rule, file, line+1, text)
 				finding.Evidence["confusable_token"] = token
 				out = append(out, finding)
@@ -70,6 +70,64 @@ func (u *Unicode) Analyze(_ context.Context, ac skil.AnalysisContext) ([]skil.Fi
 	return out, nil
 }
 
+// isEmojiRune reports whether r falls in a Unicode block used to build
+// legitimate emoji sequences: pictographs, symbol/dingbat blocks, regional
+// indicators (flags), and variation/skin-tone modifiers. It is used only to
+// distinguish a zero-width joiner used to compose an emoji sequence from one
+// used to smuggle invisible content in ordinary text.
+func isEmojiRune(r rune) bool {
+	switch {
+	case r >= 0x1F300 && r <= 0x1FAFF: // pictographs, emoticons, symbols, skin tones
+		return true
+	case r >= 0x2600 && r <= 0x27BF: // misc symbols and dingbats
+		return true
+	case r >= 0x1F1E6 && r <= 0x1F1FF: // regional indicators (flag letters)
+		return true
+	case r >= 0xFE00 && r <= 0xFE0F: // variation selectors
+		return true
+	case r == 0x2764 || r == 0x2B50: // heart, star (outside the ranges above)
+		return true
+	default:
+		return false
+	}
+}
+
+// suspiciousInvisible reports whether text contains an invisible/formatting
+// control character that is not accounted for by a legitimate emoji ZWJ
+// sequence (e.g. a person + zero-width-joiner + profession emoji). A ZWJ
+// bordered on both sides by emoji-range runes is treated as ordinary emoji
+// composition rather than deceptive hidden content; any other occurrence of
+// these controls is still flagged. Character codes are written as \u escapes
+// rather than pasted literally so the source stays unambiguous byte-for-byte.
+func suspiciousInvisible(text string) bool {
+	const (
+		zeroWidthSpace   = '\u200b'
+		zeroWidthNonJoin = '\u200c'
+		zeroWidthJoiner  = '\u200d'
+		wordJoiner       = '\u2060'
+		byteOrderMark    = '\ufeff'
+	)
+	runs := []rune(text)
+	for i, r := range runs {
+		switch r {
+		case zeroWidthSpace, zeroWidthNonJoin, wordJoiner, byteOrderMark:
+			return true
+		case zeroWidthJoiner:
+			var prev, next rune
+			if i > 0 {
+				prev = runs[i-1]
+			}
+			if i+1 < len(runs) {
+				next = runs[i+1]
+			}
+			if isEmojiRune(prev) && isEmojiRune(next) {
+				continue
+			}
+			return true
+		}
+	}
+	return false
+}
 func decodeUnicodeTags(text string) string {
 	var decoded strings.Builder
 	found := false
@@ -88,24 +146,33 @@ func decodeUnicodeTags(text string) string {
 	return decoded.String()
 }
 
-func mixedScriptHostname(text string) string {
+// mixedScriptToken reports the first word- or hostname-like token in text
+// that mixes Latin letters with a visually confusable non-Latin script
+// (Cyrillic or Greek). Unlike a hostname-only check, this also catches
+// confusables in ordinary identifiers (e.g. a skill or tool "name" field)
+// since English-language skill/tool metadata has no legitimate reason to mix
+// scripts within a single token.
+func mixedScriptToken(text string) string {
 	for _, token := range strings.FieldsFunc(text, func(r rune) bool {
-		return unicode.IsSpace(r) || strings.ContainsRune(`"'()[]{}<>,;`, r)
+		return unicode.IsSpace(r) || strings.ContainsRune(`"'()[]{}<>,;:`, r)
 	}) {
-		if !strings.Contains(token, ".") {
+		trimmed := strings.Trim(token, "-_")
+		if len([]rune(trimmed)) < 3 {
 			continue
 		}
-		latin, cyrillic := false, false
-		for _, r := range token {
+		var latin, cyrillic, greek bool
+		for _, r := range trimmed {
 			latin = latin || unicode.In(r, unicode.Latin)
 			cyrillic = cyrillic || unicode.In(r, unicode.Cyrillic)
+			greek = greek || unicode.In(r, unicode.Greek)
 		}
-		if latin && cyrillic {
+		if latin && (cyrillic || greek) {
 			return token
 		}
 	}
 	return ""
 }
+
 func mostlyPrintable(data []byte) bool {
 	if len(data) == 0 {
 		return false
