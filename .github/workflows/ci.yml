@@ -22,7 +22,19 @@ jobs:
       - run: go build -trimpath ./cmd/skil
       - run: go run ./cmd/skil validate tests/fixtures/clean-skill
       - run: go run ./cmd/skil scan tests/fixtures/clean-skill --format sarif --output skil.sarif
-      - run: go run ./cmd/skil scan-all .agents/skills --format json --output /tmp/skil-collection.json
+      - name: Smoke test collection scanning
+        run: |
+          set +e
+          go run ./cmd/skil scan-all .agents/skills --format json --output /tmp/skil-collection.json
+          code=$?
+          set -e
+          test "$code" -eq 0 || test "$code" -eq 1
+          jq -e '
+            .schema_version == "1.0.0" and
+            (.passed | type == "number") and
+            (.failed | type == "number") and
+            (.skills | type == "array")
+          ' /tmp/skil-collection.json
       - run: go run ./cmd/skil policy check tests/fixtures/example --policy examples/policy.yaml
       - name: Verify embedded YARA rule pack
         run: go run ./cmd/skil scan tests/fixtures/clean-skill --yara-builtin --require-complete
@@ -185,7 +197,7 @@ jobs:
               verification_status: .verification.status,
               evaluation_status: .evaluation.status,
               coverage: .evaluation.coverage,
-              runtime_errors: [.evaluation.runs[].trace.errors[]]
+              runtime_errors: [.evaluation.runs[]?.trace.errors[]?]
             }' "${ASSURANCE_PROOF}"
             exit "$code"
           fi
