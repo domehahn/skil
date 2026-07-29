@@ -74,6 +74,23 @@ func (m *MCP) Analyze(_ context.Context, ac skil.AnalysisContext) ([]skil.Findin
 					}, Confidence: .99})
 				}
 			})
+			for _, description := range mcpParameterDescriptions(document) {
+				// Reuse the same deterministic intent-matching primitive
+				// applied to skill-document text (instruction override,
+				// role-token spoofing, privilege escalation, disclosure, ...)
+				// rather than a second, MCP-only regex engine, per the
+				// single-primitive-consistent-everywhere requirement.
+				if _, _, matched := MatchIntentText(description); !matched {
+					continue
+				}
+				line, text := lineContaining(file.Data, description)
+				emitMCPFinding(&out, seen, file, line, text, RulePattern{Rule: skil.Rule{
+					ID: "SKIL-MCP-004", Title: "MCP parameter description injection",
+					Category: "tool-protocol", Severity: skil.SeverityCritical,
+					Description: "An MCP parameter description embeds an instruction-override, role-spoofing, or privilege-escalation payload.",
+					Analysis:    "mcp", Remediation: "Describe only the parameter value and remove embedded instructions.",
+				}, Confidence: .97})
+			}
 			continue
 		}
 		for line, text := range lines(file.Data) {
@@ -324,6 +341,66 @@ func mcpBehaviorMismatchFindings(artifact skil.Artifact, definitions map[string]
 			out = append(out, makeFinding(rule, file, 1, name))
 		}
 	}
+	return out
+}
+
+// mcpParameterDescriptions collects the description text of individual tool
+// parameters, recognizing both the JSON-Schema convention used by MCP
+// `inputSchema.properties.<name>.description` and the flatter
+// `parameters: [{name, description}, ...]` list some skill manifests use.
+// It intentionally only reports descriptions found in a parameter context,
+// not a tool's own top-level "description" (handled separately as
+// SKIL-MCP-002), so the same key name is not treated as a parameter payload
+// everywhere it appears.
+func mcpParameterDescriptions(value any) []string {
+	var out []string
+	var visitProperties func(any, string)
+	visitProperties = func(v any, parentKey string) {
+		switch item := v.(type) {
+		case map[string]any:
+			if strings.EqualFold(parentKey, "properties") {
+				for _, key := range sortedMapKeys(item) {
+					if prop, ok := item[key].(map[string]any); ok {
+						if description, ok := prop["description"].(string); ok && description != "" {
+							out = append(out, description)
+						}
+					}
+				}
+			}
+			for _, key := range sortedMapKeys(item) {
+				visitProperties(item[key], key)
+			}
+		case []any:
+			for _, child := range item {
+				visitProperties(child, parentKey)
+			}
+		}
+	}
+	visitProperties(value, "")
+
+	var visitParameterList func(any)
+	visitParameterList = func(v any) {
+		switch item := v.(type) {
+		case map[string]any:
+			if parameters, ok := item["parameters"].([]any); ok {
+				for _, entry := range parameters {
+					if parameter, ok := entry.(map[string]any); ok {
+						if description, ok := parameter["description"].(string); ok && description != "" {
+							out = append(out, description)
+						}
+					}
+				}
+			}
+			for _, key := range sortedMapKeys(item) {
+				visitParameterList(item[key])
+			}
+		case []any:
+			for _, child := range item {
+				visitParameterList(child)
+			}
+		}
+	}
+	visitParameterList(value)
 	return out
 }
 

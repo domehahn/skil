@@ -55,6 +55,28 @@ func TestDeclaredObservedCapabilityMatchIsClean(t *testing.T) {
 	}
 }
 
+func TestVerificationOutputIsNotReusedAsCapabilityEvidence(t *testing.T) {
+	contract := skil.SkillContract{Capabilities: skil.Capabilities{
+		Network: skil.NetworkCapability{Outbound: true, Hosts: []string{"api.example.com"}},
+	}}
+	// Simulate re-verifying a scan whose findings already contain a prior
+	// overdeclared mismatch finding for the same capability (as produced by
+	// Findings()). That finding must not be mistaken for fresh evidence
+	// that the capability was actually observed.
+	prior := Verify(contract, nil)
+	priorFindings := Findings(prior, skil.Artifact{})
+	result := Verify(contract, priorFindings)
+	if result.Status != skil.StatusWarn {
+		t.Fatalf("re-verification must still report overdeclaration, not treat prior output as evidence: %#v", result)
+	}
+	if result.Observed.NetworkOutbound {
+		t.Fatalf("verification output must not be inferred as observed capability: %#v", result)
+	}
+	if len(result.Mismatches) != 1 || result.Mismatches[0].Kind != "overdeclared" {
+		t.Fatalf("expected a single overdeclared mismatch: %#v", result.Mismatches)
+	}
+}
+
 func TestCapabilityEvidenceDrivesObservationForNewAnalyzers(t *testing.T) {
 	result := Verify(skil.SkillContract{}, []skil.Finding{{
 		RuleID:   "SKIL-PY-REFLECT-EXEC",

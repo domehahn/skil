@@ -79,6 +79,19 @@ func (t *Taint) Analyze(ctx context.Context, ac skil.AnalysisContext) ([]skil.Fi
 			return nil, fmt.Errorf("%s: %w", file.Path, err)
 		}
 		assignments, calls, localSummary := collectFlowNodes(tree.RootNode(), file.Data)
+		if extension(file.Path) == "py" {
+			// Reuse the same Python import-alias resolution the AST analyzer
+			// uses (collectAliases in python_ast.go) so `import x as y; y.f()`
+			// is recognized as `x.f()` for taint source/sink matching too,
+			// instead of re-implementing a second, weaker alias layer here.
+			aliasPatterns := compilePythonAliasPatterns(collectAliases(tree.RootNode(), file.Data))
+			for i := range calls {
+				calls[i].text = resolvePythonAliasesInText(calls[i].text, aliasPatterns)
+			}
+			for i := range assignments {
+				assignments[i].value = resolvePythonAliasesInText(assignments[i].value, aliasPatterns)
+			}
+		}
 		tree.Close()
 		for name, source := range localSummary.sources {
 			if summary.sources[name] == "" {
@@ -110,6 +123,55 @@ func (t *Taint) Analyze(ctx context.Context, ac skil.AnalysisContext) ([]skil.Fi
 	}
 	return out, nil
 }
+
+// pythonAliasPattern pairs a precompiled alias-reference pattern with the
+// canonical module name it resolves to.
+type pythonAliasPattern struct {
+	pattern   *regexp.Regexp
+	canonical string
+}
+
+// compilePythonAliasPatterns compiles each import alias's reference pattern
+// once per file, so resolvePythonAliasesInText (called once per call and
+// once per assignment) never recompiles a regular expression per
+// substitution.
+func compilePythonAliasPatterns(aliases map[string]string) []pythonAliasPattern {
+	if len(aliases) == 0 {
+		return nil
+	}
+	patterns := make([]pythonAliasPattern, 0, len(aliases))
+	for local, canonical := range aliases {
+		if local == "" || local == canonical {
+			continue
+		}
+		patterns = append(patterns, pythonAliasPattern{
+			pattern:   regexp.MustCompile(`\b` + regexp.QuoteMeta(local) + `\.`),
+			canonical: canonical,
+		})
+	}
+	return patterns
+}
+
+// resolvePythonAliasesInText rewrites occurrences of an imported local alias
+// (e.g. "rq" from `import requests as rq`) to its canonical dotted module
+// name (e.g. "requests") within a snippet of source text, using patterns
+// already compiled once for the whole file, so downstream regex-based
+// source/sink matching sees the real module regardless of the alias used at
+// the call site.
+func resolvePythonAliasesInText(text string, aliasPatterns []pythonAliasPattern) string {
+	for _, alias := range aliasPatterns {
+		text = alias.pattern.ReplaceAllString(text, alias.canonical+".")
+	}
+	return text
+}
+
+// untrustedOutputOrigin reports whether a taint source describes external or
+// generated input (stdin, HTTP request data, file reads, or upstream
+// tool/model output) rather than a purely local value. It is used to derive
+// an "untrusted output reaches execution" finding from existing taint and
+// AST evidence instead of re-detecting the same condition with a separate
+// text pattern.
+var untrustedOutputOrigin = regexp.MustCompile(`(?i)input\s*\(|stdin|request\.(?:args|query|body)|readfile|tool[_ .-]?output|mcp[_ .-]?output`)
 
 func taintLanguage(ext string) unsafe.Pointer {
 	switch ext {
@@ -371,6 +433,25 @@ func analyzeFlow(file skil.File, assignments []flowAssignment, calls []flowCall,
 				finding.Evidence["engine"] = "whole-artifact-function-summary"
 			}
 			findings = append(findings, finding)
+			// Compose a higher-level "untrusted output reached execution"
+			// finding from this same taint evidence when the source looks
+			// like external or generated input, rather than re-detecting the
+			// condition with a separate text-matching rule.
+			if sink.name == "execution" && untrustedOutputOrigin.MatchString(source) {
+				outputRule := RulePattern{Rule: skil.Rule{
+					ID: "SKIL-OUTPUT-EXECUTION", Title: "Unvalidated generated-output execution",
+					Category: "output-trust", Severity: skil.SeverityHigh,
+					Description: "Data from external input or generated output reaches a dynamic execution sink.",
+					Analysis:    "taint", Remediation: "Validate and encode output before use; do not execute it directly.",
+				}, Confidence: .92}
+				outputFinding := makeFinding(outputRule, file, call.line, call.text)
+				outputFinding.Evidence["source"] = source
+				outputFinding.Evidence["variable"] = variable
+				outputFinding.Evidence["sink"] = sink.name
+				outputFinding.Evidence["capability"] = "commands.execute"
+				outputFinding.Evidence["engine"] = "taint-composition"
+				findings = append(findings, outputFinding)
+			}
 		}
 	}
 	return findings
