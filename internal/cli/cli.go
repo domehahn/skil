@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -22,6 +23,7 @@ import (
 	"github.com/domehahn/skil/internal/eval"
 	"github.com/domehahn/skil/internal/evidence"
 	"github.com/domehahn/skil/internal/importer"
+	"github.com/domehahn/skil/internal/lint"
 	"github.com/domehahn/skil/internal/lockfile"
 	"github.com/domehahn/skil/internal/packagecheck"
 	"github.com/domehahn/skil/internal/policy"
@@ -52,6 +54,7 @@ type App struct {
 }
 
 type analysisFlags struct {
+	full                 *bool
 	staticOnly           *bool
 	useOSV               *bool
 	osvCache             *string
@@ -76,6 +79,7 @@ type analysisFlags struct {
 
 func bindAnalysisFlags(fs *flag.FlagSet) analysisFlags {
 	return analysisFlags{
+		full:                 fs.Bool("full", false, "enable online OSV and the native malware signature pack; model semantic analysis remains explicit"),
 		staticOnly:           fs.Bool("static-only", false, "disable semantic providers"),
 		useOSV:               fs.Bool("osv", false, "query osv.dev for pinned dependency vulnerabilities"),
 		osvCache:             fs.String("osv-cache", "", "optional OSV cache file"),
@@ -84,7 +88,7 @@ func bindAnalysisFlags(fs *flag.FlagSet) analysisFlags {
 		yaraRules:            fs.String("yara-rules", "", "trusted YARA source-rules file"),
 		yaraRulesDirectory:   fs.String("yara-rules-dir", "", "flat directory of trusted .yar/.yara source files"),
 		yaraBinary:           fs.String("yara-binary", "yara", "YARA executable"),
-		yaraBuiltin:          fs.Bool("yara-builtin", false, "scan with skil's built-in conservative YARA rule pack"),
+		yaraBuiltin:          fs.Bool("yara-builtin", false, "scan with skil's native conservative malware signature pack"),
 		useSemantic:          fs.Bool("semantic", false, "enable external semantic analysis"),
 		semanticProvider:     fs.String("semantic-provider", "openai-compatible", "semantic provider: openai-compatible, nvidia, anthropic, anthropic-proxy, or bedrock"),
 		semanticEndpoint:     fs.String("semantic-endpoint", "https://api.openai.com/v1/chat/completions", "OpenAI-compatible chat endpoint"),
@@ -124,6 +128,10 @@ func (a *App) Run(ctx context.Context, args []string) int {
 		return ExitOK
 	case "validate":
 		code = a.validate(args[1:])
+	case "lint":
+		code = a.lint(args[1:])
+	case "lint-all":
+		code = a.lintAll(args[1:])
 	case "scan":
 		code = a.scan(ctx, args[1:])
 	case "scan-all":
@@ -134,6 +142,8 @@ func (a *App) Run(ctx context.Context, args []string) int {
 		code = a.verify(ctx, args[1:])
 	case "eval":
 		code = a.evaluate(ctx, args[1:])
+	case "assure":
+		code = a.assure(ctx, args[1:])
 	case "attest":
 		code = a.attest(ctx, args[1:])
 	case "provenance":
@@ -175,16 +185,19 @@ func (a *App) Run(ctx context.Context, args []string) int {
 }
 
 func (a *App) help() {
-	fmt.Fprint(a.Out, `skil - security, verification, and assurance for AI agent skills
+	fmt.Fprint(a.Out, `skil - Skill Inspector and Linter for AI agent skills
 
 Usage:
   skil validate <skill> [--format json]
-  skil scan <skill> [--static-only] [--osv] [--yara-rules file|--yara-rules-dir dir] [--semantic --semantic-model model] [--require-complete] [--allow-remote]
-             [--format terminal|json|markdown|sarif] [--output file] [--baseline file] [--show-suppressed=false]
+  skil lint <skill> [--strict|--profile default|strict|portable|publish] [--format terminal|json|markdown|sarif] [--output file]
+  skil lint-all <collection> [--profile default|strict|portable|publish] [--workers N] [--format terminal|json|markdown] [--output file]
+  skil scan <skill> [--full] [--static-only] [--osv] [--yara-rules file|--yara-rules-dir dir] [--semantic --semantic-model model] [--require-complete] [--allow-remote]
+             [--format terminal|json|markdown|sarif] [--compact] [--output file] [--baseline file] [--show-suppressed=false]
   skil scan-all <collection> [analysis flags] [--workers N] [--format terminal|json|markdown] [--output file]
   skil serve (--stdio | --listen 127.0.0.1:port --token-env ENV) --root <directory>
   skil verify <skill> [--format json] [--osv] [--yara-rules file] [--semantic --semantic-model model]
   skil eval <skill> [--test file] [--runtime mock|isolated] [--runtime-command executable] [--runs N] [--output file]
+  skil assure <skill> --runtime-command executable [--test file] [--runs N] [--full] [--format terminal|json]
   skil attest <skill> [--output file] [--eval-result file] [--signing-key key.pem] [analysis flags]
   skil provenance create <skill.tgz> --repository URL --commit SHA --builder ID --signing-key key.pem
   skil key generate --output key.pem
@@ -267,12 +280,165 @@ func (a *App) validate(args []string) int {
 	return ExitOK
 }
 
+func (a *App) lint(args []string) int {
+	fs := newFlags("lint", a.Err)
+	strict := fs.Bool("strict", false, "treat lint warnings as gate failures")
+	profileName := fs.String("profile", string(lint.ProfileDefault), "lint profile: default, strict, portable, or publish")
+	format := fs.String("format", "terminal", "terminal, json, markdown, or sarif")
+	output := fs.String("output", "", "output file")
+	if code := parse(fs, args, 1); code != ExitOK {
+		return code
+	}
+	profile, err := lint.ParseProfile(*profileName)
+	if err != nil {
+		return a.inputError(err)
+	}
+	if *strict && profile == lint.ProfileDefault {
+		profile = lint.ProfileStrict
+	}
+	loaded, err := artifact.Load(fs.Arg(0), artifact.Options{
+		Exclude: scanOutputExcludes(fs.Arg(0), *output),
+	})
+	if err != nil {
+		return a.inputError(err)
+	}
+	result := lint.AnalyzeProfile(loaded, profile)
+	writer, closeFn, err := outputWriter(a.Out, *output)
+	if err != nil {
+		return a.inputError(err)
+	}
+	defer closeFn()
+	if err := lint.Write(writer, *format, result); err != nil {
+		return a.inputError(err)
+	}
+	if result.Status == skil.StatusFail {
+		return ExitGateFail
+	}
+	return ExitOK
+}
+
+type lintCollectionResult struct {
+	SchemaVersion string        `json:"schema_version"`
+	Source        string        `json:"source"`
+	Profile       lint.Profile  `json:"profile"`
+	Skills        []lint.Result `json:"skills"`
+	Passed        int           `json:"passed"`
+	Warned        int           `json:"warned"`
+	Failed        int           `json:"failed"`
+}
+
+func (a *App) lintAll(args []string) int {
+	fs := newFlags("lint-all", a.Err)
+	profileName := fs.String("profile", string(lint.ProfileDefault), "lint profile: default, strict, portable, or publish")
+	format := fs.String("format", "terminal", "terminal, json, or markdown")
+	output := fs.String("output", "", "output file")
+	workers := fs.Int("workers", 1, "parallel skill lints (1-64)")
+	if code := parse(fs, args, 1); code != ExitOK {
+		return code
+	}
+	profile, err := lint.ParseProfile(*profileName)
+	if err != nil {
+		return a.inputError(err)
+	}
+	if *format != "terminal" && *format != "json" && *format != "markdown" && *format != "md" {
+		return a.inputError(errors.New("lint-all supports terminal, json, or markdown output"))
+	}
+	if *workers < 1 || *workers > 64 {
+		return a.inputError(errors.New("--workers must be between 1 and 64"))
+	}
+	roots, err := collection.Discover(fs.Arg(0))
+	if err != nil {
+		return a.inputError(err)
+	}
+	if len(roots) == 0 {
+		return a.inputError(errors.New("collection contains no SKILL.md files"))
+	}
+	result := lintCollectionResult{
+		SchemaVersion: "1.0.0", Source: fs.Arg(0), Profile: profile,
+		Skills: make([]lint.Result, len(roots)),
+	}
+	lintErrors := make([]error, len(roots))
+	jobs := make(chan int)
+	var group sync.WaitGroup
+	workerCount := min(*workers, len(roots))
+	for range workerCount {
+		group.Add(1)
+		go func() {
+			defer group.Done()
+			for index := range jobs {
+				loaded, err := artifact.Load(roots[index], artifact.Options{
+					Exclude: scanOutputExcludes(roots[index], *output),
+				})
+				if err != nil {
+					lintErrors[index] = err
+					continue
+				}
+				result.Skills[index] = lint.AnalyzeProfile(loaded, profile)
+			}
+		}()
+	}
+	for index := range roots {
+		jobs <- index
+	}
+	close(jobs)
+	group.Wait()
+	for index, err := range lintErrors {
+		if err != nil {
+			return a.inputError(fmt.Errorf("lint collection item %d: %w", index, err))
+		}
+		switch result.Skills[index].Status {
+		case skil.StatusFail:
+			result.Failed++
+		case skil.StatusWarn:
+			result.Warned++
+		default:
+			result.Passed++
+		}
+	}
+	writer, closeFn, err := outputWriter(a.Out, *output)
+	if err != nil {
+		return a.inputError(err)
+	}
+	defer closeFn()
+	if err := writeLintCollection(writer, *format, result); err != nil {
+		return a.internalError(err)
+	}
+	if result.Failed > 0 {
+		return ExitGateFail
+	}
+	return ExitOK
+}
+
+func writeLintCollection(writer io.Writer, format string, result lintCollectionResult) error {
+	switch format {
+	case "json":
+		return writeJSON(writer, result)
+	case "markdown", "md":
+		fmt.Fprintf(writer, "# skil lint collection report\n\n- Source: `%s`\n- Profile: **%s**\n- Skills: **%d**\n- Passed: **%d**\n- Warned: **%d**\n- Failed: **%d**\n\n| Skill | Status | Errors | Warnings |\n|---|---|---:|---:|\n",
+			report.MarkdownText(result.Source), result.Profile, len(result.Skills),
+			result.Passed, result.Warned, result.Failed)
+		for _, item := range result.Skills {
+			fmt.Fprintf(writer, "| %s | %s | %d | %d |\n", report.MarkdownText(item.Artifact.Name),
+				item.Status, item.Summary.Errors, item.Summary.Warnings)
+		}
+	default:
+		fmt.Fprintf(writer, "skil lint collection report\n\nSource: %s\nProfile: %s\nSkills: %d\nPassed: %d\nWarned: %d\nFailed: %d\n\n",
+			report.DisplayText(result.Source), result.Profile, len(result.Skills), result.Passed, result.Warned, result.Failed)
+		for _, item := range result.Skills {
+			fmt.Fprintf(writer, "- %s: %s (%d errors, %d warnings)\n",
+				report.DisplayText(item.Artifact.Name), item.Status, item.Summary.Errors, item.Summary.Warnings)
+		}
+	}
+	return nil
+}
+
 func (a *App) scan(ctx context.Context, args []string) int {
 	fs := newFlags("scan", a.Err)
 	format := fs.String("format", "terminal", "output format")
 	output := fs.String("output", "", "output file")
 	baselinePath := fs.String("baseline", "", "baseline file")
 	showSuppressed := fs.Bool("show-suppressed", true, "include baseline-suppressed findings in reports")
+	compact := fs.Bool("compact", false, "use the legacy one-line-per-finding terminal report")
 	analysis := bindAnalysisFlags(fs)
 	if code := parse(fs, args, 1); code != ExitOK {
 		return code
@@ -283,6 +449,9 @@ func (a *App) scan(ctx context.Context, args []string) int {
 	if err != nil {
 		return a.inputError(err)
 	}
+	if *compact && *format != "terminal" && *format != "" {
+		return a.inputError(errors.New("--compact is supported only with terminal output"))
+	}
 	writer, closeFn, err := outputWriter(a.Out, *output)
 	if err != nil {
 		return a.inputError(err)
@@ -292,7 +461,12 @@ func (a *App) scan(ctx context.Context, args []string) int {
 	if !*showSuppressed {
 		reportResult.Findings = activeFindings(result.Findings)
 	}
-	if err := report.Write(writer, *format, reportResult); err != nil {
+	if *compact {
+		err = report.WriteCompact(writer, reportResult)
+	} else {
+		err = report.Write(writer, *format, reportResult)
+	}
+	if err != nil {
 		return a.inputError(err)
 	}
 	if result.Status == skil.StatusFail {
@@ -1148,63 +1322,13 @@ func (a *App) evaluate(ctx context.Context, args []string) int {
 	if *runtimeName != "mock" && *runtimeName != "isolated" {
 		return a.inputError(fmt.Errorf("runtime %q is unavailable", *runtimeName))
 	}
-	art, err := artifact.Load(fs.Arg(0), artifact.Options{})
+	result, err := a.performEvaluation(ctx, fs.Arg(0), evaluationOptions{
+		TestPath: *testPath, RuntimeName: *runtimeName, RuntimeCommand: *runtimeCommand,
+		RuntimeArgs: *runtimeArgs, MaxOutput: *maxOutput, Runs: *runs,
+	})
 	if err != nil {
 		return a.inputError(err)
 	}
-	if *testPath == "" {
-		*testPath = discoverEval(art)
-	}
-	if *testPath == "" {
-		return a.inputError(errors.New("no eval file found; use --test"))
-	}
-	var data []byte
-	for _, file := range art.Files {
-		if file.Path == *testPath {
-			data = file.Data
-		}
-	}
-	if data == nil {
-		data, err = os.ReadFile(*testPath)
-		if err != nil {
-			return a.inputError(err)
-		}
-	}
-	if err := schemas.ValidateYAML("eval-v1.schema.json", data); err != nil {
-		return a.inputError(err)
-	}
-	var spec skil.EvalSpec
-	dec := yaml.NewDecoder(strings.NewReader(string(data)))
-	dec.KnownFields(true)
-	if err := dec.Decode(&spec); err != nil {
-		return a.inputError(err)
-	}
-	if spec.Version != 1 || (spec.Type != "behavioral" && spec.Type != "adversarial") {
-		return a.inputError(errors.New("invalid eval version or type"))
-	}
-	var runtime skil.AgentRuntime = eval.MockRuntime{}
-	if *runtimeName == "isolated" {
-		if *runtimeCommand == "" {
-			return a.inputError(errors.New("--runtime-command is required for isolated runtime"))
-		}
-		contract, _, err := contracts.Find(art)
-		if err != nil {
-			return a.inputError(err)
-		}
-		timeout := time.Duration(contract.Capabilities.Resources.MaxRuntimeSeconds) * time.Second
-		isolation, err := eval.NewNativeIsolation()
-		if err != nil {
-			return a.inputError(err)
-		}
-		runtime = eval.ProcessRuntime{Executable: *runtimeCommand, Args: splitNonEmpty(*runtimeArgs),
-			Timeout: timeout, MaxOutput: *maxOutput, MaxMemoryMB: contract.Capabilities.Resources.MaxMemoryMB,
-			Contract: *contract, Isolation: isolation,
-			Tools: map[string]skil.GatewayTool{
-				"artifact.read":        eval.NewArtifactReadTool(art),
-				"containment.simulate": eval.NewContainmentSimulationTool(),
-			}}
-	}
-	result := eval.Run(ctx, runtime, spec, art, *runs)
 	writer, closeFn, err := outputWriter(a.Out, *output)
 	if err != nil {
 		return a.inputError(err)
@@ -1214,6 +1338,175 @@ func (a *App) evaluate(ctx context.Context, args []string) int {
 		return a.internalError(err)
 	}
 	if result.Status == skil.StatusFail {
+		return ExitGateFail
+	}
+	return ExitOK
+}
+
+type evaluationOptions struct {
+	TestPath, RuntimeName, RuntimeCommand, RuntimeArgs string
+	MaxOutput                                          int64
+	Runs                                               int
+	RequireContainment                                 bool
+}
+
+func (a *App) performEvaluation(ctx context.Context, source string, options evaluationOptions) (skil.EvalResult, error) {
+	art, err := artifact.Load(source, artifact.Options{})
+	if err != nil {
+		return skil.EvalResult{}, err
+	}
+	return a.performEvaluationArtifact(ctx, art, options)
+}
+
+func (a *App) performEvaluationArtifact(ctx context.Context, art skil.Artifact, options evaluationOptions) (skil.EvalResult, error) {
+	var err error
+	testPath := options.TestPath
+	if testPath == "" {
+		testPath = discoverEval(art)
+	}
+	if testPath == "" {
+		return skil.EvalResult{}, errors.New("no eval file found; use --test")
+	}
+	var data []byte
+	for _, file := range art.Files {
+		if file.Path == testPath {
+			data = file.Data
+		}
+	}
+	if data == nil {
+		data, err = os.ReadFile(testPath)
+		if err != nil {
+			return skil.EvalResult{}, err
+		}
+	}
+	if err := schemas.ValidateYAML("eval-v1.schema.json", data); err != nil {
+		return skil.EvalResult{}, err
+	}
+	var spec skil.EvalSpec
+	dec := yaml.NewDecoder(strings.NewReader(string(data)))
+	dec.KnownFields(true)
+	if err := dec.Decode(&spec); err != nil {
+		return skil.EvalResult{}, err
+	}
+	if spec.Version != 1 || (spec.Type != "behavioral" && spec.Type != "adversarial") {
+		return skil.EvalResult{}, errors.New("invalid eval version or type")
+	}
+	if options.RequireContainment && (spec.Containment == nil || !spec.Containment.Required ||
+		!spec.Containment.RequireEnforcement || !spec.Containment.RequireNativeIsolation) {
+		return skil.EvalResult{}, errors.New("assurance requires eval containment.required, require_enforcement, and require_native_isolation")
+	}
+	var runtime skil.AgentRuntime = eval.MockRuntime{}
+	if options.RuntimeName == "isolated" {
+		if options.RuntimeCommand == "" {
+			return skil.EvalResult{}, errors.New("--runtime-command is required for isolated runtime")
+		}
+		contract, _, err := contracts.Find(art)
+		if err != nil {
+			return skil.EvalResult{}, err
+		}
+		timeout := time.Duration(contract.Capabilities.Resources.MaxRuntimeSeconds) * time.Second
+		isolation, err := eval.NewNativeIsolation()
+		if err != nil {
+			return skil.EvalResult{}, err
+		}
+		workspace, err := os.MkdirTemp("", "skil-assurance-workspace-")
+		if err != nil {
+			return skil.EvalResult{}, err
+		}
+		defer os.RemoveAll(workspace)
+		runtime = eval.ProcessRuntime{Executable: options.RuntimeCommand, Args: splitNonEmpty(options.RuntimeArgs),
+			Timeout: timeout, MaxOutput: options.MaxOutput, MaxMemoryMB: contract.Capabilities.Resources.MaxMemoryMB,
+			Contract: *contract, Isolation: isolation,
+			Tools: map[string]skil.GatewayTool{
+				"artifact.read":        eval.NewArtifactReadTool(art),
+				"workspace.read":       eval.NewWorkspaceReadTool(workspace),
+				"workspace.write":      eval.NewWorkspaceWriteTool(workspace),
+				"command.run":          eval.NewIsolatedCommandTool(isolation, options.MaxOutput),
+				"network.get":          eval.NewNetworkGetTool(),
+				"containment.simulate": eval.NewContainmentSimulationTool(),
+			}}
+	}
+	return eval.Run(ctx, runtime, spec, art, options.Runs), nil
+}
+
+type assuranceResult struct {
+	SchemaVersion      string              `json:"schema_version"`
+	Status             skil.Status         `json:"status"`
+	ArtifactDigest     string              `json:"artifact_digest"`
+	Scan               skil.ScanResult     `json:"scan"`
+	Verification       verification.Result `json:"verification"`
+	Evaluation         skil.EvalResult     `json:"evaluation"`
+	RuntimeEnforcement bool                `json:"runtime_enforcement"`
+}
+
+func (a *App) assure(ctx context.Context, args []string) int {
+	fs := newFlags("assure", a.Err)
+	testPath := fs.String("test", "", "behavioral/adversarial eval YAML with mandatory containment controls")
+	runtimeCommand := fs.String("runtime-command", "", "executable for the isolated agent adapter")
+	runtimeArgs := fs.String("runtime-args", "", "comma-separated isolated adapter arguments")
+	maxOutput := fs.Int64("max-output-bytes", 1<<20, "maximum runtime stdout bytes")
+	runs := fs.Int("runs", 1, "number of isolated assurance runs")
+	format := fs.String("format", "terminal", "terminal or json")
+	output := fs.String("output", "", "assurance result output")
+	analysis := bindAnalysisFlags(fs)
+	if code := parse(fs, args, 1); code != ExitOK {
+		return code
+	}
+	if strings.TrimSpace(*runtimeCommand) == "" {
+		return a.inputError(errors.New("assure requires --runtime-command for a real isolated agent adapter"))
+	}
+	if *format != "terminal" && *format != "json" {
+		return a.inputError(errors.New("assure supports terminal or json output"))
+	}
+	scan, contract, err := a.performScanConfigured(ctx, fs.Arg(0), "", analysis)
+	if err != nil {
+		return a.inputError(err)
+	}
+	if contract == nil {
+		return a.inputError(errors.New("assure requires a valid skill contract"))
+	}
+	verified := verification.Verify(*contract, scan.Findings)
+	evaluation, err := a.performEvaluationArtifact(ctx, scan.Artifact, evaluationOptions{
+		TestPath: *testPath, RuntimeName: "isolated", RuntimeCommand: *runtimeCommand,
+		RuntimeArgs: *runtimeArgs, MaxOutput: *maxOutput, Runs: *runs, RequireContainment: true,
+	})
+	if err != nil {
+		return a.inputError(err)
+	}
+	if evaluation.ArtifactDigest != scan.Artifact.SubjectDigest() {
+		return a.internalError(errors.New("assurance evaluation digest does not match scanned artifact"))
+	}
+	runtimeEnforcement := evaluation.Coverage.Enforcement == skil.CoverageCompleted &&
+		evaluation.Coverage.Containment == skil.CoverageCompleted &&
+		evaluation.Coverage.NativeIsolation == skil.CoverageCompleted
+	status := skil.StatusPass
+	if scan.Status == skil.StatusFail || verified.Status == skil.StatusFail ||
+		evaluation.Status == skil.StatusFail || !runtimeEnforcement {
+		status = skil.StatusFail
+	} else if scan.Status == skil.StatusWarn || verified.Status == skil.StatusWarn {
+		status = skil.StatusWarn
+	}
+	result := assuranceResult{
+		SchemaVersion: "1.0.0", Status: status, ArtifactDigest: scan.Artifact.SubjectDigest(),
+		Scan: scan, Verification: verified, Evaluation: evaluation, RuntimeEnforcement: runtimeEnforcement,
+	}
+	writer, closeFn, err := outputWriter(a.Out, *output)
+	if err != nil {
+		return a.inputError(err)
+	}
+	defer closeFn()
+	if *format == "json" {
+		err = writeJSON(writer, result)
+	} else {
+		fmt.Fprintf(writer, "skil assurance report\n\nArtifact digest: sha256:%s\nStatus: %s\nScan: %s (%s)\nVerification: %s\nBehavioral evaluation: %s\nRuntime enforcement: %t\nContainment: %s\nNative isolation: %s\n",
+			result.ArtifactDigest, result.Status, result.Scan.Status, result.Scan.Verdict,
+			result.Verification.Status, result.Evaluation.Status, result.RuntimeEnforcement,
+			result.Evaluation.Coverage.Containment, result.Evaluation.Coverage.NativeIsolation)
+	}
+	if err != nil {
+		return a.internalError(err)
+	}
+	if status == skil.StatusFail {
 		return ExitGateFail
 	}
 	return ExitOK
@@ -1249,12 +1542,18 @@ func (a *App) capabilities(args []string) int {
 		return a.inputError(errors.New("capabilities takes no arguments"))
 	}
 	value := map[string]any{"analysis": map[string]bool{"pattern": true, "ast": true, "taint": true, "dependency": true, "mcp": true, "yara": false, "semantic": false, "behavioral": true},
-		"providers": map[string][]string{"agent_runtime": {"mock", "isolated"}, "vulnerabilities": {"osv.dev"}, "reputation": {"trusted-offline-json"},
+		"providers": map[string][]string{"agent_runtime": {"mock", "isolated"}, "vulnerabilities": {"osv.dev"}, "reputation": {"builtin-versioned-offline", "trusted-offline-json"},
 			"semantic": {"openai-compatible", "nvidia", "anthropic", "anthropic-proxy", "aws-bedrock"},
-			"malware":  {"builtin-yara-pack", "yara-source-file", "yara-source-directory"},
+			"malware":  {"builtin-native-signature-pack", "yara-source-file", "yara-source-directory"},
 			"signing":  {"builtin.ed25519"}, "evidence_importers": {"signed-sarif"}},
+		"lint": map[string]any{
+			"available": true, "collection": true, "strict_gate": true,
+			"profiles": []string{"default", "strict", "portable", "publish"},
+			"formats":  []string{"terminal", "json", "markdown", "sarif"},
+		},
 		"package_lockfile": true, "collection_scanning": true, "remote_sources_opt_in": true,
-		"collection_formats": []string{"terminal", "json", "markdown"}, "collection_workers_max": 64,
+		"integrated_assurance": true,
+		"collection_formats":   []string{"terminal", "json", "markdown"}, "collection_workers_max": 64,
 		"baseline":   []string{"artifact-bound-fingerprint", "reviewed-glob", "expiry", "audit-reason"},
 		"mcp_server": []string{"stdio", "authenticated-loopback-http"}}
 	isolation, isolationErr := eval.NewNativeIsolation()
@@ -1264,9 +1563,9 @@ func (a *App) capabilities(args []string) int {
 	}
 	value["native_isolation"] = nativeIsolation
 	value["runtime_enforcement"] = isolationErr == nil
-	if _, err := exec.LookPath("yara"); err == nil {
-		value["analysis"].(map[string]bool)["yara"] = true
-	}
+	value["analysis"].(map[string]bool)["yara"] = true
+	_, externalYARAErr := exec.LookPath("yara")
+	value["external_yara_available"] = externalYARAErr == nil
 	value["analysis"].(map[string]bool)["semantic"] = true
 	return boolCode(writeJSON(a.Out, value), a)
 }
@@ -1370,8 +1669,18 @@ func (a *App) analysisRegistry(ctx context.Context, flags analysisFlags) (*analy
 	if flags.staticOnly == nil {
 		return nil, errors.New("analysis flags are not initialized")
 	}
+	if flags.full != nil && *flags.full {
+		*flags.useOSV = true
+		if *flags.yaraRules == "" && *flags.yaraRulesDirectory == "" && !*flags.yaraBuiltin {
+			*flags.yaraBuiltin = true
+		}
+	}
 	if *flags.staticOnly && *flags.useSemantic {
 		return nil, errors.New("--static-only and --semantic are mutually exclusive")
+	}
+	builtinReputation, err := reputationprovider.LoadBuiltin()
+	if err != nil {
+		return nil, fmt.Errorf("load built-in dependency reputation: %w", err)
 	}
 	var vulnerabilityProvider skil.VulnerabilityProvider
 	if *flags.useOSV || flags.osvOffline != nil && *flags.osvOffline {
@@ -1382,14 +1691,16 @@ func (a *App) analysisRegistry(ctx context.Context, flags analysisFlags) (*analy
 			CachePath: *flags.osvCache, CacheTTL: *flags.osvCacheTTL, Offline: *flags.osvOffline,
 		})
 	}
+	reputationProviders := []skil.PackageReputationProvider{builtinReputation}
 	if flags.dependencyReputation != nil && *flags.dependencyReputation != "" {
 		reputation, err := reputationprovider.Load(*flags.dependencyReputation)
 		if err != nil {
 			return nil, err
 		}
-		vulnerabilityProvider = combinedDependencyProvider{
-			vulnerabilities: vulnerabilityProvider, reputation: reputation,
-		}
+		reputationProviders = append(reputationProviders, reputation)
+	}
+	vulnerabilityProvider = combinedDependencyProvider{
+		vulnerabilities: vulnerabilityProvider, reputation: reputationProviders,
 	}
 	registry := analyzer.DefaultRegistry(vulnerabilityProvider)
 	if *flags.yaraRules != "" {
@@ -1500,7 +1811,7 @@ func (a *App) analysisRegistry(ctx context.Context, flags analysisFlags) (*analy
 
 type combinedDependencyProvider struct {
 	vulnerabilities skil.VulnerabilityProvider
-	reputation      skil.PackageReputationProvider
+	reputation      []skil.PackageReputationProvider
 }
 
 func (combinedDependencyProvider) ID() string { return "combined-dependency-provider" }
@@ -1514,7 +1825,17 @@ func (p combinedDependencyProvider) Query(ctx context.Context, ecosystem, name, 
 	return p.vulnerabilities.Query(ctx, ecosystem, name, version)
 }
 func (p combinedDependencyProvider) Reputation(ctx context.Context, ecosystem, name string) (skil.PackageReputation, error) {
-	return p.reputation.Reputation(ctx, ecosystem, name)
+	var combined skil.PackageReputation
+	for _, provider := range p.reputation {
+		reputation, err := provider.Reputation(ctx, ecosystem, name)
+		if err != nil {
+			return skil.PackageReputation{}, err
+		}
+		if reputation.Abandoned {
+			combined = reputation
+		}
+	}
+	return combined, nil
 }
 
 func (a *App) performScanWithRegistry(ctx context.Context, source, baselinePath string, registry *analyzer.Registry) (skil.ScanResult, *skil.SkillContract, error) {
@@ -1718,5 +2039,7 @@ func appendString(value any, item string) []string {
 	return []string{item}
 }
 func allRules() []skil.Rule {
-	return analyzer.BuiltinRules()
+	rules := append(analyzer.BuiltinRules(), lint.Rules()...)
+	sort.Slice(rules, func(i, j int) bool { return rules[i].ID < rules[j].ID })
+	return rules
 }

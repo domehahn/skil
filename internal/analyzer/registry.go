@@ -17,6 +17,7 @@ type Registry struct {
 func DefaultRegistry(vuln skil.VulnerabilityProvider) *Registry {
 	items := []skil.Analyzer{
 		NewPattern(), NewPythonAST(), NewStructuredAST(), NewTaint(), NewDependency(vuln), NewMCP(), NewBoundary(), NewUnicode(),
+		NewLocalSemantic(),
 	}
 	return &Registry{analyzers: items}
 }
@@ -52,9 +53,10 @@ func (r *Registry) Scan(ctx context.Context, ac skil.AnalysisContext) (skil.Scan
 			"pattern": skil.CoverageNotRequested, "ast": skil.CoverageNotRequested,
 			"static-code": skil.CoverageNotRequested,
 			"taint":       skil.CoverageNotRequested, "dependency": skil.CoverageNotRequested,
-			"vulnerability": skil.CoverageNotRequested,
-			"mcp":           skil.CoverageNotRequested, "malware": skil.CoverageNotAvailable,
-			"semantic": skil.CoverageNotRequested, "behavioral": skil.CoverageNotRun,
+			"vulnerability": skil.CoverageNotRequested, "reputation": skil.CoverageNotRequested,
+			"mcp": skil.CoverageNotRequested, "malware": skil.CoverageNotRequested,
+			"semantic": skil.CoverageNotRequested, "semantic-provider": skil.CoverageNotRequested,
+			"behavioral": skil.CoverageNotRun,
 		},
 		Scanners: []string{"skil"},
 	}
@@ -103,6 +105,11 @@ func (r *Registry) Scan(ctx context.Context, ac skil.AnalysisContext) (skil.Scan
 			result.Coverage[typ] = skil.CoverageCompleted
 		}
 	}
+	if ac.Contract == nil {
+		if advisory, ok := missingCapabilityDeclaration(result.Findings); ok {
+			result.Findings = append(result.Findings, advisory)
+		}
+	}
 	result.Completeness = summarizeInspection(result.Inspection)
 	sort.Slice(result.Findings, func(i, j int) bool {
 		a, b := result.Findings[i], result.Findings[j]
@@ -117,6 +124,61 @@ func (r *Registry) Scan(ctx context.Context, ac skil.AnalysisContext) (skil.Scan
 	result.Maximum, result.RiskScore, result.Status = Risk(result.Findings, result.Coverage)
 	result.Verdict = Verdict(result.Maximum, result.RiskScore, result.Coverage)
 	return result, nil
+}
+
+func missingCapabilityDeclaration(findings []skil.Finding) (skil.Finding, bool) {
+	capabilities := map[string]bool{}
+	var location skil.Location
+	for _, finding := range findings {
+		if finding.Suppressed || finding.Confidence < .8 {
+			continue
+		}
+		capability, _ := finding.Evidence["capability"].(string)
+		if capability == "" {
+			capability = capabilityForRule(finding.RuleID)
+		}
+		if capability == "" {
+			continue
+		}
+		capabilities[capability] = true
+		if location.File == "" {
+			location = finding.Location
+		}
+	}
+	if len(capabilities) == 0 {
+		return skil.Finding{}, false
+	}
+	observed := make([]string, 0, len(capabilities))
+	for capability := range capabilities {
+		observed = append(observed, capability)
+	}
+	sort.Strings(observed)
+	rule := RulePattern{Rule: skil.Rule{
+		ID: "SKIL-CAP-DECLARATION-MISSING", Title: "Capability declaration missing",
+		Category: "contract-conformance", Severity: skil.SeverityMedium,
+		Description: "Security-sensitive behavior was observed, but no skill contract declares its capability boundary.",
+		Analysis:    "verification", Remediation: "Add a skill contract with narrowly scoped capabilities and rerun validation.",
+	}, Confidence: .95}
+	finding := makeFinding(rule, skil.File{Path: location.File}, location.StartLine, "no skill contract")
+	finding.Location = location
+	finding.Evidence = map[string]any{"observed_capabilities": observed}
+	return finding, true
+}
+
+func capabilityForRule(ruleID string) string {
+	switch ruleID {
+	case "SKIL-NET-001", "SKIL-INTENT-EXTERNAL-TRANSFER", "SKIL-TAINT-NETWORK":
+		return "network.outbound"
+	case "SKIL-FS-001", "SKIL-TAINT-FILESYSTEM-WRITE":
+		return "filesystem.write"
+	case "SKIL-SEC-001":
+		return "secrets.read"
+	case "SKIL-PY-002", "SKIL-SH-001", "SKIL-SH-002", "SKIL-SH-003", "SKIL-SH-004",
+		"SKIL-JS-001", "SKIL-INTENT-COMMAND", "SKIL-TAINT-EXECUTION":
+		return "commands.execute"
+	default:
+		return ""
+	}
 }
 
 func analyzerApplies(meta skil.AnalyzerMetadata, file skil.File) bool {

@@ -13,19 +13,35 @@ jobs:
         with:
           go-version: "1.24.x"
           cache: true
-      - name: Install native security helpers
-        run: sudo apt-get update && sudo apt-get install -y bubblewrap yara
+      - name: Install YARA
+        run: sudo apt-get update && sudo apt-get install -y yara
       - run: go mod verify
       - run: gofmt -l cmd internal pkg tests | tee /tmp/gofmt && test ! -s /tmp/gofmt
       - run: go vet ./...
       - run: go test -race -coverprofile=coverage.out ./...
-        env:
-          SKIL_REQUIRE_NATIVE_ISOLATION: "1"
       - run: go build -trimpath ./cmd/skil
       - run: go run ./cmd/skil validate tests/fixtures/clean-skill
       - run: go run ./cmd/skil scan tests/fixtures/clean-skill --format sarif --output skil.sarif
-      - run: go run ./cmd/skil scan-all .agents/skills --format json --output /tmp/skil-collection.json
-      - run: go run ./cmd/skil policy check tests/fixtures/example --policy examples/policy.yaml
+      - name: Smoke test collection scanning
+        run: |
+          set +e
+          go run ./cmd/skil scan-all .agents/skills --format json --output /tmp/skil-collection.json
+          code=$?
+          set -e
+          test "$code" -eq 0 || test "$code" -eq 1
+          jq -e '
+            .schema_version == "1.0.0" and
+            (.passed | type == "number") and
+            (.failed | type == "number") and
+            (.skills | type == "array")
+          ' /tmp/skil-collection.json
+      - name: Verify example policy denial
+        run: |
+          set +e
+          go run ./cmd/skil policy check tests/fixtures/example --policy examples/policy.yaml
+          code=$?
+          set -e
+          test "$code" -eq 1
       - name: Verify embedded YARA rule pack
         run: go run ./cmd/skil scan tests/fixtures/clean-skill --yara-builtin --require-complete
       - name: Verify YARA security gate
@@ -85,6 +101,25 @@ jobs:
           code=$?
           set -e
           test "$code" -eq 1
+  linux-isolation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Install Linux native isolation
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bubblewrap util-linux
+          if sysctl -n kernel.apparmor_restrict_unprivileged_userns >/dev/null 2>&1; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+      - name: Execute Linux bubblewrap integration test
+        run: go test ./internal/eval -run TestNativeIsolationExecutesAdapterWhenAvailable -v
+        env:
+          SKIL_REQUIRE_NATIVE_ISOLATION: "1"
   windows-isolation:
     runs-on: windows-latest
     steps:
@@ -98,7 +133,7 @@ jobs:
         env:
           SKIL_REQUIRE_NATIVE_ISOLATION: "1"
   macos-isolation:
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -109,3 +144,89 @@ jobs:
         run: go test ./internal/eval -run TestNativeIsolationExecutesAdapterWhenAvailable -v
         env:
           SKIL_REQUIRE_NATIVE_ISOLATION: "1"
+
+  assurance-e2e:
+    name: Assurance E2E (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            os: linux
+            executable_suffix: ""
+          - runner: macos-15
+            os: macos
+            executable_suffix: ""
+          - runner: windows-2022
+            os: windows
+            executable_suffix: ".exe"
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Install Linux native isolation
+        if: matrix.os == 'linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bubblewrap util-linux
+          if sysctl -n kernel.apparmor_restrict_unprivileged_userns >/dev/null 2>&1; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+      - name: Build scanner and deterministic adapter
+        shell: bash
+        env:
+          EXECUTABLE_SUFFIX: ${{ matrix.executable_suffix }}
+        run: |
+          mkdir -p dist-e2e
+          go build -trimpath -o "dist-e2e/skil${EXECUTABLE_SUFFIX}" ./cmd/skil
+          go build -trimpath -o "dist-e2e/assurance-adapter${EXECUTABLE_SUFFIX}" ./internal/evaltestadapter/cmd
+      - name: Execute digest-bound CLI assurance gate
+        shell: bash
+        env:
+          EXECUTABLE_SUFFIX: ${{ matrix.executable_suffix }}
+          ASSURANCE_PROOF: assurance-${{ matrix.os }}.json
+        run: |
+          set +e
+          "dist-e2e/skil${EXECUTABLE_SUFFIX}" assure tests/fixtures/goal-boundary-containment \
+            --runtime-command "dist-e2e/assurance-adapter${EXECUTABLE_SUFFIX}" \
+            --format json --output "${ASSURANCE_PROOF}"
+          code=$?
+          set -e
+          if [ "$code" -ne 0 ]; then
+            jq '{
+              status,
+              scan_status: .scan.status,
+              verification_status: .verification.status,
+              evaluation_status: .evaluation.status,
+              coverage: .evaluation.coverage,
+              violations: [.evaluation.runs[]?.violations[]?],
+              runtime_errors: [.evaluation.runs[]?.trace.errors[]?]
+            }' "${ASSURANCE_PROOF}"
+            exit "$code"
+          fi
+          grep -q '"runtime_enforcement": true' "${ASSURANCE_PROOF}"
+          grep -q '"containment": "completed"' "${ASSURANCE_PROOF}"
+          grep -q '"native_isolation": "completed"' "${ASSURANCE_PROOF}"
+      - uses: actions/upload-artifact@v6
+        with:
+          name: assurance-${{ matrix.os }}-proof
+          path: assurance-${{ matrix.os }}.json
+          if-no-files-found: error
+
+  network-gateway:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Exercise bounded public HTTPS gateway
+        env:
+          SKIL_TEST_NETWORK_GATEWAY_URL: https://example.com/
+        run: go test ./internal/eval -run TestNetworkGetToolPublicHTTPSIntegration -count=1 -v

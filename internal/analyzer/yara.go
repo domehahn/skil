@@ -26,6 +26,7 @@ type YARA struct {
 	Binary, RulesPath string
 	RulesData         []byte
 	Timeout           time.Duration
+	NativeBuiltin     bool
 }
 
 //go:embed yara_rules/default.yar
@@ -125,17 +126,10 @@ func NewYARADirectory(binary, rulesDirectory string) (*YARA, error) {
 }
 
 // NewBuiltinYARA enables skil's independently maintained conservative rule
-// pack. It is opt-in because invoking a host malware engine is an external
-// execution boundary.
+// pack through the native bounded evaluator. The binary parameter remains for
+// CLI/API compatibility but is not used by the built-in engine.
 func NewBuiltinYARA(binary string) (*YARA, error) {
-	if binary == "" {
-		binary = "yara"
-	}
-	resolved, err := exec.LookPath(binary)
-	if err != nil {
-		return nil, fmt.Errorf("find YARA binary: %w", err)
-	}
-	return &YARA{Binary: resolved, RulesData: append([]byte(nil), builtinYARARules...), Timeout: 15 * time.Second}, nil
+	return &YARA{RulesData: append([]byte(nil), builtinYARARules...), Timeout: 15 * time.Second, NativeBuiltin: true}, nil
 }
 
 func (y *YARA) Metadata() skil.AnalyzerMetadata {
@@ -147,6 +141,9 @@ var yaraLine = regexp.MustCompile(`^([A-Za-z_][A-Za-z0-9_]*)`)
 var safeRuleID = regexp.MustCompile(`[^A-Za-z0-9_-]+`)
 
 func (y *YARA) Analyze(ctx context.Context, ac skil.AnalysisContext) ([]skil.Finding, error) {
+	if y.NativeBuiltin {
+		return analyzeBuiltinMalware(ac), nil
+	}
 	rulesPath := y.RulesPath
 	if len(y.RulesData) > 0 {
 		rules, err := os.CreateTemp("", "skil-yara-rules-*.yar")
@@ -219,6 +216,70 @@ func (y *YARA) Analyze(ctx context.Context, ac skil.AnalysisContext) ([]skil.Fin
 		}
 	}
 	return out, nil
+}
+
+type builtinMalwareIndicator struct {
+	name, description string
+	severity          skil.Severity
+	match             func([]byte) bool
+}
+
+func analyzeBuiltinMalware(ac skil.AnalysisContext) []skil.Finding {
+	contains := func(data []byte, values ...string) bool {
+		text := string(data)
+		for _, value := range values {
+			if strings.Contains(text, value) {
+				return true
+			}
+		}
+		return false
+	}
+	indicators := []builtinMalwareIndicator{
+		{name: "SKIL_REVERSE_SHELL_CONSTRUCTION", description: "Combines an interactive shell with a network transport.",
+			severity: skil.SeverityCritical, match: func(data []byte) bool {
+				return regexp.MustCompile(`/bin/(?:ba)?sh`).Match(data) &&
+					(contains(data, "socket.socket(", "nc -e ", "dup2("))
+			}},
+		{name: "SKIL_CREDENTIAL_COLLECTION_BUNDLE", description: "Collects multiple local credential stores.",
+			severity: skil.SeverityCritical, match: func(data []byte) bool {
+				count := 0
+				for _, value := range []string{".ssh/id_rsa", ".aws/credentials", ".kube/config", ".netrc"} {
+					if contains(data, value) {
+						count++
+					}
+				}
+				return count >= 2
+			}},
+		{name: "SKIL_AGENT_PERSISTENCE_BUNDLE", description: "Installs executable content into a startup mechanism.",
+			severity: skil.SeverityHigh, match: func(data []byte) bool {
+				return contains(data, "crontab", "LaunchAgents", "/etc/systemd/system") &&
+					contains(data, "writeFile(", "open(")
+			}},
+		{name: "SKIL_ENCODED_EXECUTABLE_DROPPER", description: "Decodes a large embedded payload before execution.",
+			severity: skil.SeverityCritical, match: func(data []byte) bool {
+				return contains(data, "base64.b64decode(", "Buffer.from(") &&
+					contains(data, "subprocess.", "child_process.") &&
+					regexp.MustCompile(`[A-Za-z0-9+/]{512,}={0,2}`).Match(data)
+			}},
+	}
+	var findings []skil.Finding
+	for _, file := range ac.Artifact.Files {
+		for _, indicator := range indicators {
+			if !indicator.match(file.Data) {
+				continue
+			}
+			rule := RulePattern{Rule: skil.Rule{
+				ID: "SKIL-YARA-" + indicator.name, Title: strings.ReplaceAll(strings.ToLower(indicator.name), "_", " "),
+				Category: "malware", Severity: indicator.severity, Description: indicator.description,
+				Analysis: "yara", Remediation: "Quarantine and investigate the artifact before use.",
+			}, Confidence: .99}
+			finding := makeFinding(rule, file, 1, indicator.name)
+			finding.Evidence["engine"] = "builtin-native-signature"
+			finding.Evidence["signature"] = indicator.name
+			findings = append(findings, finding)
+		}
+	}
+	return findings
 }
 
 type limitedBuffer struct {

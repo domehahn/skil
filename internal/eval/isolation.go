@@ -8,8 +8,10 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 )
 
 type IsolationRequest struct {
@@ -20,8 +22,8 @@ type IsolationRequest struct {
 }
 
 // IsolationProvider is a privileged trust boundary. Implementations must
-// prevent network access and host writes unless a future protocol explicitly
-// mediates those operations through the skil enforcer.
+// prevent direct network access and host writes. Authorized effects can happen
+// only through a registered host GatewayTool after skil enforcer approval.
 type IsolationProvider interface {
 	ID() string
 	Run(context.Context, IsolationRequest, io.Writer, io.Writer) error
@@ -95,6 +97,18 @@ func (n *NativeIsolation) run(ctx context.Context, request IsolationRequest, lim
 	if err != nil {
 		return fmt.Errorf("resolve isolated executable: %w", err)
 	}
+	if !filepath.IsAbs(executable) {
+		executable, err = filepath.Abs(executable)
+		if err != nil {
+			return fmt.Errorf("resolve isolated executable path: %w", err)
+		}
+	}
+	if n.os == "darwin" {
+		executable, err = filepath.EvalSymlinks(executable)
+		if err != nil {
+			return fmt.Errorf("canonicalize isolated executable path: %w", err)
+		}
+	}
 	scratch, err := os.MkdirTemp("", "skil-isolated-")
 	if err != nil {
 		return fmt.Errorf("create isolated scratch directory: %w", err)
@@ -104,12 +118,18 @@ func (n *NativeIsolation) run(ctx context.Context, request IsolationRequest, lim
 	tmpDir := scratch
 	switch n.os {
 	case "darwin":
+		tmpDir, err = filepath.EvalSymlinks(scratch)
+		if err != nil {
+			return fmt.Errorf("canonicalize isolated scratch directory: %w", err)
+		}
+		executableRoot := "/" + strings.Split(strings.TrimPrefix(executable, "/"), "/")[0]
 		profile := `(version 1)
 (deny default)
 (allow process-fork)
 (allow process-exec (literal ` + strconv.Quote(executable) + `))
-(allow file-read* (literal ` + strconv.Quote(executable) + `) (subpath "/usr/lib") (subpath "/System/Library") (subpath "/Library/Apple"))
-(allow file-write* (subpath ` + strconv.Quote(scratch) + `))
+(allow sysctl-read)
+(allow file-read* (literal "/") (literal "/private") (literal "/System") (literal "/usr") (literal "/Library") (literal ` + strconv.Quote(executableRoot) + `) (literal ` + strconv.Quote(executable) + `) (subpath "/usr/lib") (subpath "/System/Library") (subpath "/System/Volumes/Preboot/Cryptexes/OS") (subpath "/Library/Apple"))
+(allow file-write* (subpath ` + strconv.Quote(tmpDir) + `))
 (deny network*)`
 		args := append([]string{"-p", profile, "--", executable}, request.Args...)
 		command = exec.CommandContext(ctx, n.helper, args...)

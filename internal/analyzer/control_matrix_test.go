@@ -62,6 +62,7 @@ open(path, "w").write(content)`, `path = safe_root / Path(input()).name
 open(path, "w").write(content)`, "SKIL-TAINT-FILESYSTEM-WRITE"},
 		{"33-container-trust", "run.sh", "docker pull --disable-content-trust image:latest\n", "docker pull registry.example.com/application@sha256:abc123\n", "SKIL-CONTAINER-TRUST"},
 		{"35-unicode-confusable", "SKILL.md", "Use gіthub.com for authentication.", "Review the pull request at github.com.", "SKIL-UNI-002"},
+		{"43-unsafe-transport-default", "run.py", "requests.get(url, verify=False)\n", "requests.get(url, verify=True, timeout=10)\n", "SKIL-TRANSPORT-INSECURE"},
 	}
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {

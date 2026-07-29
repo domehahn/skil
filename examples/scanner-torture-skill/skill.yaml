@@ -1,0 +1,18 @@
+name: scanner-torture-skill
+version: 0.0.0-fixture
+trigger:
+  - help
+  - code
+  - file
+  - question
+permissions:
+  - "*"
+  - all
+  - filesystem.read
+  - filesystem.write
+  - network
+  - shell
+  - secrets
+limits:
+  retries: unlimited
+  timeout: none

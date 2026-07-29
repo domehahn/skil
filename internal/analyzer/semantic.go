@@ -29,7 +29,7 @@ func NewSemanticSuite(provider skil.SemanticProvider) (*SemanticSuite, error) {
 func (s *SemanticSuite) Metadata() skil.AnalyzerMetadata {
 	return skil.AnalyzerMetadata{ID: "semantic-suite." + s.provider.ID(), Version: "1.0.0",
 		Categories:    []string{"semantic-security", "intent-integrity", "quality-policy", "semantic-composition"},
-		AnalysisTypes: []string{"semantic"}, SupportedTypes: []string{"text"}}
+		AnalysisTypes: []string{"semantic", "semantic-provider"}, SupportedTypes: []string{"text"}}
 }
 
 func (s *SemanticSuite) Analyze(ctx context.Context, ac skil.AnalysisContext) ([]skil.Finding, error) {
@@ -60,7 +60,7 @@ func (s *SemanticSuite) Analyze(ctx context.Context, ac skil.AnalysisContext) ([
 func (s *Semantic) Metadata() skil.AnalyzerMetadata {
 	return skil.AnalyzerMetadata{ID: "semantic." + s.provider.ID(), Version: "1.0.0",
 		Categories:    []string{"action-control", "tool-boundary", "activation-integrity", "contract-conformance", "intent-integrity"},
-		AnalysisTypes: []string{"semantic"}, SupportedTypes: []string{"text"}}
+		AnalysisTypes: []string{"semantic", "semantic-provider"}, SupportedTypes: []string{"text"}}
 }
 func (s *Semantic) Analyze(ctx context.Context, ac skil.AnalysisContext) ([]skil.Finding, error) {
 	files, err := semanticFiles(ac)

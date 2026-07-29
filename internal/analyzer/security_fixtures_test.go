@@ -53,6 +53,39 @@ func TestFalsePositiveFixtureIsClean(t *testing.T) {
 	}
 }
 
+func TestIsolatedSecurityControlFixtures(t *testing.T) {
+	root, _ := filepath.Abs(filepath.Join("..", "..", "tests", "fixtures", "security-controls"))
+	cases := []struct {
+		name, control string
+	}{
+		{"dependency-typosquat", "SKIL-DEP-002"},
+		{"mcp-mutable-identity", "SKIL-MCP-003"},
+		{"credential-access", "SKIL-SEC-001"},
+	}
+	for _, test := range cases {
+		t.Run(test.name, func(t *testing.T) {
+			for _, fixture := range []struct {
+				variant string
+				want    bool
+			}{{"positive", true}, {"negative", false}} {
+				artifact, err := artifact.Load(filepath.Join(root, test.name, fixture.variant), artifact.Options{})
+				if err != nil {
+					t.Fatal(err)
+				}
+				result, err := DefaultRegistry(nil).Scan(context.Background(), skil.AnalysisContext{Artifact: artifact})
+				if err != nil {
+					t.Fatal(err)
+				}
+				found := hasRule(result.Findings, test.control)
+				if found != fixture.want {
+					t.Fatalf("%s %s presence=%v want=%v: %#v",
+						test.name, fixture.variant, found, fixture.want, result.Findings)
+				}
+			}
+		})
+	}
+}
+
 func TestMCPStructuredWildcardAndPoisoning(t *testing.T) {
 	artifact := artifactWith("mcp.yaml", `mcpServers:
   demo:

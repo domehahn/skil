@@ -41,6 +41,10 @@ keys, scanner-key and builder-key bindings, repositories, and registries.
 use the same manifest inventory as static analysis. Go executables use embedded
 build information and the exact binary SHA-256, so test fixtures and unrelated
 workspace manifests cannot contaminate a release SBOM. Tagged release binaries
-are built natively because Tree-sitter requires CGO; their archives, checksums,
-and binary-derived SPDX documents are published with GitHub OIDC attestations.
-See the [release runbook](release-runbook.md).
+are built natively for Linux, macOS, and Windows because Tree-sitter requires
+CGO. Their archives receive separate SLSA provenance and binary-derived SPDX
+2.3 attestations through GitHub OIDC. Verification binds the signer workflow,
+tag ref, predicate type, and GitHub-hosted runner. The publication job verifies
+the downloaded subjects, generates and checks SHA-256 manifests, attests those
+subjects, and verifies the exact returned bundle before publishing. See the
+[release runbook](release-runbook.md).

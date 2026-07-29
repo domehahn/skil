@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -129,6 +130,78 @@ func TestFlagsAfterPositionalAndExitCodes(t *testing.T) {
 	}
 }
 
+func TestLintCommandAndStrictGate(t *testing.T) {
+	var out, errOut bytes.Buffer
+	app := New(&out, &errOut)
+	if code := app.Run(context.Background(), []string{"lint", fixture(t, "clean-skill"), "--format", "json"}); code != ExitOK {
+		t.Fatalf("lint failed: code=%d stderr=%s", code, errOut.String())
+	}
+	var result struct {
+		Status string `json:"status"`
+		Issues []struct {
+			RuleID string `json:"rule_id"`
+		} `json:"issues"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &result); err != nil {
+		t.Fatal(err)
+	}
+	if result.Status != "WARN" || len(result.Issues) == 0 {
+		t.Fatalf("expected non-gating authoring warnings: %#v", result)
+	}
+	out.Reset()
+	errOut.Reset()
+	if code := app.Run(context.Background(), []string{"lint", fixture(t, "clean-skill"), "--strict"}); code != ExitGateFail {
+		t.Fatalf("strict lint should gate warnings: code=%d stderr=%s", code, errOut.String())
+	}
+}
+
+func TestLintAllAndProfiles(t *testing.T) {
+	root := t.TempDir()
+	writeSkill := func(name, contract string) {
+		t.Helper()
+		directory := filepath.Join(root, name)
+		if err := os.MkdirAll(directory, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(directory, "SKILL.md"), []byte("---\nname: "+name+"\ndescription: Collection fixture\n---\n# Fixture\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if contract != "" {
+			if err := os.WriteFile(filepath.Join(directory, "skill.yaml"), []byte(contract), 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	writeSkill("clean", "name: clean\nversion: 1.0.0\ndescription: Collection fixture\nentrypoint: SKILL.md\nowners: [platform]\n")
+	writeSkill("invalid", "")
+
+	var out, errOut bytes.Buffer
+	code := New(&out, &errOut).Run(context.Background(), []string{
+		"lint-all", root, "--workers", "2", "--format", "json", "--profile", "portable",
+	})
+	if code != ExitGateFail {
+		t.Fatalf("lint-all code=%d stderr=%s", code, errOut.String())
+	}
+	var result struct {
+		Profile string `json:"profile"`
+		Skills  []any  `json:"skills"`
+		Failed  int    `json:"failed"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &result); err != nil {
+		t.Fatal(err)
+	}
+	if result.Profile != "portable" || len(result.Skills) != 2 || result.Failed != 1 {
+		t.Fatalf("unexpected lint collection: %#v", result)
+	}
+	out.Reset()
+	errOut.Reset()
+	if code := New(&out, &errOut).Run(context.Background(), []string{
+		"lint", fixture(t, "clean-skill"), "--profile", "unknown",
+	}); code != ExitInput {
+		t.Fatalf("unknown lint profile accepted: code=%d", code)
+	}
+}
+
 func TestScanUsesTrustedOfflineDependencyReputation(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "SKILL.md"), []byte("# dependency test\n"), 0o600); err != nil {
@@ -154,20 +227,129 @@ func TestScanUsesTrustedOfflineDependencyReputation(t *testing.T) {
 	}
 }
 
+func TestScanUsesBuiltinOfflineDependencyReputation(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "SKILL.md"), []byte("# dependency test\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "requirements.txt"), []byte("pycrypto==2.6.1\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr bytes.Buffer
+	code := New(&stdout, &stderr).Run(context.Background(), []string{"scan", dir, "--format", "json"})
+	if code != ExitOK && code != ExitGateFail {
+		t.Fatalf("built-in reputation scan failed: code=%d stderr=%s", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), `"rule_id": "SKIL-DEP-ABANDONED"`) ||
+		!strings.Contains(stdout.String(), `"reputation": "completed"`) {
+		t.Fatalf("built-in reputation coverage or finding missing: %s", stdout.String())
+	}
+	var result struct {
+		Analysis map[string]string `json:"analysis"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
+		t.Fatal(err)
+	}
+	if result.Analysis["vulnerability"] != "not_requested" || result.Analysis["malware"] != "not_requested" {
+		t.Fatalf("default scan activated optional providers: %#v", result.Analysis)
+	}
+}
+
+func TestFullPresetIsExplicitAndDoesNotEnableSemanticAnalysis(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	code := New(&stdout, &stderr).Run(context.Background(), []string{
+		"scan", fixture(t, "clean-skill"), "--full", "--format", "json",
+	})
+	if code != ExitOK {
+		t.Fatalf("full scan failed: code=%d stderr=%s", code, stderr.String())
+	}
+	var result struct {
+		Analysis map[string]string `json:"analysis"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
+		t.Fatal(err)
+	}
+	if result.Analysis["vulnerability"] != "completed" {
+		t.Fatalf("full preset did not enable OSV coverage: %#v", result.Analysis)
+	}
+	if result.Analysis["semantic"] != "completed" || result.Analysis["semantic-provider"] != "not_requested" {
+		t.Fatalf("full preset semantic coverage is incorrect: %#v", result.Analysis)
+	}
+	if result.Analysis["malware"] != "completed" {
+		t.Fatalf("full preset did not request YARA coverage: %#v", result.Analysis)
+	}
+}
+
+func TestFullPresetRunsBuiltinYARAWhenExecutableIsAvailable(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("shell-backed fake YARA executable")
+	}
+	binary := filepath.Join(t.TempDir(), "fake-yara")
+	if err := os.WriteFile(binary, []byte("#!/bin/sh\nexit 0\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr bytes.Buffer
+	code := New(&stdout, &stderr).Run(context.Background(), []string{
+		"scan", fixture(t, "clean-skill"), "--full", "--yara-binary", binary, "--format", "json",
+	})
+	if code != ExitOK {
+		t.Fatalf("full scan with YARA failed: code=%d stderr=%s", code, stderr.String())
+	}
+	var result struct {
+		Analysis map[string]string `json:"analysis"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
+		t.Fatal(err)
+	}
+	if result.Analysis["malware"] != "completed" {
+		t.Fatalf("native malware analysis did not complete under --full: %#v", result.Analysis)
+	}
+}
+
+func TestCompactIsTerminalOnly(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	code := New(&stdout, &stderr).Run(context.Background(), []string{
+		"scan", fixture(t, "clean-skill"), "--compact", "--format", "json",
+	})
+	if code != ExitInput || !strings.Contains(stderr.String(), "terminal") {
+		t.Fatalf("invalid compact combination accepted: code=%d stderr=%s", code, stderr.String())
+	}
+}
+
 func TestDefinitionOfDoneCommands(t *testing.T) {
 	cases := [][]string{
+		{"lint", fixture(t, "clean-skill")},
 		{"validate", fixture(t, "clean-skill")},
 		{"verify", fixture(t, "capability-mismatch-skill"), "--format", "json"},
 		{"eval", fixture(t, "example"), "--runtime", "mock"},
 		{"attest", fixture(t, "clean-skill")},
 		{"baseline", "create", fixture(t, "example")},
 	}
-	expected := []int{ExitOK, ExitGateFail, ExitOK, ExitOK, ExitOK}
+	expected := []int{ExitOK, ExitOK, ExitGateFail, ExitOK, ExitOK, ExitOK}
 	for i, args := range cases {
 		var out, errOut bytes.Buffer
 		if code := New(&out, &errOut).Run(context.Background(), args); code != expected[i] {
 			t.Errorf("%v: got %d want %d stderr=%s", args, code, expected[i], errOut.String())
 		}
+	}
+}
+
+func TestAssureRequiresRealAdapterAndContainmentContract(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	code := New(&stdout, &stderr).Run(context.Background(), []string{
+		"assure", fixture(t, "example"),
+	})
+	if code != ExitInput || !strings.Contains(stderr.String(), "--runtime-command") {
+		t.Fatalf("assure accepted no runtime adapter: code=%d stderr=%s", code, stderr.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	code = New(&stdout, &stderr).Run(context.Background(), []string{
+		"assure", fixture(t, "example"), "--runtime-command", "/synthetic/adapter",
+	})
+	if code != ExitInput || !strings.Contains(stderr.String(), "assurance requires eval containment") {
+		t.Fatalf("assure accepted an eval without containment proof: code=%d stderr=%s", code, stderr.String())
 	}
 }
 

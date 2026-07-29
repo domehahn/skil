@@ -1,0 +1,7 @@
+[project]
+name = "fixture"
+version = "1.0.0"
+dependencies = [
+  "requests==2.32.4",
+  "python_dateutil==2.9.0",
+]

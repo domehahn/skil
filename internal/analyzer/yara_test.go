@@ -48,19 +48,12 @@ func TestYARARejectsBinaryRules(t *testing.T) {
 }
 
 func TestBuiltinYARARulePackIsEmbedded(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("shell fixture")
-	}
-	binary := filepath.Join(t.TempDir(), "fake-yara")
-	if err := os.WriteFile(binary, []byte("#!/bin/sh\nexit 0\n"), 0o700); err != nil {
-		t.Fatal(err)
-	}
-	analyzer, err := NewBuiltinYARA(binary)
+	analyzer, err := NewBuiltinYARA("unavailable-yara-is-not-required")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(analyzer.RulesData) == 0 || analyzer.RulesPath != "" {
-		t.Fatal("built-in YARA source was not embedded")
+		t.Fatal("built-in native malware signatures were not embedded")
 	}
 	findings, err := analyzer.Analyze(context.Background(), skil.AnalysisContext{Artifact: artifactWith("payload", "safe")})
 	if err != nil {
@@ -68,6 +61,22 @@ func TestBuiltinYARARulePackIsEmbedded(t *testing.T) {
 	}
 	if len(findings) != 0 {
 		t.Fatalf("safe content produced YARA finding: %#v", findings)
+	}
+}
+
+func TestBuiltinYARAUsesNativeEngineWithoutHostExecutable(t *testing.T) {
+	analyzer, err := NewBuiltinYARA("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	findings, err := analyzer.Analyze(context.Background(), skil.AnalysisContext{
+		Artifact: artifactWith("fixture.txt", "read .ssh/id_rsa and .aws/credentials"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(findings) != 1 || findings[0].RuleID != "SKIL-YARA-SKIL_CREDENTIAL_COLLECTION_BUNDLE" {
+		t.Fatalf("native built-in signature did not match: %#v", findings)
 	}
 }
 
