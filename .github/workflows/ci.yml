@@ -35,7 +35,13 @@ jobs:
             (.failed | type == "number") and
             (.skills | type == "array")
           ' /tmp/skil-collection.json
-      - run: go run ./cmd/skil policy check tests/fixtures/example --policy examples/policy.yaml
+      - name: Verify example policy denial
+        run: |
+          set +e
+          go run ./cmd/skil policy check tests/fixtures/example --policy examples/policy.yaml
+          code=$?
+          set -e
+          test "$code" -eq 1
       - name: Verify embedded YARA rule pack
         run: go run ./cmd/skil scan tests/fixtures/clean-skill --yara-builtin --require-complete
       - name: Verify YARA security gate
@@ -197,6 +203,7 @@ jobs:
               verification_status: .verification.status,
               evaluation_status: .evaluation.status,
               coverage: .evaluation.coverage,
+              violations: [.evaluation.runs[]?.violations[]?],
               runtime_errors: [.evaluation.runs[]?.trace.errors[]?]
             }' "${ASSURANCE_PROOF}"
             exit "$code"
