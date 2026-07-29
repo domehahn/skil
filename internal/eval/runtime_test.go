@@ -280,12 +280,12 @@ func TestContainmentMetricsAreDeterministicAcrossRuns(t *testing.T) {
 }
 
 func TestNativeIsolationExecutesAdapterWhenAvailable(t *testing.T) {
+	if os.Getenv("SKIL_REQUIRE_NATIVE_ISOLATION") != "1" {
+		t.Skip("native isolation integration test requires SKIL_REQUIRE_NATIVE_ISOLATION=1")
+	}
 	isolation, err := NewNativeIsolation()
 	if err != nil {
-		if os.Getenv("SKIL_REQUIRE_NATIVE_ISOLATION") == "1" {
-			t.Fatalf("required native isolation unavailable: %v", err)
-		}
-		t.Skipf("native isolation unavailable: %v", err)
+		t.Fatalf("required native isolation unavailable: %v", err)
 	}
 	runtime := ProcessRuntime{
 		Executable: os.Args[0], Args: []string{"-test.run=TestIsolatedAdapterHelper"},

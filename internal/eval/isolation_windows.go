@@ -41,6 +41,7 @@ var (
 	procDeleteAttributeList       = kernel32.NewProc("DeleteProcThreadAttributeList")
 	procCreateProcess             = kernel32.NewProc("CreateProcessW")
 	procSetHandleInformation      = kernel32.NewProc("SetHandleInformation")
+	procLocalFree                 = kernel32.NewProc("LocalFree")
 	procCreateJobObject           = kernel32.NewProc("CreateJobObjectW")
 	procSetInformationJobObject   = kernel32.NewProc("SetInformationJobObject")
 	procAssignProcessToJobObject  = kernel32.NewProc("AssignProcessToJobObject")
@@ -54,6 +55,7 @@ var (
 	procDeleteAppContainerProfile = userenv.NewProc("DeleteAppContainerProfile")
 	procGetAppContainerFolderPath = userenv.NewProc("GetAppContainerFolderPath")
 	procCoTaskMemFree             = ole32.NewProc("CoTaskMemFree")
+	procConvertSidToStringSid     = advapi32.NewProc("ConvertSidToStringSidW")
 	procFreeSid                   = advapi32.NewProc("FreeSid")
 )
 
@@ -102,7 +104,7 @@ type jobExtendedLimitInformation struct {
 func windowsIsolationAvailable() error {
 	required := []*syscall.LazyProc{
 		procInitializeAttributeList, procUpdateAttribute, procCreateProcess,
-		procCreateAppContainerProfile, procGetAppContainerFolderPath,
+		procCreateAppContainerProfile, procGetAppContainerFolderPath, procConvertSidToStringSid,
 	}
 	for _, proc := range required {
 		if err := proc.Find(); err != nil {
@@ -134,7 +136,12 @@ func runWindowsIsolation(ctx context.Context, executable string, request Isolati
 	}
 	defer procFreeSid.Call(sid)
 
-	folder, err := appContainerFolder(identityPtr)
+	sidString, releaseSIDString, err := appContainerSIDString(sid)
+	if err != nil {
+		return err
+	}
+	defer releaseSIDString()
+	folder, err := appContainerFolder(sidString)
 	if err != nil {
 		return err
 	}
@@ -308,14 +315,37 @@ func runWindowsIsolation(ctx context.Context, executable string, request Isolati
 	}
 }
 
-func appContainerFolder(identity *uint16) (string, error) {
+func appContainerSIDString(sid uintptr) (*uint16, func(), error) {
 	var value *uint16
-	hr, _, _ := procGetAppContainerFolderPath.Call(uintptr(unsafe.Pointer(identity)), uintptr(unsafe.Pointer(&value)))
+	ok, _, callErr := procConvertSidToStringSid.Call(sid, uintptr(unsafe.Pointer(&value)))
+	if ok == 0 || value == nil {
+		return nil, func() {}, fmt.Errorf("convert Windows AppContainer SID: %w", callErr)
+	}
+	return value, func() {
+		procLocalFree.Call(uintptr(unsafe.Pointer(value)))
+	}, nil
+}
+
+func appContainerFolder(sidString *uint16) (string, error) {
+	var value *uint16
+	hr, _, _ := procGetAppContainerFolderPath.Call(
+		uintptr(unsafe.Pointer(sidString)), uintptr(unsafe.Pointer(&value)),
+	)
 	if uint32(hr) != 0 || value == nil {
 		return "", fmt.Errorf("resolve Windows AppContainer folder: HRESULT 0x%08x", uint32(hr))
 	}
 	defer procCoTaskMemFree.Call(uintptr(unsafe.Pointer(value)))
-	return syscall.UTF16ToString(unsafe.Slice(value, 32768)), nil
+	return utf16PointerString(value, 32768)
+}
+
+func utf16PointerString(value *uint16, maxUnits int) (string, error) {
+	units := unsafe.Slice(value, maxUnits)
+	for index, unit := range units {
+		if unit == 0 {
+			return syscall.UTF16ToString(units[:index]), nil
+		}
+	}
+	return "", errors.New("Windows API returned an unterminated UTF-16 string")
 }
 
 func appContainerAttributes(sid uintptr) (uintptr, func(), error) {
