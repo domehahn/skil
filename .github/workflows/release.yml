@@ -101,7 +101,7 @@ jobs:
           gh attestation verify "$archive" --bundle "$PROVENANCE_BUNDLE" "${common[@]}"
           gh attestation verify "$archive" --bundle "$SBOM_BUNDLE" \
             --predicate-type https://spdx.dev/Document/v2.3 "${common[@]}"
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: skil-${{ matrix.os }}-${{ matrix.arch }}
           path: |

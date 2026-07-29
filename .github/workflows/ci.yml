@@ -80,7 +80,7 @@ jobs:
           set -e
           test "$code" -eq 1
           jq -e '.findings[] | select(.rule_id == "SKIL-DEP-VULN" and (.references | index("GO-2021-0113")))' osv-proof.json
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: osv-provider-proof
           path: osv-proof.json
@@ -211,7 +211,7 @@ jobs:
           grep -q '"runtime_enforcement": true' "${ASSURANCE_PROOF}"
           grep -q '"containment": "completed"' "${ASSURANCE_PROOF}"
           grep -q '"native_isolation": "completed"' "${ASSURANCE_PROOF}"
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: assurance-${{ matrix.os }}-proof
           path: assurance-${{ matrix.os }}.json
