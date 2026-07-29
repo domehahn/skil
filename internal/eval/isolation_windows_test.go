@@ -8,7 +8,7 @@ import (
 )
 
 func TestWindowsEnvironmentBuildsDoubleNULTerminatedBlock(t *testing.T) {
-	environment, err := windowsEnvironment([]string{"A=one", "B=two"})
+	environment, err := windowsEnvironment([]string{"B=two", "A=one"})
 	if err != nil {
 		t.Fatal(err)
 	}

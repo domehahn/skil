@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"syscall"
 	"time"
@@ -385,6 +386,10 @@ func setInheritable(file *os.File) error {
 }
 
 func windowsEnvironment(values []string) ([]uint16, error) {
+	values = append([]string(nil), values...)
+	sort.Slice(values, func(left, right int) bool {
+		return strings.ToUpper(values[left]) < strings.ToUpper(values[right])
+	})
 	environment := make([]uint16, 0)
 	for _, value := range values {
 		if strings.IndexByte(value, 0) >= 0 {
