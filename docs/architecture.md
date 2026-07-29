@@ -29,9 +29,11 @@ backwards dependencies. Providers cannot acquire tools through their interface.
 The CLI composes modules and maps errors to stable exit codes.
 
 Optional analysis is composed through one shared CLI configuration used by
-scan, verification, attestation, policy, and installation. Tree-sitter AST
-remains local. OSV, YARA, and semantic adapters are registered only by explicit
-flags, so their coverage cannot be confused with the default offline scan.
+scan, verification, attestation, policy, and installation. Tree-sitter AST,
+local intent correlation, and the native malware signature pack remain local.
+OSV, arbitrary-source YARA, and model-semantic adapters are registered only by
+explicit flags, so their coverage cannot be confused with the default offline
+scan.
 
 `scan-all` is a discovery/composition layer, not a separate scanner: every
 concrete skill receives its own artifact digest and complete analyzer ledger.

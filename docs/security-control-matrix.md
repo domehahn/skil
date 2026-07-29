@@ -39,7 +39,7 @@ verification, provider, and YARA tests.
 | 29 | Unpinned dependency | `SKIL-DEP-001` |
 | 30 | Known vulnerability | `SKIL-DEP-VULN` with OSV |
 | 31 | Typosquatting | `SKIL-DEP-002` |
-| 32 | Abandoned dependency | `SKIL-DEP-ABANDONED` with trusted offline reputation |
+| 32 | Abandoned dependency | `SKIL-DEP-ABANDONED` with built-in/versioned or supplied offline reputation |
 | 33 | Container trust disabled | `SKIL-CONTAINER-TRUST` |
 | 34 | YARA | `SKIL-YARA-*` |
 | 35 | Unicode/Bidi/confusable | `SKIL-UNI-001`, `SKIL-UNI-002` |
@@ -50,7 +50,15 @@ verification, provider, and YARA tests.
 | 40 | Parameter-description injection | `SKIL-MCP-004` |
 | 41 | Description/behavior mismatch | `SKIL-MCP-006` plus semantic analysis |
 | 42 | MCP rug pull | `SKIL-MCP-005` and `.skil/mcp-tools.lock.json` |
+| 43 | Capability declaration absent | `SKIL-CAP-DECLARATION-MISSING` during scan |
+| 44 | Contextual credential-file access | `SKIL-SEC-001` |
 
-Provider-backed controls remain explicit. OSV, external YARA, reputation
-evidence, and semantic analysis report their real coverage and never silently
-masquerade as completed.
+Provider-backed controls remain explicit. OSV, external YARA, supplied
+reputation evidence, and model-backed semantic analysis report their real
+coverage and never silently masquerade as completed. The native malware pack,
+built-in reputation seed, and deterministic local semantic pass are independent
+offline controls.
+
+The [external control crosswalk](external-control-crosswalk.md) records
+property-level differential equivalence without importing external rule IDs
+into runtime findings.

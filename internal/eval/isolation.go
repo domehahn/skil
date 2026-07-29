@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strconv"
 )
@@ -20,8 +21,8 @@ type IsolationRequest struct {
 }
 
 // IsolationProvider is a privileged trust boundary. Implementations must
-// prevent network access and host writes unless a future protocol explicitly
-// mediates those operations through the skil enforcer.
+// prevent direct network access and host writes. Authorized effects can happen
+// only through a registered host GatewayTool after skil enforcer approval.
 type IsolationProvider interface {
 	ID() string
 	Run(context.Context, IsolationRequest, io.Writer, io.Writer) error
@@ -94,6 +95,12 @@ func (n *NativeIsolation) run(ctx context.Context, request IsolationRequest, lim
 	executable, err := exec.LookPath(request.Executable)
 	if err != nil {
 		return fmt.Errorf("resolve isolated executable: %w", err)
+	}
+	if !filepath.IsAbs(executable) {
+		executable, err = filepath.Abs(executable)
+		if err != nil {
+			return fmt.Errorf("resolve isolated executable path: %w", err)
+		}
 	}
 	scratch, err := os.MkdirTemp("", "skil-isolated-")
 	if err != nil {

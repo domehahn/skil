@@ -1,5 +1,11 @@
 # Semantic analysis
 
+Every scan includes a deterministic local semantic pass. It extracts explicit
+bounded-behavior claims from Markdown, such as read-only, no outbound network,
+no process execution, or no secret access, and correlates them with
+syntax-derived observations across the complete artifact. This offline pass
+requires no model, credentials, or provider and is reported as `semantic`.
+
 `SemanticProvider.AnalyzeUntrusted` is optional and vendor neutral. Requests
 carry files as untrusted data, an artifact digest, an optional contract, and an
 explicit no-tools constraint. Providers must disclose vendor, model, transmitted
@@ -7,9 +13,10 @@ data, and external processing before use. They receive no shell, MCP, tool, or
 write interface from core. Semantic output is probabilistic and remains
 separate from deterministic static findings.
 
-Semantic analysis runs independent security, developer-intent, and quality
-passes, then a constrained meta pass over their findings, and deduplicates only
-identical native findings. The OpenAI-compatible
+Opt-in model-backed semantic analysis runs independent security,
+developer-intent, and quality passes, then a constrained meta pass over their
+findings, and deduplicates only identical native findings. Its separate
+coverage key is `semantic-provider`. The OpenAI-compatible
 adapter sets `tool_choice: none` and requests a strict JSON schema. The native
 Anthropic adapter omits tools and validates the same bounded result contract.
 Select it with `--semantic-provider anthropic`. NVIDIA's OpenAI-compatible

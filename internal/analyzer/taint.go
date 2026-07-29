@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 	"unsafe"
 
@@ -40,8 +41,21 @@ type flowAssignment struct {
 }
 
 type flowCall struct {
-	text string
-	line int
+	text, callee string
+	arguments    []string
+	line         int
+}
+
+type flowSummary struct {
+	sources map[string]string
+	sinks   map[string]map[int][]int
+	defined map[string]bool
+}
+
+type fileFlow struct {
+	file        skil.File
+	assignments []flowAssignment
+	calls       []flowCall
 }
 
 func NewTaint() *Taint { return &Taint{} }
@@ -52,7 +66,9 @@ func (t *Taint) Metadata() skil.AnalyzerMetadata {
 }
 
 func (t *Taint) Analyze(ctx context.Context, ac skil.AnalysisContext) ([]skil.Finding, error) {
-	var out []skil.Finding
+	summary := flowSummary{sources: map[string]string{}, sinks: map[string]map[int][]int{}, defined: map[string]bool{}}
+	definitionCounts := map[string]int{}
+	var files []fileFlow
 	for _, file := range ac.Artifact.Files {
 		language := taintLanguage(extension(file.Path))
 		if language == nil {
@@ -62,9 +78,35 @@ func (t *Taint) Analyze(ctx context.Context, ac skil.AnalysisContext) ([]skil.Fi
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", file.Path, err)
 		}
-		assignments, calls := collectFlowNodes(tree.RootNode(), file.Data)
+		assignments, calls, localSummary := collectFlowNodes(tree.RootNode(), file.Data)
 		tree.Close()
-		out = append(out, analyzeFlow(file, assignments, calls)...)
+		for name, source := range localSummary.sources {
+			if summary.sources[name] == "" {
+				summary.sources[name] = source
+			}
+		}
+		for name, sinks := range localSummary.sinks {
+			if summary.sinks[name] == nil {
+				summary.sinks[name] = map[int][]int{}
+			}
+			for sink, parameters := range sinks {
+				summary.sinks[name][sink] = append(summary.sinks[name][sink], parameters...)
+			}
+		}
+		for name := range localSummary.defined {
+			definitionCounts[name]++
+		}
+		files = append(files, fileFlow{file: file, assignments: assignments, calls: calls})
+	}
+	for name, count := range definitionCounts {
+		if count > 1 {
+			delete(summary.sources, name)
+			delete(summary.sinks, name)
+		}
+	}
+	var out []skil.Finding
+	for _, file := range files {
+		out = append(out, analyzeFlow(file.file, file.assignments, file.calls, summary)...)
 	}
 	return out, nil
 }
@@ -84,9 +126,10 @@ func taintLanguage(ext string) unsafe.Pointer {
 	}
 }
 
-func collectFlowNodes(root *tree_sitter.Node, source []byte) ([]flowAssignment, []flowCall) {
+func collectFlowNodes(root *tree_sitter.Node, source []byte) ([]flowAssignment, []flowCall, flowSummary) {
 	var assignments []flowAssignment
 	var calls []flowCall
+	summary := flowSummary{sources: map[string]string{}, sinks: map[string]map[int][]int{}, defined: map[string]bool{}}
 	walkNode(root, func(node *tree_sitter.Node) {
 		switch node.Kind() {
 		case "assignment", "assignment_expression", "variable_declarator":
@@ -105,13 +148,114 @@ func collectFlowNodes(root *tree_sitter.Node, source []byte) ([]flowAssignment, 
 				})
 			}
 		case "call", "call_expression":
-			calls = append(calls, flowCall{text: node.Utf8Text(source), line: int(node.StartPosition().Row) + 1})
+			calls = append(calls, describeFlowCall(node, source))
+		case "function_definition", "function_declaration", "method_definition":
+			nameNode := node.ChildByFieldName("name")
+			if nameNode == nil {
+				return
+			}
+			name := nameNode.Utf8Text(source)
+			summary.defined[name] = true
+			origin, sinks := summarizeFunction(node, source)
+			if origin != "" {
+				summary.sources[name] = origin
+			}
+			if len(sinks) > 0 {
+				summary.sinks[name] = sinks
+			}
 		}
 	})
-	return assignments, calls
+	return assignments, calls, summary
 }
 
-func analyzeFlow(file skil.File, assignments []flowAssignment, calls []flowCall) []skil.Finding {
+func describeFlowCall(node *tree_sitter.Node, source []byte) flowCall {
+	call := flowCall{text: node.Utf8Text(source), line: int(node.StartPosition().Row) + 1}
+	function := node.ChildByFieldName("function")
+	if function == nil {
+		function = node.ChildByFieldName("callee")
+	}
+	if function != nil {
+		names := identifier.FindAllString(function.Utf8Text(source), -1)
+		if len(names) > 0 {
+			call.callee = names[len(names)-1]
+		}
+	}
+	if arguments := node.ChildByFieldName("arguments"); arguments != nil {
+		for index := uint(0); index < arguments.NamedChildCount(); index++ {
+			call.arguments = append(call.arguments, arguments.NamedChild(index).Utf8Text(source))
+		}
+	}
+	return call
+}
+
+func summarizeFunction(node *tree_sitter.Node, source []byte) (string, map[int][]int) {
+	parameters := map[string]int{}
+	if parameterNode := node.ChildByFieldName("parameters"); parameterNode != nil {
+		for index := uint(0); index < parameterNode.NamedChildCount(); index++ {
+			if name := simpleParameterName(parameterNode.NamedChild(index), source); name != "" {
+				parameters[name] = int(index)
+			}
+		}
+	}
+	origin := ""
+	sinkParameters := map[int]map[int]bool{}
+	walkNode(node, func(child *tree_sitter.Node) {
+		switch child.Kind() {
+		case "return_statement":
+			if candidate := taintSources.FindString(child.Utf8Text(source)); candidate != "" {
+				origin = candidate
+			}
+		case "call", "call_expression":
+			call := describeFlowCall(child, source)
+			for index, sink := range taintSinks {
+				if !sink.re.MatchString(call.text) {
+					continue
+				}
+				for _, argument := range call.arguments {
+					for _, name := range identifier.FindAllString(argument, -1) {
+						position, exists := parameters[name]
+						if !exists {
+							continue
+						}
+						if sinkParameters[index] == nil {
+							sinkParameters[index] = map[int]bool{}
+						}
+						sinkParameters[index][position] = true
+					}
+				}
+			}
+		}
+	})
+	sinks := make(map[int][]int, len(sinkParameters))
+	for sink, positions := range sinkParameters {
+		for position := range positions {
+			sinks[sink] = append(sinks[sink], position)
+		}
+		sort.Ints(sinks[sink])
+	}
+	return origin, sinks
+}
+
+func simpleParameterName(node *tree_sitter.Node, source []byte) string {
+	if node == nil {
+		return ""
+	}
+	if node.Kind() == "identifier" {
+		return node.Utf8Text(source)
+	}
+	for _, field := range []string{"name", "pattern"} {
+		if candidate := node.ChildByFieldName(field); candidate != nil && candidate.Kind() == "identifier" {
+			return candidate.Utf8Text(source)
+		}
+	}
+	names := identifier.FindAllString(node.Utf8Text(source), -1)
+	if len(names) == 1 {
+		return names[0]
+	}
+	return ""
+}
+
+func analyzeFlow(file skil.File, assignments []flowAssignment, calls []flowCall, summary flowSummary) []skil.Finding {
 	tainted := map[string]string{}
 	// Iterate to a fixed point so ordering, aliases, and short assignment
 	// chains do not hide a flow. The bound prevents hostile inputs from
@@ -123,6 +267,17 @@ func analyzeFlow(file skil.File, assignments []flowAssignment, calls []flowCall)
 				continue
 			}
 			origin := taintSources.FindString(assignment.value)
+			summarySource := false
+			if origin == "" {
+				for _, function := range sortedSummaryNames(summary.sources) {
+					source := summary.sources[function]
+					if regexp.MustCompile(`\b` + regexp.QuoteMeta(function) + `\s*\(`).MatchString(assignment.value) {
+						origin = source
+						summarySource = true
+						break
+					}
+				}
+			}
 			if origin == "" {
 				for _, dependency := range identifier.FindAllString(assignment.value, -1) {
 					if tainted[dependency] != "" {
@@ -138,6 +293,9 @@ func analyzeFlow(file skil.File, assignments []flowAssignment, calls []flowCall)
 				if tainted[target] == "" {
 					tainted[target] = origin
 					changed = true
+					if summarySource {
+						tainted[target] = "function-summary:" + origin
+					}
 				}
 			}
 		}
@@ -149,19 +307,42 @@ func analyzeFlow(file skil.File, assignments []flowAssignment, calls []flowCall)
 	var findings []skil.Finding
 	seen := map[string]bool{}
 	for _, call := range calls {
-		for _, sink := range taintSinks {
-			if !sink.re.MatchString(call.text) {
+		for sinkIndex, sink := range taintSinks {
+			directSink := sink.re.MatchString(call.text)
+			summarySink := false
+			searchText := call.text
+			if !directSink {
+				for _, function := range sortedSinkSummaryNames(summary.sinks) {
+					positions := summary.sinks[function][sinkIndex]
+					if len(positions) == 0 || call.callee != function {
+						continue
+					}
+					var selected []string
+					for _, position := range positions {
+						if position >= 0 && position < len(call.arguments) {
+							selected = append(selected, call.arguments[position])
+						}
+					}
+					if len(selected) == 0 {
+						continue
+					}
+					summarySink = true
+					searchText = strings.Join(selected, "\n")
+					break
+				}
+			}
+			if !directSink && !summarySink {
 				continue
 			}
 			variable, source := "", ""
-			for _, candidate := range identifier.FindAllString(call.text, -1) {
+			for _, candidate := range identifier.FindAllString(searchText, -1) {
 				if tainted[candidate] != "" {
 					variable, source = candidate, tainted[candidate]
 					break
 				}
 			}
-			if source == "" && taintSources.MatchString(call.text) {
-				variable, source = "<direct>", taintSources.FindString(call.text)
+			if source == "" && taintSources.MatchString(searchText) {
+				variable, source = "<direct>", taintSources.FindString(searchText)
 			}
 			if source == "" {
 				continue
@@ -186,10 +367,31 @@ func analyzeFlow(file skil.File, assignments []flowAssignment, calls []flowCall)
 			finding.Evidence["sink"] = sink.name
 			finding.Evidence["capability"] = sink.capability
 			finding.Evidence["engine"] = "syntax-flow"
+			if summarySink || strings.HasPrefix(source, "function-summary:") {
+				finding.Evidence["engine"] = "whole-artifact-function-summary"
+			}
 			findings = append(findings, finding)
 		}
 	}
 	return findings
+}
+
+func sortedSummaryNames(values map[string]string) []string {
+	names := make([]string, 0, len(values))
+	for name := range values {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+func sortedSinkSummaryNames(values map[string]map[int][]int) []string {
+	names := make([]string, 0, len(values))
+	for name := range values {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
 }
 
 func normalizedPathExpression(value string) bool {

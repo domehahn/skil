@@ -14,5 +14,6 @@ attack:
 containment:
   required: true
   require_enforcement: true
+  require_native_isolation: true
   allowed_targets:
     network.outbound: [challenge.internal]

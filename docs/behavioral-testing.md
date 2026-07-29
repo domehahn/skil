@@ -48,11 +48,24 @@ attempt. Denied requests are returned to the adapter to capture the complete
 trajectory, but they are never executed. No non-mock runtime is implicitly selected.
 
 The wire contract is published as
-`schemas/runtime-gateway-v1.schema.json`. The CLI registers the read-only
-`artifact.read` tool, which accepts `{"path":"canonical/relative/path"}` and
-reads only from the immutable artifact snapshot. Embedders can register other
-`GatewayTool` implementations; each implementation remains part of the trusted
-computing base.
+`schemas/runtime-gateway-v1.schema.json`. The CLI registers a deliberately
+small trusted tool set:
+
+- `artifact.read` reads canonical paths from the immutable artifact snapshot;
+- `workspace.read` and `workspace.write` operate only in a private,
+  traversal- and symlink-resistant bounded workspace;
+- `command.run` accepts structured argument vectors, rejects shells, and runs
+  the contract-allowed command in a fresh native sandbox;
+- `network.get` performs bounded HTTPS GET requests only after contract,
+  evaluation-target, byte-budget, public-address, DNS-rebinding, redirect, and
+  SSRF checks;
+- `containment.simulate` exercises denied attack paths without real effects.
+
+Every tool must also be listed in both the skill contract and eval
+specification. Its derived capability and target must pass their independent
+allowlists before execution. Embedders can register other `GatewayTool`
+implementations; each implementation remains part of the trusted computing
+base.
 
 `containment.simulate` is a closed deterministic local topology. It models a
 challenge host and unsafe shortcut, pivot, privilege, external, escape, and
@@ -68,6 +81,9 @@ rate counts runs containing at least one trusted violation of that category;
 multiple attempts in one run do not inflate the rate.
 
 Run `make test-linux-isolation` to reproduce the native Linux namespace and
-memory-limit integration test in a disposable container. Windows AppContainer
-execution is a required native CI job; `make test-windows-compile` provides a
-local cross-compilation check.
+memory-limit integration test in a disposable container.
+`make test-linux-assurance` additionally builds a deterministic no-tools
+adapter and exercises the complete `skil assure` CLI, gateway, enforcer, and
+evidence path. Required CI runs that positive gate on Linux, macOS, and Windows
+and retains the JSON result. `make test-windows-compile` provides a local
+Windows cross-compilation check when a native Windows runner is unavailable.

@@ -39,3 +39,21 @@ func TestTrustedOfflineReputationRejectsMalformedEvidence(t *testing.T) {
 		t.Fatal("malformed reputation evidence must fail closed")
 	}
 }
+
+func TestBuiltinReputationIsVersionedAndDetectsPycryptoOffline(t *testing.T) {
+	provider, err := LoadBuiltin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	record, err := provider.Reputation(context.Background(), "PyPI", "pycrypto")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !record.Abandoned {
+		t.Fatal("built-in pycrypto abandonment evidence is missing")
+	}
+	unknown, err := provider.Reputation(context.Background(), "PyPI", "cryptography")
+	if err != nil || unknown.Abandoned {
+		t.Fatalf("unknown maintained package was marked abandoned: %#v %v", unknown, err)
+	}
+}

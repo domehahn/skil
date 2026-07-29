@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "provenance": {
+    "source": "https://pypi.org/project/pycrypto/",
+    "reviewed_at": "2026-07-29T00:00:00Z",
+    "evidence": "The last published pycrypto release is from 2013 and the project is retained as a conservative abandoned-package signal."
+  },
+  "packages": [
+    {
+      "ecosystem": "PyPI",
+      "name": "pycrypto",
+      "abandoned": true,
+      "last_update": "2013-10-17T00:00:00Z"
+    }
+  ]
+}

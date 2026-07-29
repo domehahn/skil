@@ -25,6 +25,6 @@ capabilities:
     confirm_external: false
   resources:
     max_runtime_seconds: 30
-    max_memory_mb: 128
+    max_memory_mb: 0
     max_tool_calls: 16
     max_network_bytes: 1024

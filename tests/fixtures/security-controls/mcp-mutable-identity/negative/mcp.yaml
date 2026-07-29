@@ -1,0 +1,6 @@
+mcpServers:
+  fixture:
+    command: npx
+    args:
+      - --yes
+      - fixture-mcp@1.2.3

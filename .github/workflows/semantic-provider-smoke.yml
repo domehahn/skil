@@ -1,0 +1,61 @@
+name: Semantic Provider Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      provider:
+        description: Provider adapter to exercise
+        required: true
+        type: choice
+        options:
+          - openai-compatible
+          - nvidia
+          - anthropic
+          - anthropic-proxy
+      endpoint:
+        description: Public HTTPS provider endpoint
+        required: true
+        type: string
+      model:
+        description: Provider model identifier
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: semantic-provider-smoke
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Require scoped provider credential
+        env:
+          SKIL_SMOKE_API_KEY: ${{ secrets.SKIL_SMOKE_API_KEY }}
+        run: test -n "${SKIL_SMOKE_API_KEY}"
+      - name: Exercise no-tools semantic provider boundary
+        env:
+          SKIL_SMOKE_API_KEY: ${{ secrets.SKIL_SMOKE_API_KEY }}
+          SEMANTIC_PROVIDER: ${{ inputs.provider }}
+          SEMANTIC_ENDPOINT: ${{ inputs.endpoint }}
+          SEMANTIC_MODEL: ${{ inputs.model }}
+        run: |
+          go run ./cmd/skil scan tests/fixtures/clean-skill \
+            --semantic \
+            --semantic-provider "${SEMANTIC_PROVIDER}" \
+            --semantic-endpoint "${SEMANTIC_ENDPOINT}" \
+            --semantic-model "${SEMANTIC_MODEL}" \
+            --semantic-api-key-env SKIL_SMOKE_API_KEY \
+            --format json --output semantic-provider-proof.json
+          grep -q '"semantic-provider": "completed"' semantic-provider-proof.json
+      - uses: actions/upload-artifact@v6
+        with:
+          name: semantic-provider-proof
+          path: semantic-provider-proof.json
+          if-no-files-found: error

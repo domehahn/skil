@@ -1,4 +1,4 @@
-.PHONY: build docker-build docker-smoke test test-linux-isolation test-windows-compile lint fmt vet
+.PHONY: build docker-build docker-smoke test test-linux-isolation test-linux-assurance test-windows-compile lint fmt vet
 
 GOCACHE ?= /tmp/skil-go-cache
 GOWORK ?= off
@@ -19,6 +19,16 @@ test-linux-isolation:
 	docker run --rm --privileged -v "$$(pwd):/src:ro" -w /src \
 		-e SKIL_REQUIRE_NATIVE_ISOLATION=1 golang:1.24-bookworm \
 		bash -c 'apt-get update -qq && apt-get install -y -qq bubblewrap util-linux >/dev/null && go test ./internal/eval -run TestNativeIsolationExecutesAdapterWhenAvailable -v'
+
+test-linux-assurance:
+	docker run --rm --privileged -v "$$(pwd):/src:ro" -w /src golang:1.24-bookworm \
+		bash -c 'apt-get update -qq && apt-get install -y -qq bubblewrap util-linux >/dev/null && \
+		go build -trimpath -o /tmp/skil ./cmd/skil && \
+		go build -trimpath -o /tmp/skil-assurance-adapter ./internal/evaltestadapter/cmd && \
+		/tmp/skil assure tests/fixtures/goal-boundary-containment \
+		--runtime-command /tmp/skil-assurance-adapter --format json --output /tmp/assurance.json && \
+		grep -q "\"runtime_enforcement\": true" /tmp/assurance.json && \
+		grep -q "\"native_isolation\": \"completed\"" /tmp/assurance.json'
 
 test-windows-compile:
 	GOWORK=$(GOWORK) GOCACHE=$(GOCACHE) GOOS=windows GOARCH=amd64 \

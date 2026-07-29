@@ -10,24 +10,27 @@ import (
 	"strings"
 
 	"github.com/domehahn/skil/pkg/skil"
+	"github.com/pelletier/go-toml/v2"
 )
 
 type DependencyRecord struct {
-	Ecosystem string `json:"ecosystem"`
-	Name      string `json:"name"`
-	Version   string `json:"version,omitempty"`
-	File      string `json:"file"`
-	Line      int    `json:"line"`
-	Raw       string `json:"-"`
+	Ecosystem string   `json:"ecosystem"`
+	Name      string   `json:"name"`
+	Version   string   `json:"version,omitempty"`
+	Extras    []string `json:"extras,omitempty"`
+	Marker    string   `json:"marker,omitempty"`
+	URL       string   `json:"url,omitempty"`
+	File      string   `json:"file"`
+	Line      int      `json:"line"`
+	Raw       string   `json:"-"`
 }
 
 var (
-	pipDep       = regexp.MustCompile(`^\s*([A-Za-z0-9_.-]+)\s*(?:==\s*([A-Za-z0-9_.+-]+))?`)
-	tomlName     = regexp.MustCompile(`^\s*name\s*=\s*"([^"]+)"`)
-	tomlVersion  = regexp.MustCompile(`^\s*version\s*=\s*"([^"]+)"`)
-	cargoDep     = regexp.MustCompile(`^\s*([A-Za-z0-9_.-]+)\s*=\s*(?:"([^"]+)"|\{[^}]*version\s*=\s*"([^"]+)")`)
-	gemLockDep   = regexp.MustCompile(`^\s{4}([A-Za-z0-9_.-]+)\s+\(([^)]+)\)`)
-	pyProjectDep = regexp.MustCompile(`["']([A-Za-z0-9_.-]+)\s*(?:==\s*([A-Za-z0-9_.+-]+))?["']`)
+	tomlName    = regexp.MustCompile(`^\s*name\s*=\s*"([^"]+)"`)
+	tomlVersion = regexp.MustCompile(`^\s*version\s*=\s*"([^"]+)"`)
+	cargoDep    = regexp.MustCompile(`^\s*([A-Za-z0-9_.-]+)\s*=\s*(?:"([^"]+)"|\{[^}]*version\s*=\s*"([^"]+)")`)
+	gemLockDep  = regexp.MustCompile(`^\s{4}([A-Za-z0-9_.-]+)\s+\(([^)]+)\)`)
+	pep508Name  = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?`)
 )
 
 // DiscoverDependencies returns a deterministic, network-free inventory from
@@ -48,7 +51,7 @@ func DiscoverDependencies(artifact skil.Artifact) ([]DependencyRecord, error) {
 		case strings.HasSuffix(base, "go.mod"):
 			records = parseGoMod(file)
 		case strings.HasSuffix(base, "pyproject.toml"):
-			records = parsePyProject(file)
+			records, err = parsePyProject(file)
 		case strings.HasSuffix(base, "poetry.lock"), strings.HasSuffix(base, "uv.lock"):
 			records = parseTOMLLock(file, "PyPI")
 		case strings.HasSuffix(base, "cargo.lock"):
@@ -88,12 +91,13 @@ func parseRequirements(file skil.File) []DependencyRecord {
 	scanner := bufio.NewScanner(strings.NewReader(string(file.Data)))
 	for line := 1; scanner.Scan(); line++ {
 		text := strings.TrimSpace(scanner.Text())
-		if text == "" || strings.HasPrefix(text, "#") {
+		if text == "" || strings.HasPrefix(text, "#") || strings.HasPrefix(text, "-") {
 			continue
 		}
-		match := pipDep.FindStringSubmatch(text)
-		if len(match) >= 2 {
-			out = append(out, dependency(file, line, "PyPI", match[1], value(match, 2), text))
+		record, err := parsePEP508Requirement(text)
+		if err == nil {
+			record.File, record.Line, record.Raw = file.Path, line, text
+			out = append(out, record)
 		}
 	}
 	return out
@@ -182,26 +186,119 @@ func parseGoMod(file skil.File) []DependencyRecord {
 	return out
 }
 
-func parsePyProject(file skil.File) []DependencyRecord {
+func parsePyProject(file skil.File) ([]DependencyRecord, error) {
+	var document struct {
+		Project struct {
+			Dependencies []string `toml:"dependencies"`
+		} `toml:"project"`
+		Tool struct {
+			Poetry struct {
+				Dependencies map[string]any `toml:"dependencies"`
+			} `toml:"poetry"`
+		} `toml:"tool"`
+	}
+	if err := toml.Unmarshal(file.Data, &document); err != nil {
+		return nil, fmt.Errorf("parse %s: %w", file.Path, err)
+	}
 	var out []DependencyRecord
-	inPoetry := false
-	for line, text := range lines(file.Data) {
-		trimmed := strings.TrimSpace(text)
-		if strings.HasPrefix(trimmed, "[") {
-			inPoetry = trimmed == "[tool.poetry.dependencies]"
+	for _, requirement := range document.Project.Dependencies {
+		record, err := parsePEP508Requirement(requirement)
+		if err != nil {
+			return nil, fmt.Errorf("parse %s dependency %q: %w", file.Path, requirement, err)
 		}
-		if inPoetry {
-			match := cargoDep.FindStringSubmatch(text)
-			if len(match) > 1 && !strings.EqualFold(match[1], "python") {
-				out = append(out, dependency(file, line+1, "PyPI", match[1], first(match[2], value(match, 3)), text))
-			}
-			continue
-		}
-		for _, match := range pyProjectDep.FindAllStringSubmatch(text, -1) {
-			out = append(out, dependency(file, line+1, "PyPI", match[1], value(match, 2), text))
+		line, _ := lineContaining(file.Data, requirement)
+		record.File, record.Line, record.Raw = file.Path, line, requirement
+		out = append(out, record)
+	}
+	names := make([]string, 0, len(document.Tool.Poetry.Dependencies))
+	for name := range document.Tool.Poetry.Dependencies {
+		if !strings.EqualFold(name, "python") {
+			names = append(names, name)
 		}
 	}
-	return out
+	sort.Strings(names)
+	for _, name := range names {
+		specification := document.Tool.Poetry.Dependencies[name]
+		version, directURL := poetryDependency(specification)
+		line, _ := lineContaining(file.Data, name)
+		record := dependency(file, line, "PyPI", name, version, name)
+		record.URL = directURL
+		out = append(out, record)
+	}
+	return out, nil
+}
+
+func parsePEP508Requirement(requirement string) (DependencyRecord, error) {
+	raw := strings.TrimSpace(requirement)
+	if raw == "" {
+		return DependencyRecord{}, fmt.Errorf("empty requirement")
+	}
+	main, marker := splitUnquoted(raw, ';')
+	main = strings.TrimSpace(main)
+	match := pep508Name.FindString(main)
+	if match == "" {
+		return DependencyRecord{}, fmt.Errorf("missing distribution name")
+	}
+	record := DependencyRecord{Ecosystem: "PyPI", Name: match, Marker: strings.TrimSpace(marker), Raw: raw}
+	rest := strings.TrimSpace(main[len(match):])
+	if strings.HasPrefix(rest, "[") {
+		end := strings.IndexByte(rest, ']')
+		if end < 0 {
+			return DependencyRecord{}, fmt.Errorf("unterminated extras")
+		}
+		for _, extra := range strings.Split(rest[1:end], ",") {
+			if extra = strings.TrimSpace(extra); extra != "" {
+				record.Extras = append(record.Extras, extra)
+			}
+		}
+		rest = strings.TrimSpace(rest[end+1:])
+	}
+	if strings.HasPrefix(rest, "@") {
+		record.URL = strings.TrimSpace(strings.TrimPrefix(rest, "@"))
+		if record.URL == "" {
+			return DependencyRecord{}, fmt.Errorf("empty direct URL")
+		}
+		return record, nil
+	}
+	record.Version = strings.ReplaceAll(rest, " ", "")
+	return record, nil
+}
+
+func splitUnquoted(value string, separator byte) (string, string) {
+	var quote byte
+	for index := 0; index < len(value); index++ {
+		switch value[index] {
+		case '\'', '"':
+			if quote == 0 {
+				quote = value[index]
+			} else if quote == value[index] {
+				quote = 0
+			}
+		default:
+			if value[index] == separator && quote == 0 {
+				return value[:index], value[index+1:]
+			}
+		}
+	}
+	return value, ""
+}
+
+func poetryDependency(value any) (string, string) {
+	switch typed := value.(type) {
+	case string:
+		return typed, ""
+	case map[string]any:
+		if directURL, ok := typed["url"].(string); ok {
+			return "", directURL
+		}
+		if gitURL, ok := typed["git"].(string); ok {
+			return "", gitURL
+		}
+		if version, ok := typed["version"].(string); ok {
+			return version, ""
+		}
+	}
+	return "", ""
 }
 
 func parseTOMLLock(file skil.File, ecosystem string) []DependencyRecord {

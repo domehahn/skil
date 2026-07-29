@@ -98,7 +98,7 @@ jobs:
         env:
           SKIL_REQUIRE_NATIVE_ISOLATION: "1"
   macos-isolation:
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -109,3 +109,69 @@ jobs:
         run: go test ./internal/eval -run TestNativeIsolationExecutesAdapterWhenAvailable -v
         env:
           SKIL_REQUIRE_NATIVE_ISOLATION: "1"
+
+  assurance-e2e:
+    name: Assurance E2E (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            os: linux
+            executable_suffix: ""
+          - runner: macos-15
+            os: macos
+            executable_suffix: ""
+          - runner: windows-2022
+            os: windows
+            executable_suffix: ".exe"
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Install Linux native isolation
+        if: matrix.os == 'linux'
+        shell: bash
+        run: sudo apt-get update && sudo apt-get install -y bubblewrap util-linux
+      - name: Build scanner and deterministic adapter
+        shell: bash
+        env:
+          EXECUTABLE_SUFFIX: ${{ matrix.executable_suffix }}
+        run: |
+          mkdir -p dist-e2e
+          go build -trimpath -o "dist-e2e/skil${EXECUTABLE_SUFFIX}" ./cmd/skil
+          go build -trimpath -o "dist-e2e/assurance-adapter${EXECUTABLE_SUFFIX}" ./internal/evaltestadapter/cmd
+      - name: Execute digest-bound CLI assurance gate
+        shell: bash
+        env:
+          EXECUTABLE_SUFFIX: ${{ matrix.executable_suffix }}
+          ASSURANCE_PROOF: assurance-${{ matrix.os }}.json
+        run: |
+          "dist-e2e/skil${EXECUTABLE_SUFFIX}" assure tests/fixtures/goal-boundary-containment \
+            --runtime-command "dist-e2e/assurance-adapter${EXECUTABLE_SUFFIX}" \
+            --format json --output "${ASSURANCE_PROOF}"
+          grep -q '"runtime_enforcement": true' "${ASSURANCE_PROOF}"
+          grep -q '"containment": "completed"' "${ASSURANCE_PROOF}"
+          grep -q '"native_isolation": "completed"' "${ASSURANCE_PROOF}"
+      - uses: actions/upload-artifact@v6
+        with:
+          name: assurance-${{ matrix.os }}-proof
+          path: assurance-${{ matrix.os }}.json
+          if-no-files-found: error
+
+  network-gateway:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Exercise bounded public HTTPS gateway
+        env:
+          SKIL_TEST_NETWORK_GATEWAY_URL: https://example.com/
+        run: go test ./internal/eval -run TestNetworkGetToolPublicHTTPSIntegration -count=1 -v

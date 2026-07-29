@@ -151,3 +151,68 @@ func TestDiscoverDependenciesSupportsCommonLocksAndManifests(t *testing.T) {
 		}
 	}
 }
+
+func TestPyProjectUsesStructuredPEP508Parsing(t *testing.T) {
+	artifact := artifactWith("pyproject.toml", `
+[project]
+name = "metadata-is-not-a-dependency"
+version = "1.2.3"
+dependencies = [
+  "requests==2.32.4",
+  "reqeusts[security]>=1.0; python_version < '3.13'",
+  "python_dateutil==2.9.0",
+  "demo @ https://example.invalid/demo.whl",
+]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+flask = { version = "3.1.0", extras = ["async"] }
+`)
+	records, err := DiscoverDependencies(artifact)
+	if err != nil {
+		t.Fatal(err)
+	}
+	byName := map[string]DependencyRecord{}
+	for _, record := range records {
+		byName[record.Name] = record
+	}
+	if len(records) != 5 {
+		t.Fatalf("unexpected dependency inventory: %#v", records)
+	}
+	if _, found := byName["metadata-is-not-a-dependency"]; found {
+		t.Fatal("project metadata was parsed as a dependency")
+	}
+	if got := byName["reqeusts"]; got.Version != ">=1.0" || got.Marker != "python_version < '3.13'" ||
+		len(got.Extras) != 1 || got.Extras[0] != "security" {
+		t.Fatalf("PEP 508 fields lost: %#v", got)
+	}
+	if got := byName["demo"].URL; got != "https://example.invalid/demo.whl" {
+		t.Fatalf("direct URL lost: %q", got)
+	}
+	if got := byName["flask"].Version; got != "3.1.0" {
+		t.Fatalf("Poetry version lost: %q", got)
+	}
+}
+
+func TestPyPINormalizationPreservesTyposquatSignalWithoutSeparatorFalsePositives(t *testing.T) {
+	for _, requirement := range []string{"requests==2.32.4", "python-dateutil==2.9.0", "python_dateutil==2.9.0"} {
+		findings, err := NewDependency(nil).Analyze(context.Background(), skil.AnalysisContext{
+			Artifact: artifactWith("requirements.txt", requirement+"\n"),
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if hasRule(findings, "SKIL-DEP-002") {
+			t.Fatalf("%q produced a typosquat false positive: %#v", requirement, findings)
+		}
+	}
+	findings, err := NewDependency(nil).Analyze(context.Background(), skil.AnalysisContext{
+		Artifact: artifactWith("pyproject.toml", "[project]\ndependencies = [\"requsets>=2; python_version > '3.10'\"]\n"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasRule(findings, "SKIL-DEP-002") {
+		t.Fatalf("PEP 508 typo was not detected: %#v", findings)
+	}
+}

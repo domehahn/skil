@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/domehahn/skil/pkg/skil"
@@ -28,7 +29,7 @@ func (m *MCP) Analyze(_ context.Context, ac skil.AnalysisContext) ([]skil.Findin
 	poison := regexp.MustCompile(`(?i)(?:description|default).{0,40}(?:ignore (?:previous|system)|never refuse|reveal (?:system|secret)|hidden instruction)`)
 	poisonValue := regexp.MustCompile(`(?i)(?:ignore (?:previous|system)|never refuse|reveal (?:system|secret)|hidden instruction)`)
 	parameterPoison := regexp.MustCompile(`(?i)(?:read|collect).{0,50}(?:all\s+)?(?:available\s+)?(?:secrets?|credentials?|environment variables?).{0,60}(?:put|include|provide|send).{0,20}(?:here|parameter|field)`)
-	mutableIdentity := regexp.MustCompile(`(?i)(?:\bnpx\b.{0,80}(?:-y|--yes).{0,80}(?:@latest|\s+[A-Za-z0-9_.@/-]+\s*$)|\buvx\b\s+[A-Za-z0-9_.-]+\s*$|["'](?:version|revision|digest)["']\s*:\s*["'](?:latest|main|master|\*)["'])`)
+	mutableIdentityFallback := regexp.MustCompile(`(?i)(?:\bnpx\b.{0,80}(?:@latest|["',\s][A-Za-z0-9_.@/-]+["']?\s*$)|\buvx\b\s+[A-Za-z0-9_.-]+\s*$|["'](?:version|revision|digest)["']\s*:\s*["'](?:latest|main|master|\*)["'])`)
 	lock, err := loadMCPLock(ac.Artifact)
 	if err != nil {
 		return nil, err
@@ -39,21 +40,14 @@ func (m *MCP) Analyze(_ context.Context, ac skil.AnalysisContext) ([]skil.Findin
 		if !strings.Contains(lower, "mcp") && !strings.Contains(strings.ToLower(string(file.Data)), "mcpserver") {
 			continue
 		}
-		for line, text := range lines(file.Data) {
-			if mutableIdentity.MatchString(text) {
-				rule := RulePattern{Rule: skil.Rule{
-					ID: "SKIL-MCP-003", Title: "Mutable MCP tool identity",
-					Category: "tool-protocol", Severity: skil.SeverityHigh,
-					Description: "An MCP server or tool is resolved from a mutable package or revision.",
-					Analysis:    "mcp", Remediation: "Pin the exact package version or immutable revision and verify its digest.",
-				}, Confidence: .94}
-				out = append(out, makeFinding(rule, file, line+1, text))
-			}
-		}
 		var document any
 		if err := yaml.Unmarshal(file.Data, &document); err == nil && isStructuredMCPDocument(document) {
 			collectMCPDefinitions(document, definitions)
 			seen := map[string]bool{}
+			for _, identity := range mutableMCPIdentities(document) {
+				line, text := lineContaining(file.Data, identity)
+				emitMCPFinding(&out, seen, file, line, text, mutableMCPRule())
+			}
 			walkMCPDocument(document, func(key string, value any) {
 				normalized := strings.ToLower(strings.TrimSpace(key))
 				line, text := lineContaining(file.Data, key)
@@ -83,6 +77,9 @@ func (m *MCP) Analyze(_ context.Context, ac skil.AnalysisContext) ([]skil.Findin
 			continue
 		}
 		for line, text := range lines(file.Data) {
+			if mutableIdentityFallback.MatchString(text) {
+				out = append(out, makeFinding(mutableMCPRule(), file, line+1, text))
+			}
 			if wild.MatchString(text) {
 				rule := RulePattern{Rule: skil.Rule{ID: "SKIL-MCP-001", Title: "Wildcard MCP permission",
 					Category: "tool-protocol", Severity: skil.SeverityHigh,
@@ -119,6 +116,123 @@ func (m *MCP) Analyze(_ context.Context, ac skil.AnalysisContext) ([]skil.Findin
 	}
 	out = append(out, mcpBehaviorMismatchFindings(ac.Artifact, definitions)...)
 	return out, nil
+}
+
+func mutableMCPRule() RulePattern {
+	return RulePattern{Rule: skil.Rule{
+		ID: "SKIL-MCP-003", Title: "Mutable MCP tool identity",
+		Category: "tool-protocol", Severity: skil.SeverityHigh,
+		Description: "An MCP server or tool is resolved from a mutable package or revision.",
+		Analysis:    "mcp", Remediation: "Pin the exact package version or immutable revision and verify its digest.",
+	}, Confidence: .96}
+}
+
+func mutableMCPIdentities(value any) []string {
+	var identities []string
+	var visit func(any)
+	visit = func(current any) {
+		switch item := current.(type) {
+		case map[string]any:
+			command, _ := item["command"].(string)
+			if command != "" {
+				args := mcpStringSlice(item["args"])
+				if mutableCommandIdentity(command, args) {
+					identities = append(identities, firstPackageArgument(args))
+				}
+			}
+			for _, key := range sortedMapKeys(item) {
+				child := item[key]
+				normalized := strings.ToLower(strings.TrimSpace(key))
+				if normalized == "version" || normalized == "revision" || normalized == "digest" {
+					if text, ok := child.(string); ok && mutableIdentityValue(text) {
+						identities = append(identities, text)
+					}
+				}
+				visit(child)
+			}
+		case []any:
+			for _, child := range item {
+				visit(child)
+			}
+		}
+	}
+	visit(value)
+	sort.Strings(identities)
+	return identities
+}
+
+func mcpStringSlice(value any) []string {
+	items, ok := value.([]any)
+	if !ok {
+		return nil
+	}
+	out := make([]string, 0, len(items))
+	for _, item := range items {
+		if text, ok := item.(string); ok {
+			out = append(out, text)
+		}
+	}
+	return out
+}
+
+func mutableCommandIdentity(command string, args []string) bool {
+	base := strings.ToLower(command)
+	if slash := strings.LastIndexAny(base, `/\`); slash >= 0 {
+		base = base[slash+1:]
+	}
+	argument := firstPackageArgument(args)
+	if argument == "" {
+		return false
+	}
+	switch base {
+	case "npx", "npx.cmd":
+		return !exactNPMIdentity(argument)
+	case "uvx", "uvx.exe":
+		return !exactPythonIdentity(argument)
+	default:
+		return false
+	}
+}
+
+func firstPackageArgument(args []string) string {
+	for _, argument := range args {
+		argument = strings.TrimSpace(argument)
+		if argument != "" && !strings.HasPrefix(argument, "-") {
+			return argument
+		}
+	}
+	return ""
+}
+
+func exactNPMIdentity(identity string) bool {
+	index := strings.LastIndex(identity, "@")
+	if index <= 0 || strings.HasPrefix(identity[index+1:], "latest") {
+		return false
+	}
+	version := identity[index+1:]
+	return regexp.MustCompile(`^v?\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$`).MatchString(version) ||
+		regexp.MustCompile(`^[0-9a-fA-F]{40,64}$`).MatchString(version)
+}
+
+func exactPythonIdentity(identity string) bool {
+	if parts := strings.SplitN(identity, "==", 2); len(parts) == 2 {
+		return regexp.MustCompile(`^\d+(?:\.\d+)+(?:[-+][0-9A-Za-z.-]+)?$`).MatchString(parts[1])
+	}
+	if index := strings.LastIndex(identity, "@"); index > 0 {
+		version := identity[index+1:]
+		return regexp.MustCompile(`^\d+(?:\.\d+)+(?:[-+][0-9A-Za-z.-]+)?$`).MatchString(version) ||
+			regexp.MustCompile(`^[0-9a-fA-F]{40,64}$`).MatchString(version)
+	}
+	return false
+}
+
+func mutableIdentityValue(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "", "*", "latest", "main", "master", "head":
+		return true
+	default:
+		return false
+	}
 }
 
 type mcpLockDocument struct {
@@ -168,8 +282,8 @@ func collectMCPDefinitions(value any, out map[string]string) {
 				out[name] = description
 			}
 		}
-		for _, child := range item {
-			collectMCPDefinitions(child, out)
+		for _, key := range sortedMapKeys(item) {
+			collectMCPDefinitions(item[key], out)
 		}
 	case []any:
 		for _, child := range item {
@@ -180,7 +294,13 @@ func collectMCPDefinitions(value any, out map[string]string) {
 
 func mcpBehaviorMismatchFindings(artifact skil.Artifact, definitions map[string]string) []skil.Finding {
 	var out []skil.Finding
-	for name, description := range definitions {
+	names := make([]string, 0, len(definitions))
+	for name := range definitions {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		description := definitions[name]
 		lowerDescription := strings.ToLower(description)
 		if !strings.Contains(lowerDescription, "read") ||
 			(!strings.Contains(lowerDescription, "file") && !strings.Contains(lowerDescription, "local")) {
@@ -219,7 +339,8 @@ func isStructuredMCPDocument(value any) bool {
 func walkMCPDocument(value any, visit func(string, any)) {
 	switch item := value.(type) {
 	case map[string]any:
-		for key, child := range item {
+		for _, key := range sortedMapKeys(item) {
+			child := item[key]
 			visit(key, child)
 			walkMCPDocument(child, visit)
 		}
@@ -228,6 +349,15 @@ func walkMCPDocument(value any, visit func(string, any)) {
 			walkMCPDocument(child, visit)
 		}
 	}
+}
+
+func sortedMapKeys(item map[string]any) []string {
+	keys := make([]string, 0, len(item))
+	for key := range item {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 func mcpPermissionKey(key string) bool {

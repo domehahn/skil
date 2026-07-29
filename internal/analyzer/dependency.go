@@ -3,6 +3,7 @@ package analyzer
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -32,6 +33,9 @@ func (d *Dependency) Metadata() skil.AnalyzerMetadata {
 	types := []string{"dependency"}
 	if vulnerabilityEnabled(d.provider) {
 		types = append(types, "vulnerability")
+	}
+	if _, enabled := d.provider.(skil.PackageReputationProvider); enabled {
+		types = append(types, "reputation")
 	}
 	return skil.AnalyzerMetadata{ID: "builtin.dependency", Version: "1.0.0",
 		Categories: []string{"dependency-trust"}, AnalysisTypes: types,
@@ -183,9 +187,9 @@ func dependencyIsExact(ecosystem, path, version string) bool {
 }
 
 func typosquatTarget(ecosystem, candidate string) (string, int) {
-	normalized := normalizePackageName(candidate)
+	normalized := normalizePackageName(ecosystem, candidate)
 	for _, popular := range popularPackages[ecosystem] {
-		target := normalizePackageName(popular)
+		target := normalizePackageName(ecosystem, popular)
 		if normalized == target {
 			continue
 		}
@@ -197,9 +201,13 @@ func typosquatTarget(ecosystem, candidate string) (string, int) {
 	return "", 0
 }
 
-func normalizePackageName(value string) string {
-	replacer := strings.NewReplacer("-", "", "_", "", ".", "")
-	return replacer.Replace(strings.ToLower(value))
+func normalizePackageName(ecosystem, value string) string {
+	normalized := strings.ToLower(strings.TrimSpace(value))
+	if ecosystem == "PyPI" {
+		normalized = regexp.MustCompile(`[-_.]+`).ReplaceAllString(normalized, "-")
+		return strings.ReplaceAll(normalized, "-", "")
+	}
+	return normalized
 }
 
 func levenshtein(a, b string) int {

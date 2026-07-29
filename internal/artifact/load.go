@@ -58,6 +58,11 @@ func Load(source string, opts Options) (skil.Artifact, error) {
 	if err != nil {
 		return skil.Artifact{}, err
 	}
+	if !info.IsDir() && (strings.HasSuffix(strings.ToLower(source), ".zip") ||
+		strings.HasSuffix(strings.ToLower(source), ".tgz") ||
+		strings.HasSuffix(strings.ToLower(source), ".tar.gz")) {
+		files = normalizeArchiveRoot(files)
+	}
 	if len(files) == 0 {
 		return skil.Artifact{}, errors.New("source contains no scannable regular files")
 	}
@@ -81,6 +86,40 @@ func Load(source string, opts Options) (skil.Artifact, error) {
 		Name: name, Source: source, Digest: hex.EncodeToString(h.Sum(nil)), PackageDigest: packageDigest,
 		Files: files, Timestamp: time.Now().UTC(),
 	}, nil
+}
+
+// normalizeArchiveRoot removes the conventional packaging directory only
+// when it is unambiguous and contains the skill entrypoint at its root.
+func normalizeArchiveRoot(files []skil.File) []skil.File {
+	if len(files) == 0 {
+		return files
+	}
+	prefix := ""
+	hasEntrypoint := false
+	for _, file := range files {
+		slash := strings.IndexByte(file.Path, '/')
+		if slash <= 0 {
+			return files
+		}
+		current := file.Path[:slash]
+		if prefix == "" {
+			prefix = current
+		} else if current != prefix {
+			return files
+		}
+		if file.Path == prefix+"/SKILL.md" {
+			hasEntrypoint = true
+		}
+	}
+	if !hasEntrypoint {
+		return files
+	}
+	normalized := make([]skil.File, len(files))
+	for index, file := range files {
+		file.Path = strings.TrimPrefix(file.Path, prefix+"/")
+		normalized[index] = file
+	}
+	return normalized
 }
 
 func fileDigest(path string) (string, error) {
