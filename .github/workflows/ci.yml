@@ -172,9 +172,23 @@ jobs:
           EXECUTABLE_SUFFIX: ${{ matrix.executable_suffix }}
           ASSURANCE_PROOF: assurance-${{ matrix.os }}.json
         run: |
+          set +e
           "dist-e2e/skil${EXECUTABLE_SUFFIX}" assure tests/fixtures/goal-boundary-containment \
             --runtime-command "dist-e2e/assurance-adapter${EXECUTABLE_SUFFIX}" \
             --format json --output "${ASSURANCE_PROOF}"
+          code=$?
+          set -e
+          if [ "$code" -ne 0 ]; then
+            jq '{
+              status,
+              scan_status: .scan.status,
+              verification_status: .verification.status,
+              evaluation_status: .evaluation.status,
+              coverage: .evaluation.coverage,
+              runtime_errors: [.evaluation.runs[].trace.errors[]]
+            }' "${ASSURANCE_PROOF}"
+            exit "$code"
+          fi
           grep -q '"runtime_enforcement": true' "${ASSURANCE_PROOF}"
           grep -q '"containment": "completed"' "${ASSURANCE_PROOF}"
           grep -q '"native_isolation": "completed"' "${ASSURANCE_PROOF}"
