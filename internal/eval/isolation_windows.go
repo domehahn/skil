@@ -208,11 +208,25 @@ func runWindowsIsolation(ctx context.Context, executable string, request Isolati
 	if systemRoot == "" {
 		systemRoot = `C:\Windows`
 	}
+	systemDrive := filepath.VolumeName(systemRoot)
+	if systemDrive == "" {
+		systemDrive = `C:`
+	}
+	systemDirectory := filepath.Join(systemRoot, "System32")
 	environment, err := windowsEnvironment([]string{
+		"APPDATA=" + folder,
+		"ComSpec=" + filepath.Join(systemDirectory, "cmd.exe"),
+		"LOCALAPPDATA=" + folder,
+		"OS=Windows_NT",
+		"PATHEXT=.COM;.EXE;.BAT;.CMD",
+		"ProgramData=" + filepath.Join(systemDrive+`\`, "ProgramData"),
+		"SystemDrive=" + systemDrive,
 		"SystemRoot=" + systemRoot,
-		"PATH=" + filepath.Join(systemRoot, "System32"),
+		"PATH=" + systemDirectory,
 		"TMP=" + folder,
 		"TEMP=" + folder,
+		"USERPROFILE=" + folder,
+		"windir=" + systemRoot,
 	})
 	if err != nil {
 		return err
