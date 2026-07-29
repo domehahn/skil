@@ -154,6 +154,9 @@ func (p *PythonAST) Analyze(ctx context.Context, ac skil.AnalysisContext) ([]ski
 			if target == "open" && writeMode(node, file.Data) {
 				rule, found = pyRule("SKIL-FS-001", "Filesystem write", "tool-misuse", "Python opens a file in a write-capable mode.", "Declare and constrain writable paths.", "filesystem.write", skil.SeverityMedium), true
 			}
+			if found && strings.HasPrefix(target, "subprocess.") && safeSubprocessCall(node, file.Data) {
+				return
+			}
 			if !found {
 				return
 			}
@@ -162,6 +165,25 @@ func (p *PythonAST) Analyze(ctx context.Context, ac skil.AnalysisContext) ([]ski
 		tree.Close()
 	}
 	return out, nil
+}
+
+func safeSubprocessCall(call *tree_sitter.Node, source []byte) bool {
+	args := call.ChildByFieldName("arguments")
+	if args == nil || args.NamedChildCount() == 0 {
+		return false
+	}
+	first := args.NamedChild(0)
+	if first == nil || (first.Kind() != "list" && first.Kind() != "tuple") {
+		return false
+	}
+	for i := uint(0); i < first.NamedChildCount(); i++ {
+		child := first.NamedChild(i)
+		if child == nil || child.Kind() != "string" {
+			return false
+		}
+	}
+	text := strings.ToLower(args.Utf8Text(source))
+	return !strings.Contains(text, "shell=true")
 }
 
 func firstStringLiteral(node *tree_sitter.Node, source []byte) string {

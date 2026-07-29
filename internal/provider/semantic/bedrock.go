@@ -1,0 +1,109 @@
+package semantic
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime"
+	"github.com/domehahn/skil/pkg/skil"
+)
+
+const defaultBedrockRegion = "us-west-2"
+
+type bedrockRuntimeClient interface {
+	InvokeModel(context.Context, *bedrockruntime.InvokeModelInput, ...func(*bedrockruntime.Options)) (*bedrockruntime.InvokeModelOutput, error)
+}
+
+type BedrockConfig struct {
+	Model  string
+	Region string
+	Client bedrockRuntimeClient
+}
+
+// BedrockProvider invokes Anthropic Messages through the official AWS SDK.
+// SigV4 credentials come from the standard SDK chain and are never exposed to
+// scanned content or a child process.
+type BedrockProvider struct {
+	model  string
+	region string
+	client bedrockRuntimeClient
+}
+
+func NewBedrock(ctx context.Context, config BedrockConfig) (*BedrockProvider, error) {
+	if config.Model == "" {
+		return nil, errors.New("semantic model is required")
+	}
+	if config.Region == "" {
+		config.Region = defaultBedrockRegion
+	}
+	client := config.Client
+	if client == nil {
+		awsConfiguration, err := awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(config.Region))
+		if err != nil {
+			return nil, fmt.Errorf("load AWS configuration: %w", err)
+		}
+		client = bedrockruntime.NewFromConfig(awsConfiguration)
+	}
+	return &BedrockProvider{model: config.Model, region: config.Region, client: client}, nil
+}
+
+func (p *BedrockProvider) ID() string { return "aws-bedrock/" + p.region + "/" + p.model }
+
+func (p *BedrockProvider) AnalyzeUntrusted(ctx context.Context, request skil.SemanticRequest) ([]skil.Finding, error) {
+	if !request.NoTools {
+		return nil, errors.New("semantic analysis requires NoTools=true")
+	}
+	untrusted, err := json.Marshal(request)
+	if err != nil {
+		return nil, err
+	}
+	body, err := json.Marshal(map[string]any{
+		"anthropic_version": "bedrock-2023-05-31",
+		"max_tokens":        4096,
+		"temperature":       0,
+		"system":            semanticSystemPrompt + "\nReturn a JSON object with a findings array and no surrounding prose.",
+		"messages": []map[string]string{{
+			"role": "user", "content": "<UNTRUSTED_SKILL_DATA>\n" + string(untrusted) + "\n</UNTRUSTED_SKILL_DATA>",
+		}},
+	})
+	if err != nil {
+		return nil, err
+	}
+	contentType := "application/json"
+	response, err := p.client.InvokeModel(ctx, &bedrockruntime.InvokeModelInput{
+		ModelId: aws.String(p.model), Body: body, ContentType: &contentType, Accept: &contentType,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("bedrock semantic provider request: %w", err)
+	}
+	if len(response.Body) > maxResponse {
+		return nil, errors.New("semantic response exceeds size limit")
+	}
+	var decoded struct {
+		Content []struct {
+			Type string `json:"type"`
+			Text string `json:"text"`
+		} `json:"content"`
+	}
+	if err := json.Unmarshal(response.Body, &decoded); err != nil {
+		return nil, errors.New("bedrock returned an invalid response")
+	}
+	text := ""
+	for _, block := range decoded.Content {
+		if block.Type == "text" {
+			text += block.Text
+		}
+	}
+	var result semanticResult
+	if text == "" || json.Unmarshal([]byte(text), &result) != nil {
+		return nil, errors.New("bedrock returned invalid structured output")
+	}
+	if len(result.Findings) > 100 {
+		return nil, errors.New("semantic provider returned too many findings")
+	}
+	return normalizeFindings(result.Findings, request, p.ID())
+}

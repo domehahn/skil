@@ -9,9 +9,9 @@ import (
 )
 
 func windowsIsolationAvailable() error {
-	return errors.New("Windows AppContainer isolation is unavailable on this platform")
+	return errors.New("windows AppContainer isolation is unavailable on this platform")
 }
 
 func runWindowsIsolation(context.Context, string, IsolationRequest, IsolationLimits, string, io.Writer, io.Writer) error {
-	return errors.New("Windows AppContainer isolation is unavailable on this platform")
+	return errors.New("windows AppContainer isolation is unavailable on this platform")
 }

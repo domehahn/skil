@@ -1,5 +1,21 @@
 # Skill contract
 
+`capabilities.agent.external_targets` optionally restricts external actions to
+exact target identifiers. Omitted means no `external.action` target is
+authorized. Eval containment targets form a second, narrower boundary and
+never expand contract authority.
+
+Containment operation semantics:
+
+- `network.external` and `network.lateral` are outbound network attempts and
+  still require an exact/wildcard contract host plus the eval target boundary.
+- `external.action` requires external side effects and an exact
+  `external_targets` entry.
+- `tool.invoke` and `mcp.invoke` are aliases enforced by the existing tool and
+  MCP allowlists.
+- `privilege.escalate`, `runtime.escape`, `goal.boundary`, and
+  `enforcement.bypass` are attempt-only operations and are always denied.
+
 Canonical `skill.yaml` version 1 (legacy `skil.yaml` is accepted) declares
 identity, owner, entrypoint, compatibility, a portable `security` summary, and
 least-privilege capabilities:

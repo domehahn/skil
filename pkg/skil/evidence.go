@@ -6,14 +6,27 @@ import (
 )
 
 type Evidence struct {
-	Type          string         `json:"type" yaml:"type"`
-	Producer      string         `json:"producer" yaml:"producer"`
-	ProducerVer   string         `json:"producer_version" yaml:"producer_version"`
-	SubjectDigest string         `json:"subject_digest" yaml:"subject_digest"`
-	Timestamp     time.Time      `json:"timestamp" yaml:"timestamp"`
-	PayloadDigest string         `json:"payload_digest,omitempty" yaml:"payload_digest,omitempty"`
-	Result        EvidenceResult `json:"result" yaml:"result"`
-	Coverage      []string       `json:"coverage,omitempty" yaml:"coverage,omitempty"`
+	Type             string             `json:"type" yaml:"type"`
+	Producer         string             `json:"producer" yaml:"producer"`
+	ProducerVer      string             `json:"producer_version" yaml:"producer_version"`
+	SubjectDigest    string             `json:"subject_digest" yaml:"subject_digest"`
+	Timestamp        time.Time          `json:"timestamp" yaml:"timestamp"`
+	PayloadDigest    string             `json:"payload_digest,omitempty" yaml:"payload_digest,omitempty"`
+	Result           EvidenceResult     `json:"result" yaml:"result"`
+	Coverage         []string           `json:"coverage,omitempty" yaml:"coverage,omitempty"`
+	Inspection       *InspectionSummary `json:"inspection_summary,omitempty" yaml:"inspection_summary,omitempty"`
+	InspectionDigest string             `json:"inspection_ledger_sha256,omitempty" yaml:"inspection_ledger_sha256,omitempty"`
+	Evaluation       *EvalEvidence      `json:"evaluation,omitempty" yaml:"evaluation,omitempty"`
+}
+
+type EvalEvidence struct {
+	EvalSpecDigest string       `json:"eval_spec_digest" yaml:"eval_spec_digest"`
+	Runtime        string       `json:"runtime" yaml:"runtime"`
+	Coverage       EvalCoverage `json:"coverage" yaml:"coverage"`
+	Metrics        EvalMetrics  `json:"metrics" yaml:"metrics"`
+	Violations     int          `json:"containment_violations" yaml:"containment_violations"`
+	Denied         int          `json:"denied_operations" yaml:"denied_operations"`
+	SideEffects    int          `json:"forbidden_side_effects" yaml:"forbidden_side_effects"`
 }
 
 type EvidenceBundle struct {

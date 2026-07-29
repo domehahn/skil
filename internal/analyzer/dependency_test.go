@@ -12,6 +12,13 @@ type vulnerabilityProvider struct {
 	err error
 }
 
+type cleanVulnerabilityProvider struct{}
+
+func (cleanVulnerabilityProvider) ID() string { return "clean-vulnerabilities" }
+func (cleanVulnerabilityProvider) Query(context.Context, string, string, string) ([]skil.Vulnerability, error) {
+	return nil, nil
+}
+
 type reputationProvider struct{ vulnerabilityProvider }
 
 func (reputationProvider) Reputation(context.Context, string, string) (skil.PackageReputation, error) {
@@ -44,6 +51,40 @@ func TestDependencyGenericTyposquatAndAbandonedDetection(t *testing.T) {
 	}
 }
 
+func TestDependencyMaintainedReputationDoesNotFindAbandonment(t *testing.T) {
+	provider := maintainedReputationProvider{}
+	findings, err := NewDependency(provider).Analyze(context.Background(), skil.AnalysisContext{
+		Artifact: artifactWith("requirements.txt", "requests==2.32.4\n"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, finding := range findings {
+		if finding.RuleID == "SKIL-DEP-ABANDONED" {
+			t.Fatalf("maintained dependency marked abandoned: %#v", findings)
+		}
+	}
+}
+
+type maintainedReputationProvider struct{ vulnerabilityProvider }
+
+func (maintainedReputationProvider) Reputation(context.Context, string, string) (skil.PackageReputation, error) {
+	return skil.PackageReputation{Abandoned: false}, nil
+}
+
+type reputationOnlyProvider struct{ reputationProvider }
+
+func (reputationOnlyProvider) VulnerabilityEnabled() bool { return false }
+
+func TestReputationOnlyProviderDoesNotClaimVulnerabilityCoverage(t *testing.T) {
+	analyzer := NewDependency(reputationOnlyProvider{})
+	for _, analysis := range analyzer.Metadata().AnalysisTypes {
+		if analysis == "vulnerability" {
+			t.Fatal("reputation-only provider claimed vulnerability coverage")
+		}
+	}
+}
+
 func TestDependencyVulnerabilityProvider(t *testing.T) {
 	artifact := artifactWith("requirements.txt", "demo==1.0.0\n")
 	findings, err := NewDependency(vulnerabilityProvider{}).Analyze(context.Background(), skil.AnalysisContext{Artifact: artifact})
@@ -55,6 +96,26 @@ func TestDependencyVulnerabilityProvider(t *testing.T) {
 	}
 	if len(findings[0].References) != 2 || findings[0].References[0] != "GHSA-test" || findings[0].References[1] != "GO-test" {
 		t.Fatalf("vulnerability references are incomplete or unstable: %#v", findings[0].References)
+	}
+}
+
+func TestDependencyControlMatrixNegativeCases(t *testing.T) {
+	findings, err := NewDependency(cleanVulnerabilityProvider{}).Analyze(context.Background(), skil.AnalysisContext{
+		Artifact: artifactWith("requirements.txt", "requests==2.32.4\n"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, rule := range []string{"SKIL-DEP-001", "SKIL-DEP-002", "SKIL-DEP-VULN"} {
+		if hasRule(findings, rule) {
+			t.Fatalf("pinned known clean dependency produced %s: %#v", rule, findings)
+		}
+	}
+	unpinned, err := NewDependency(nil).Analyze(context.Background(), skil.AnalysisContext{
+		Artifact: artifactWith("requirements.txt", "requests\n"),
+	})
+	if err != nil || !hasRule(unpinned, "SKIL-DEP-001") {
+		t.Fatalf("unpinned dependency was not detected: %#v %v", unpinned, err)
 	}
 }
 

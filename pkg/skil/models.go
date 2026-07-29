@@ -45,20 +45,21 @@ type Location struct {
 }
 
 type Finding struct {
-	ID          string         `json:"id" yaml:"id"`
-	RuleID      string         `json:"rule_id" yaml:"rule_id"`
-	Category    string         `json:"category" yaml:"category"`
-	Severity    Severity       `json:"severity" yaml:"severity"`
-	Confidence  float64        `json:"confidence" yaml:"confidence"`
-	Title       string         `json:"title" yaml:"title"`
-	Message     string         `json:"message" yaml:"message"`
-	Description string         `json:"description,omitempty" yaml:"description,omitempty"`
-	Location    Location       `json:"location" yaml:"location"`
-	Evidence    map[string]any `json:"evidence,omitempty" yaml:"evidence,omitempty"`
-	Remediation string         `json:"remediation,omitempty" yaml:"remediation,omitempty"`
-	References  []string       `json:"references,omitempty" yaml:"references,omitempty"`
-	Fingerprint string         `json:"fingerprint" yaml:"fingerprint"`
-	Suppressed  bool           `json:"suppressed,omitempty" yaml:"suppressed,omitempty"`
+	ID                string         `json:"id" yaml:"id"`
+	RuleID            string         `json:"rule_id" yaml:"rule_id"`
+	Category          string         `json:"category" yaml:"category"`
+	Severity          Severity       `json:"severity" yaml:"severity"`
+	Confidence        float64        `json:"confidence" yaml:"confidence"`
+	Title             string         `json:"title" yaml:"title"`
+	Message           string         `json:"message" yaml:"message"`
+	Description       string         `json:"description,omitempty" yaml:"description,omitempty"`
+	Location          Location       `json:"location" yaml:"location"`
+	Evidence          map[string]any `json:"evidence,omitempty" yaml:"evidence,omitempty"`
+	Remediation       string         `json:"remediation,omitempty" yaml:"remediation,omitempty"`
+	References        []string       `json:"references,omitempty" yaml:"references,omitempty"`
+	Fingerprint       string         `json:"fingerprint" yaml:"fingerprint"`
+	Suppressed        bool           `json:"suppressed,omitempty" yaml:"suppressed,omitempty"`
+	SuppressionReason string         `json:"suppression_reason,omitempty" yaml:"suppression_reason,omitempty"`
 }
 
 type Rule struct {
@@ -111,6 +112,43 @@ const (
 	CoverageNotRun       CoverageState = "not_run"
 )
 
+type InspectionOutcome string
+
+const (
+	InspectionCompleted  InspectionOutcome = "completed"
+	InspectionSkipped    InspectionOutcome = "skipped"
+	InspectionFailed     InspectionOutcome = "failed"
+	InspectionOutOfScope InspectionOutcome = "out_of_scope"
+)
+
+// InspectionWorkItem accounts for one analyzer/file decision. Out-of-scope
+// entries are retained so consumers can distinguish deliberate routing from
+// silently omitted work.
+type InspectionWorkItem struct {
+	Analyzer string            `json:"analyzer"`
+	Version  string            `json:"analyzer_version"`
+	File     string            `json:"file"`
+	Outcome  InspectionOutcome `json:"outcome"`
+	Reason   string            `json:"reason,omitempty"`
+	Findings int               `json:"findings"`
+}
+
+type InspectionSummary struct {
+	Total        int     `json:"total"`
+	Applicable   int     `json:"applicable"`
+	Completed    int     `json:"completed"`
+	Skipped      int     `json:"skipped"`
+	Failed       int     `json:"failed"`
+	OutOfScope   int     `json:"out_of_scope"`
+	Completeness float64 `json:"completeness"`
+}
+
+type Diagnostic struct {
+	Component string `json:"component"`
+	Level     string `json:"level"`
+	Message   string `json:"message"`
+}
+
 type ScanResult struct {
 	SchemaVersion string                   `json:"schema_version"`
 	Artifact      Artifact                 `json:"artifact"`
@@ -121,6 +159,9 @@ type ScanResult struct {
 	Findings      []Finding                `json:"findings"`
 	Coverage      map[string]CoverageState `json:"analysis"`
 	Scanners      []string                 `json:"scanners"`
+	Inspection    []InspectionWorkItem     `json:"inspection_ledger,omitempty"`
+	Completeness  InspectionSummary        `json:"inspection_summary"`
+	Diagnostics   []Diagnostic             `json:"diagnostics,omitempty"`
 	GeneratedAt   time.Time                `json:"generated_at"`
 }
 
@@ -151,18 +192,34 @@ type SemanticRequest struct {
 	ArtifactDigest string            `json:"artifact_digest"`
 	Files          map[string]string `json:"files"`
 	Contract       *SkillContract    `json:"contract,omitempty"`
+	Focus          string            `json:"focus,omitempty"`
+	PriorFindings  []Finding         `json:"prior_findings,omitempty"`
 	NoTools        bool              `json:"no_tools"`
 }
 
 type Vulnerability struct {
-	Package, Version, ID, Summary string
-	Severity                      Severity
-	Aliases                       []string
+	Package  string   `json:"package"`
+	Version  string   `json:"version"`
+	ID       string   `json:"id"`
+	Summary  string   `json:"summary"`
+	Severity Severity `json:"severity"`
+	Aliases  []string `json:"aliases,omitempty"`
 }
 
 type VulnerabilityProvider interface {
 	ID() string
 	Query(context.Context, string, string, string) ([]Vulnerability, error)
+}
+
+type VulnerabilityQuery struct {
+	Ecosystem string `json:"ecosystem"`
+	Package   string `json:"package"`
+	Version   string `json:"version"`
+}
+
+type BatchVulnerabilityProvider interface {
+	VulnerabilityProvider
+	QueryBatch(context.Context, []VulnerabilityQuery) ([][]Vulnerability, error)
 }
 
 type PackageReputation struct {

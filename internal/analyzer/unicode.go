@@ -37,6 +37,24 @@ func (u *Unicode) Analyze(_ context.Context, ac skil.AnalysisContext) ([]skil.Fi
 					Remediation: "Remove control characters or document the exact legitimate need."}, Confidence: .98}
 				out = append(out, makeFinding(rule, file, line+1, text))
 			}
+			if decoded := decodeUnicodeTags(text); decoded != "" && suspiciousDecoded(decoded) {
+				rule := RulePattern{Rule: skil.Rule{ID: "SKIL-UNI-003", Title: "Unicode tag instruction smuggling",
+					Category: "instruction-integrity", Severity: skil.SeverityHigh,
+					Description: "Unicode tag characters conceal a security-sensitive instruction.", Analysis: "pattern",
+					Remediation: "Remove tag characters and keep all instructions visible as ordinary text."}, Confidence: .98}
+				finding := makeFinding(rule, file, line+1, text)
+				finding.Evidence["decoded_tag_text"] = truncate(decoded, 160)
+				out = append(out, finding)
+			}
+			if token := mixedScriptHostname(text); token != "" {
+				rule := RulePattern{Rule: skil.Rule{ID: "SKIL-UNI-002", Title: "Unicode hostname confusable",
+					Category: "artifact-integrity", Severity: skil.SeverityHigh,
+					Description: "A hostname-like token mixes Latin and Cyrillic characters.", Analysis: "pattern",
+					Remediation: "Use an ASCII or IDNA-normalized reviewed hostname."}, Confidence: .96}
+				finding := makeFinding(rule, file, line+1, text)
+				finding.Evidence["confusable_token"] = token
+				out = append(out, finding)
+			}
 			if match := base64Block.FindStringSubmatch(text); len(match) > 1 {
 				decoded, err := base64.StdEncoding.DecodeString(match[1])
 				if err == nil && mostlyPrintable(decoded) && suspiciousDecoded(string(decoded)) {
@@ -50,6 +68,43 @@ func (u *Unicode) Analyze(_ context.Context, ac skil.AnalysisContext) ([]skil.Fi
 		}
 	}
 	return out, nil
+}
+
+func decodeUnicodeTags(text string) string {
+	var decoded strings.Builder
+	found := false
+	for _, r := range text {
+		switch {
+		case r >= 0xE0020 && r <= 0xE007E:
+			decoded.WriteRune(r - 0xE0000)
+			found = true
+		case r == 0xE007F:
+			found = true
+		}
+	}
+	if !found {
+		return ""
+	}
+	return decoded.String()
+}
+
+func mixedScriptHostname(text string) string {
+	for _, token := range strings.FieldsFunc(text, func(r rune) bool {
+		return unicode.IsSpace(r) || strings.ContainsRune(`"'()[]{}<>,;`, r)
+	}) {
+		if !strings.Contains(token, ".") {
+			continue
+		}
+		latin, cyrillic := false, false
+		for _, r := range token {
+			latin = latin || unicode.In(r, unicode.Latin)
+			cyrillic = cyrillic || unicode.In(r, unicode.Cyrillic)
+		}
+		if latin && cyrillic {
+			return token
+		}
+	}
+	return ""
 }
 func mostlyPrintable(data []byte) bool {
 	if len(data) == 0 {

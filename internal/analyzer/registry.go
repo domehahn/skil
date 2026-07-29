@@ -16,7 +16,7 @@ type Registry struct {
 
 func DefaultRegistry(vuln skil.VulnerabilityProvider) *Registry {
 	items := []skil.Analyzer{
-		NewPattern(), NewPythonAST(), NewStructuredAST(), NewTaint(), NewDependency(vuln), NewMCP(), NewUnicode(),
+		NewPattern(), NewPythonAST(), NewStructuredAST(), NewTaint(), NewDependency(vuln), NewMCP(), NewBoundary(), NewUnicode(),
 	}
 	return &Registry{analyzers: items}
 }
@@ -60,8 +60,27 @@ func (r *Registry) Scan(ctx context.Context, ac skil.AnalysisContext) (skil.Scan
 	}
 	for _, a := range r.analyzers {
 		meta := a.Metadata()
+		start := len(result.Inspection)
+		for _, file := range ac.Artifact.Files {
+			item := skil.InspectionWorkItem{
+				Analyzer: meta.ID, Version: meta.Version, File: file.Path,
+				Outcome: skil.InspectionOutOfScope, Reason: "file type is outside analyzer scope",
+			}
+			if analyzerApplies(meta, file) {
+				item.Outcome = skil.InspectionCompleted
+				item.Reason = ""
+			}
+			result.Inspection = append(result.Inspection, item)
+		}
 		findings, err := a.Analyze(ctx, ac)
 		if err != nil {
+			for index := start; index < len(result.Inspection); index++ {
+				if result.Inspection[index].Outcome == skil.InspectionCompleted {
+					result.Inspection[index].Outcome = skil.InspectionFailed
+					result.Inspection[index].Reason = err.Error()
+				}
+			}
+			result.Completeness = summarizeInspection(result.Inspection)
 			return result, fmt.Errorf("%s analyzer: %w", meta.ID, err)
 		}
 		for _, finding := range findings {
@@ -70,10 +89,21 @@ func (r *Registry) Scan(ctx context.Context, ac skil.AnalysisContext) (skil.Scan
 			}
 		}
 		result.Findings = append(result.Findings, findings...)
+		if source, ok := a.(interface{ Diagnostics() []skil.Diagnostic }); ok {
+			result.Diagnostics = append(result.Diagnostics, source.Diagnostics()...)
+		}
+		for index := start; index < len(result.Inspection); index++ {
+			for _, finding := range findings {
+				if finding.Location.File == result.Inspection[index].File {
+					result.Inspection[index].Findings++
+				}
+			}
+		}
 		for _, typ := range meta.AnalysisTypes {
 			result.Coverage[typ] = skil.CoverageCompleted
 		}
 	}
+	result.Completeness = summarizeInspection(result.Inspection)
 	sort.Slice(result.Findings, func(i, j int) bool {
 		a, b := result.Findings[i], result.Findings[j]
 		if a.Location.File != b.Location.File {
@@ -87,6 +117,59 @@ func (r *Registry) Scan(ctx context.Context, ac skil.AnalysisContext) (skil.Scan
 	result.Maximum, result.RiskScore, result.Status = Risk(result.Findings, result.Coverage)
 	result.Verdict = Verdict(result.Maximum, result.RiskScore, result.Coverage)
 	return result, nil
+}
+
+func analyzerApplies(meta skil.AnalyzerMetadata, file skil.File) bool {
+	ext := strings.ToLower(extension(file.Path))
+	base := strings.ToLower(file.Path)
+	if slash := strings.LastIndex(base, "/"); slash >= 0 {
+		base = base[slash+1:]
+	}
+	for _, supported := range meta.SupportedTypes {
+		supported = strings.ToLower(strings.TrimPrefix(supported, "."))
+		switch supported {
+		case "*":
+			return true
+		case "text":
+			if isText(file) {
+				return true
+			}
+		case "markdown":
+			if ext == "md" || ext == "markdown" {
+				return true
+			}
+		default:
+			if ext == supported || base == supported || strings.HasSuffix(base, supported) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func summarizeInspection(items []skil.InspectionWorkItem) skil.InspectionSummary {
+	summary := skil.InspectionSummary{Total: len(items)}
+	for _, item := range items {
+		switch item.Outcome {
+		case skil.InspectionCompleted:
+			summary.Applicable++
+			summary.Completed++
+		case skil.InspectionSkipped:
+			summary.Applicable++
+			summary.Skipped++
+		case skil.InspectionFailed:
+			summary.Applicable++
+			summary.Failed++
+		case skil.InspectionOutOfScope:
+			summary.OutOfScope++
+		}
+	}
+	if summary.Applicable == 0 {
+		summary.Completeness = 1
+	} else {
+		summary.Completeness = float64(summary.Completed) / float64(summary.Applicable)
+	}
+	return summary
 }
 
 func nativeRuleIDs() []string {

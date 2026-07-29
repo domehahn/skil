@@ -1,10 +1,16 @@
-.PHONY: build test test-linux-isolation test-windows-compile lint fmt vet
+.PHONY: build docker-build docker-smoke test test-linux-isolation test-windows-compile lint fmt vet
 
 GOCACHE ?= /tmp/skil-go-cache
 GOWORK ?= off
 
 build:
 	GOWORK=$(GOWORK) GOCACHE=$(GOCACHE) go build -trimpath -o bin/skil ./cmd/skil
+
+docker-build:
+	docker build -t skil:local .
+
+docker-smoke: docker-build
+	docker run --rm skil:local version
 
 test:
 	GOWORK=$(GOWORK) GOCACHE=$(GOCACHE) go test -race ./...

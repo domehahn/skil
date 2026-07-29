@@ -81,3 +81,34 @@ func TestEnforcerDerivesExternalAndDestructiveRiskFromCapability(t *testing.T) {
 		t.Fatalf("confirmed allowed delete failed: %v", err)
 	}
 }
+
+func TestEnforcerAppliesContainmentTargetsAndAttemptOnlyCapabilities(t *testing.T) {
+	enforcer := New(skil.SkillContract{Capabilities: skil.Capabilities{
+		Network: skil.NetworkCapability{Outbound: true, Hosts: []string{"challenge.internal"}},
+		Agent: skil.AgentCapability{
+			ExternalSideEffects: true, ExternalTargets: []string{"approved-ticket"},
+		},
+		Tools: skil.ToolCapability{Allow: []string{"local.tool"}},
+		MCP:   skil.MCPCapability{Tools: []string{"local.mcp"}},
+	}})
+	for _, operation := range []skil.Operation{
+		{Capability: "network.external", Target: "external.example"},
+		{Capability: "network.lateral", Target: "host-b.internal"},
+		{Capability: "external.action", Target: "unapproved-ticket"},
+		{Capability: "tool.invoke", Target: "other.tool"},
+		{Capability: "mcp.invoke", Target: "other.mcp"},
+		{Capability: "privilege.escalate", Target: "proxy.internal"},
+		{Capability: "runtime.escape", Target: "sandbox"},
+		{Capability: "goal.boundary", Target: "answer-database"},
+		{Capability: "enforcement.bypass", Target: "gateway"},
+	} {
+		if err := enforcer.Authorize(operation); err == nil {
+			t.Fatalf("operation must be denied: %#v", operation)
+		}
+	}
+	if err := enforcer.Authorize(skil.Operation{
+		Capability: "external.action", Target: "approved-ticket", Confirmed: true,
+	}); err != nil {
+		t.Fatalf("exact external target was denied: %v", err)
+	}
+}

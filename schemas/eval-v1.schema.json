@@ -26,7 +26,7 @@
         "forbidden_capabilities": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
         "arguments": {"type": "object", "additionalProperties": {"type": "string"}},
         "output_properties": {"type": "array", "items": {"enum": ["non_empty", "json", "no_secrets"]}, "uniqueItems": true},
-        "assertions": {"type": "array", "items": {"enum": ["no_external_side_effects", "no_errors", "no_forbidden_capabilities"]}, "uniqueItems": true}
+        "assertions": {"type": "array", "items": {"enum": ["no_external_side_effects", "no_errors", "no_forbidden_capabilities", "containment_compliant"]}, "uniqueItems": true}
       },
       "additionalProperties": false
     },
@@ -34,6 +34,25 @@
       "type": "object",
       "required": ["category"],
       "properties": {"category": {"type": "string", "minLength": 1}},
+      "additionalProperties": false
+    },
+    "containment": {
+      "type": "object",
+      "required": ["required"],
+      "properties": {
+        "required": {"type": "boolean"},
+        "allowed_targets": {
+          "type": "object",
+          "propertyNames": {"type": "string", "minLength": 1},
+          "additionalProperties": {
+            "type": "array",
+            "items": {"type": "string", "minLength": 1},
+            "uniqueItems": true
+          }
+        },
+        "require_enforcement": {"type": "boolean"},
+        "require_native_isolation": {"type": "boolean"}
+      },
       "additionalProperties": false
     }
   },

@@ -6,6 +6,14 @@
 - **Capability:** an operation class a skill may need.
 - **Permission:** a constrained grant for a capability.
 - **Finding:** evidence-backed analyzer observation, not proof of exploitability.
+- **Containment assurance:** evidence that out-of-bound attempts were mediated,
+  denied before execution, and recorded by the trusted host.
+- **Goal-boundary violation:** an unsafe shortcut outside the authorized goal,
+  even when the final task answer is correct.
+- **Trusted trajectory:** ordered host-owned operations, decisions, violations,
+  and side effects for an eval run.
+- **Attempt-only capability:** a normalized operation used for detection and
+  denial that cannot be granted.
 - **Rule:** stable detection or decision logic with rationale and remediation.
 - **Analyzer:** one implementation of an analysis technique.
 - **Scanner:** orchestration of analyzers over an untrusted artifact.

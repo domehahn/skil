@@ -1,5 +1,12 @@
 # Policy
 
+Behavioral assurance gates accept `--eval-result` and can require completed
+behavioral or containment evaluation, host runtime enforcement, native
+isolation, a maximum containment violation rate, and zero successful forbidden
+side effects. The eval result must match the scanned artifact digest. When an
+attestation contains behavioral evidence, its payload digest must also match
+the supplied eval result.
+
 Policy version 1 supports maximum severity, required analyses, forbidden or
 allowed capability vocabulary, forbidden rule IDs, minimum and trusted
 scanners, attestation maximum age, and requirements for digest, signature, and

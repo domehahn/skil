@@ -20,7 +20,8 @@
             "properties": {
               "id": { "type": "string", "minLength": 1, "maxLength": 128 },
               "result": {},
-              "error": { "type": "string" }
+              "error": { "type": "string" },
+              "denied": { "type": "boolean" }
             }
           }
         }

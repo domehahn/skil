@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/domehahn/skil/schemas/eval-result-v1.schema.json",
+  "title": "skil Evaluation Result v1",
+  "$defs": {
+    "coverage": {"enum": ["completed", "not_available", "not_requested", "not_run"]},
+    "rate": {"type": "number", "minimum": 0, "maximum": 1},
+    "operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["capability"],
+      "properties": {
+        "capability": {"type": "string", "minLength": 1},
+        "target": {"type": "string"},
+        "command": {"type": "array", "items": {"type": "string"}},
+        "external": {"type": "boolean"},
+        "destructive": {"type": "boolean"},
+        "confirmed": {"type": "boolean"},
+        "network_bytes": {"type": "integer", "minimum": 0}
+      }
+    },
+    "violation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["category", "capability", "operation", "denied", "side_effect", "step", "reason"],
+      "properties": {
+        "category": {"type": "string", "minLength": 1},
+        "capability": {"type": "string", "minLength": 1},
+        "operation": {"$ref": "#/$defs/operation"},
+        "target": {"type": "string"},
+        "denied": {"type": "boolean"},
+        "side_effect": {"type": "boolean"},
+        "step": {"type": "integer", "minimum": 1},
+        "tool": {"type": "string"},
+        "reason": {"type": "string", "minLength": 1},
+        "contract_constraint": {"type": "string"}
+      }
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "test", "artifact_digest", "eval_spec_digest", "runtime", "coverage", "runs", "metrics", "status"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "test": {"type": "string", "minLength": 1},
+    "artifact_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "eval_spec_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "runtime": {"type": "string", "minLength": 1},
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["behavioral", "containment", "enforcement", "isolation", "native_isolation", "runtime_mode"],
+      "properties": {
+        "behavioral": {"$ref": "#/$defs/coverage"},
+        "containment": {"$ref": "#/$defs/coverage"},
+        "enforcement": {"$ref": "#/$defs/coverage"},
+        "isolation": {"$ref": "#/$defs/coverage"},
+        "native_isolation": {"$ref": "#/$defs/coverage"},
+        "runtime_mode": {"type": "string", "minLength": 1}
+      }
+    },
+    "runs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["run", "passed", "task_succeeded", "policy_compliant", "capability_compliant", "containment_compliant", "violations", "trace"],
+        "properties": {
+          "run": {"type": "integer", "minimum": 1},
+          "passed": {"type": "boolean"},
+          "task_succeeded": {"type": "boolean"},
+          "policy_compliant": {"type": "boolean"},
+          "capability_compliant": {"type": "boolean"},
+          "containment_compliant": {"type": "boolean"},
+          "violations": {"type": "array", "items": {"type": "string"}},
+          "trace": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["messages", "tool_calls", "outputs", "side_effects", "capabilities", "errors"],
+            "properties": {
+              "messages": {"type": "array", "items": {"type": "string"}},
+              "tool_calls": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["name", "allowed"],
+                  "properties": {
+                    "name": {"type": "string", "minLength": 1},
+                    "arguments": {"type": "object"},
+                    "allowed": {"type": "boolean"}
+                  }
+                }
+              },
+              "operations": {"type": "array", "items": {"$ref": "#/$defs/operation"}},
+              "containment_violations": {"type": "array", "items": {"$ref": "#/$defs/violation"}},
+              "outputs": {"type": "array", "items": {"type": "string"}},
+              "side_effects": {"type": "array", "items": {"type": "string"}},
+              "capabilities": {"type": "array", "items": {"type": "string"}},
+              "errors": {"type": "array", "items": {"type": "string"}}
+            }
+          }
+        }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["task_success_rate", "policy_compliance_rate", "unauthorized_tool_call_rate", "prompt_injection_attack_success_rate", "secret_exfiltration_rate", "tool_selection_accuracy"],
+      "properties": {
+        "task_success_rate": {"$ref": "#/$defs/rate"},
+        "policy_compliance_rate": {"$ref": "#/$defs/rate"},
+        "unauthorized_tool_call_rate": {"$ref": "#/$defs/rate"},
+        "prompt_injection_attack_success_rate": {"$ref": "#/$defs/rate"},
+        "secret_exfiltration_rate": {"$ref": "#/$defs/rate"},
+        "tool_selection_accuracy": {"$ref": "#/$defs/rate"},
+        "containment_compliance_rate": {"$ref": "#/$defs/rate"},
+        "containment_escape_attempt_rate": {"$ref": "#/$defs/rate"},
+        "privilege_escalation_attempt_rate": {"$ref": "#/$defs/rate"},
+        "lateral_movement_attempt_rate": {"$ref": "#/$defs/rate"},
+        "unauthorized_external_action_rate": {"$ref": "#/$defs/rate"},
+        "goal_boundary_violation_rate": {"$ref": "#/$defs/rate"},
+        "enforcement_bypass_attempt_rate": {"$ref": "#/$defs/rate"}
+      }
+    },
+    "status": {"enum": ["PASS", "FAIL"]}
+  }
+}

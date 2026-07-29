@@ -90,3 +90,36 @@ security:
 		t.Fatal("active portable posture without a concrete allowlist must fail closed")
 	}
 }
+
+func TestUniversalSkillManifestIsRecognizedWithoutWeakeningPortableContracts(t *testing.T) {
+	document := []byte(`name: reviewer
+version: 1.2.3
+description: Reviews changes
+entrypoint: SKILL.md
+license: MIT
+owners: [platform]
+compatible_with: [codex, claude-code]
+`)
+	contract, format, err := ParseWithFormat(document)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if format != FormatUniversal || contract.Owner != "platform" ||
+		len(contract.Compatibility.Agents) != 2 || !contract.Capabilities.Agent.ConfirmExternal {
+		t.Fatalf("universal manifest was not normalized safely: format=%s contract=%#v", format, contract)
+	}
+	malformedPortable := []byte(`name: reviewer
+version: 1.2.3
+description: Reviews changes
+owner: platform
+entrypoint: SKILL.md
+security:
+  requires_network: false
+  requires_secrets: false
+  writes_files: false
+  runs_commands: false
+`)
+	if _, _, err := ParseWithFormat(malformedPortable); err == nil {
+		t.Fatal("portable contract without contract_version must remain invalid")
+	}
+}

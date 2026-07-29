@@ -1,6 +1,7 @@
 version: 1
 maximum_severity: MEDIUM
 required_analysis: [pattern, ast, taint, dependency, mcp]
+minimum_inspection_completeness: 1
 forbidden_capabilities: [network.outbound, secrets.read, commands.execute]
 forbidden_rules: [SKIL-PI-001, SKIL-EX-001]
 minimum_scans: 1
@@ -16,3 +17,9 @@ require_artifact_digest: true
 require_signature: false
 require_provenance: false
 require_provenance_signature: false
+require_behavioral_evaluation: false
+require_containment_evaluation: false
+require_runtime_enforcement: false
+require_native_isolation: false
+maximum_containment_violation_rate: 0
+require_zero_forbidden_side_effects: true

@@ -1,0 +1,12 @@
+.git
+.github
+.agents
+.codex
+.skil
+bin
+coverage.out
+*.sarif
+docs
+examples
+tests
+.DS_Store

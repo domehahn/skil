@@ -51,6 +51,37 @@ func Validate(artifact skil.Artifact, contract skil.SkillContract) Result {
 	return result
 }
 
+// ValidateAuthoring checks a source skill without requiring release-only
+// checksums. Package builds continue to use Validate and therefore remain
+// fail-closed.
+func ValidateAuthoring(artifact skil.Artifact, contract skil.SkillContract) Result {
+	result := Result{Errors: []string{}}
+	files := index(artifact.Files)
+	entrypoint := contract.Entrypoint
+	if entrypoint == "" {
+		entrypoint = "SKILL.md"
+	}
+	if _, ok := files[strings.ToLower(entrypoint)]; !ok {
+		result.Errors = append(result.Errors, "missing entrypoint "+entrypoint)
+	}
+	if versionFile, ok := files["version"]; ok {
+		result.Version = strings.TrimSpace(string(versionFile.Data))
+		if !semanticVersion.MatchString(result.Version) {
+			result.Errors = append(result.Errors, "VERSION must contain one semantic version")
+		}
+		if contract.Skill.Version == "" {
+			result.Errors = append(result.Errors, "skill.version is required and must match VERSION")
+		} else if result.Version != contract.Skill.Version {
+			result.Errors = append(result.Errors, fmt.Sprintf("VERSION %q does not match skill.version %q", result.Version, contract.Skill.Version))
+		}
+	}
+	if changelog, ok := files["changelog.md"]; ok && strings.TrimSpace(string(changelog.Data)) == "" {
+		result.Errors = append(result.Errors, "CHANGELOG.md must not be empty")
+	}
+	sort.Strings(result.Errors)
+	return result
+}
+
 func index(files []skil.File) map[string]skil.File {
 	out := make(map[string]skil.File, len(files))
 	for _, file := range files {

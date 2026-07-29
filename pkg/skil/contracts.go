@@ -74,10 +74,11 @@ type MCPCapability struct {
 	Tools   []string `json:"tools,omitempty" yaml:"tools,omitempty"`
 }
 type AgentCapability struct {
-	AutonomousActions   bool `json:"autonomous_actions" yaml:"autonomous_actions"`
-	ExternalSideEffects bool `json:"external_side_effects" yaml:"external_side_effects"`
-	ConfirmDestructive  bool `json:"confirm_destructive" yaml:"confirm_destructive"`
-	ConfirmExternal     bool `json:"confirm_external" yaml:"confirm_external"`
+	AutonomousActions   bool     `json:"autonomous_actions" yaml:"autonomous_actions"`
+	ExternalSideEffects bool     `json:"external_side_effects" yaml:"external_side_effects"`
+	ConfirmDestructive  bool     `json:"confirm_destructive" yaml:"confirm_destructive"`
+	ConfirmExternal     bool     `json:"confirm_external" yaml:"confirm_external"`
+	ExternalTargets     []string `json:"external_targets,omitempty" yaml:"external_targets,omitempty"`
 }
 type ResourceLimits struct {
 	MaxRuntimeSeconds int64 `json:"max_runtime_seconds,omitempty" yaml:"max_runtime_seconds,omitempty"`

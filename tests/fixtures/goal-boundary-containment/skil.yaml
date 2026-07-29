@@ -1,0 +1,30 @@
+version: 1
+skill:
+  name: goal-boundary-containment
+  version: 1.0.0
+  description: Exercises a safe local containment topology.
+capabilities:
+  filesystem: {read: [], write: [], delete: []}
+  network:
+    inbound: false
+    outbound: true
+    hosts: [challenge.internal]
+  commands: {execute: false, allow: []}
+  secrets: {read: [], expose: false}
+  environment: {read: []}
+  tools:
+    allow: [containment.simulate]
+    deny: []
+  mcp: {servers: [], tools: []}
+  persistence: false
+  agent:
+    autonomous_actions: false
+    external_side_effects: true
+    external_targets: []
+    confirm_destructive: true
+    confirm_external: false
+  resources:
+    max_runtime_seconds: 30
+    max_memory_mb: 128
+    max_tool_calls: 16
+    max_network_bytes: 1024

@@ -22,9 +22,15 @@ var (
 func NewDependency(provider skil.VulnerabilityProvider) *Dependency {
 	return &Dependency{provider: provider}
 }
+func (d *Dependency) Diagnostics() []skil.Diagnostic {
+	if source, ok := d.provider.(interface{ Diagnostics() []skil.Diagnostic }); ok {
+		return source.Diagnostics()
+	}
+	return nil
+}
 func (d *Dependency) Metadata() skil.AnalyzerMetadata {
 	types := []string{"dependency"}
-	if d.provider != nil {
+	if vulnerabilityEnabled(d.provider) {
 		types = append(types, "vulnerability")
 	}
 	return skil.AnalyzerMetadata{ID: "builtin.dependency", Version: "1.0.0",
@@ -42,12 +48,35 @@ func (d *Dependency) Analyze(ctx context.Context, ac skil.AnalysisContext) ([]sk
 	for _, file := range ac.Artifact.Files {
 		files[file.Path] = file
 	}
+	batch, batchEnabled := d.provider.(skil.BatchVulnerabilityProvider)
+	batchEnabled = batchEnabled && vulnerabilityEnabled(d.provider)
+	var queries []skil.VulnerabilityQuery
+	var queryRecords []DependencyRecord
 	for _, record := range records {
-		findings, err := d.inspect(ctx, files[record.File], record.Line, record.Ecosystem, record.Name, record.Version, record.Raw)
+		findings, err := d.inspect(ctx, files[record.File], record.Line, record.Ecosystem, record.Name, record.Version, record.Raw, !batchEnabled)
 		if err != nil {
 			return nil, err
 		}
 		out = append(out, findings...)
+		if batchEnabled && record.Version != "" && dependencyIsExact(record.Ecosystem, record.File, record.Version) {
+			queries = append(queries, skil.VulnerabilityQuery{
+				Ecosystem: record.Ecosystem, Package: record.Name, Version: strings.TrimLeft(record.Version, "v="),
+			})
+			queryRecords = append(queryRecords, record)
+		}
+	}
+	if len(queries) > 0 {
+		results, err := batch.QueryBatch(ctx, queries)
+		if err != nil {
+			return nil, fmt.Errorf("%s batch lookup: %w", d.provider.ID(), err)
+		}
+		if len(results) != len(queries) {
+			return nil, fmt.Errorf("%s batch lookup returned %d results for %d queries", d.provider.ID(), len(results), len(queries))
+		}
+		for index, vulnerabilities := range results {
+			record := queryRecords[index]
+			out = append(out, vulnerabilityFindings(files[record.File], record.Line, record.Raw, record.Name, vulnerabilities)...)
+		}
 	}
 	return out, nil
 }
@@ -62,7 +91,7 @@ func dependencyLine(data []byte, name string) (int, string) {
 	return 1, name
 }
 
-func (d *Dependency) inspect(ctx context.Context, file skil.File, line int, ecosystem, name, version, text string) ([]skil.Finding, error) {
+func (d *Dependency) inspect(ctx context.Context, file skil.File, line int, ecosystem, name, version, text string, queryVulnerabilities bool) ([]skil.Finding, error) {
 	var out []skil.Finding
 	unpinned := !dependencyIsExact(ecosystem, file.Path, version)
 	if unpinned {
@@ -92,22 +121,38 @@ func (d *Dependency) inspect(ctx context.Context, file skil.File, line int, ecos
 			out = append(out, makeFinding(rule, file, line, text))
 		}
 	}
-	if d.provider != nil && version != "" && !unpinned {
+	if queryVulnerabilities && vulnerabilityEnabled(d.provider) && version != "" && !unpinned {
 		vulns, err := d.provider.Query(ctx, ecosystem, name, strings.TrimLeft(version, "v="))
 		if err != nil {
 			return nil, fmt.Errorf("%s lookup for %s@%s: %w", d.provider.ID(), name, version, err)
 		}
-		for _, vuln := range vulns {
-			rule := RulePattern{Rule: skil.Rule{ID: "SKIL-DEP-VULN", Title: "Known vulnerable dependency",
-				Category: "dependency-trust", Severity: vuln.Severity,
-				Description: fmt.Sprintf("%s %s: %s", vuln.ID, name, vuln.Summary), Analysis: "dependency",
-				Remediation: "Upgrade to a patched version."}, Confidence: .99}
-			f := makeFinding(rule, file, line, text)
-			f.References = vulnerabilityReferences(vuln)
-			out = append(out, f)
-		}
+		out = append(out, vulnerabilityFindings(file, line, text, name, vulns)...)
 	}
 	return out, nil
+}
+
+func vulnerabilityEnabled(provider skil.VulnerabilityProvider) bool {
+	if provider == nil {
+		return false
+	}
+	if configured, ok := provider.(interface{ VulnerabilityEnabled() bool }); ok {
+		return configured.VulnerabilityEnabled()
+	}
+	return true
+}
+
+func vulnerabilityFindings(file skil.File, line int, text, name string, vulnerabilities []skil.Vulnerability) []skil.Finding {
+	out := make([]skil.Finding, 0, len(vulnerabilities))
+	for _, vulnerability := range vulnerabilities {
+		rule := RulePattern{Rule: skil.Rule{ID: "SKIL-DEP-VULN", Title: "Known vulnerable dependency",
+			Category: "dependency-trust", Severity: vulnerability.Severity,
+			Description: fmt.Sprintf("%s %s: %s", vulnerability.ID, name, vulnerability.Summary), Analysis: "dependency",
+			Remediation: "Upgrade to a patched version."}, Confidence: .99}
+		finding := makeFinding(rule, file, line, text)
+		finding.References = vulnerabilityReferences(vulnerability)
+		out = append(out, finding)
+	}
+	return out
 }
 
 func vulnerabilityReferences(vulnerability skil.Vulnerability) []string {

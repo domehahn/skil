@@ -84,3 +84,41 @@ func TestPackageAndContentDigestsAreDistinctIdentities(t *testing.T) {
 		t.Fatal("different archive bytes must have different package digests")
 	}
 }
+
+func TestLoadDirectoryHonorsExplicitSkilIgnore(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(dir, "bin"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, ".skilignore"), []byte("bin/**\n*.sarif\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "bin", "oversized"), make([]byte, MaxFileSize+1), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "report.sarif"), []byte("generated"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "SKILL.md"), []byte("safe"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	artifact, err := Load(dir, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(artifact.Files) != 2 || artifact.Files[0].Path != ".skilignore" || artifact.Files[1].Path != "SKILL.md" {
+		t.Fatalf("unexpected files after ignore processing: %#v", artifact.Files)
+	}
+}
+
+func TestSkilIgnoreRejectsUnsafeOrAmbiguousPatterns(t *testing.T) {
+	for _, pattern := range []string{"!keep.txt\n", "../outside\n"} {
+		dir := t.TempDir()
+		if err := os.WriteFile(filepath.Join(dir, ".skilignore"), []byte(pattern), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := Load(dir, Options{}); err == nil {
+			t.Fatalf("expected pattern %q to be rejected", pattern)
+		}
+	}
+}

@@ -40,6 +40,21 @@ func TestOverdeclarationWarns(t *testing.T) {
 	}
 }
 
+func TestDeclaredObservedCapabilityMatchIsClean(t *testing.T) {
+	contract := skil.SkillContract{Capabilities: skil.Capabilities{
+		Filesystem: skil.FilesystemCapability{Read: []string{"docs/**"}},
+	}}
+	result := Verify(contract, nil)
+	if result.Status == skil.StatusFail {
+		t.Fatalf("matching/no observed capability must not be underdeclared: %#v", result)
+	}
+	for _, mismatch := range result.Mismatches {
+		if mismatch.Kind == "underdeclared" {
+			t.Fatalf("unexpected underdeclaration: %#v", result)
+		}
+	}
+}
+
 func TestCapabilityEvidenceDrivesObservationForNewAnalyzers(t *testing.T) {
 	result := Verify(skil.SkillContract{}, []skil.Finding{{
 		RuleID:   "SKIL-PY-REFLECT-EXEC",

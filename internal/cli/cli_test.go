@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/domehahn/skil/internal/policy"
 	"github.com/domehahn/skil/internal/signing"
 )
 
@@ -128,6 +129,31 @@ func TestFlagsAfterPositionalAndExitCodes(t *testing.T) {
 	}
 }
 
+func TestScanUsesTrustedOfflineDependencyReputation(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "SKILL.md"), []byte("# dependency test\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "requirements.txt"), []byte("legacy-demo==1.0.0\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	reputationPath := filepath.Join(t.TempDir(), "reputation.json")
+	reputation := `{"version":1,"packages":[{"ecosystem":"PyPI","name":"legacy-demo","abandoned":true}]}`
+	if err := os.WriteFile(reputationPath, []byte(reputation), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr bytes.Buffer
+	code := New(&stdout, &stderr).Run(context.Background(), []string{
+		"scan", dir, "--format", "json", "--dependency-reputation", reputationPath,
+	})
+	if code != ExitGateFail && code != ExitOK {
+		t.Fatalf("reputation scan failed: code=%d stderr=%s", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), `"rule_id": "SKIL-DEP-ABANDONED"`) {
+		t.Fatalf("abandoned dependency finding missing: %s", stdout.String())
+	}
+}
+
 func TestDefinitionOfDoneCommands(t *testing.T) {
 	cases := [][]string{
 		{"validate", fixture(t, "clean-skill")},
@@ -168,6 +194,95 @@ func TestEvidenceAndGateCommandsShareAnalyzerFlags(t *testing.T) {
 		code := New(&out, &errOut).Run(context.Background(), command)
 		if code != ExitInput || !strings.Contains(errOut.String(), "mutually exclusive") {
 			t.Fatalf("%v did not use shared analyzer validation: code=%d stderr=%s", command, code, errOut.String())
+		}
+	}
+}
+
+func TestValidateUniversalAuthoringManifestAndKeepPackagingStrict(t *testing.T) {
+	dir := t.TempDir()
+	files := map[string]string{
+		"skill.yaml": `name: reviewer
+version: 1.2.3
+description: Reviews changes
+entrypoint: SKILL.md
+license: MIT
+owners: [platform]
+compatible_with: [codex]
+`,
+		"SKILL.md":     "---\nname: reviewer\ndescription: Reviews changes\n---\n# Reviewer\n",
+		"VERSION":      "1.2.3\n",
+		"CHANGELOG.md": "# Changelog\n",
+	}
+	for name, data := range files {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(data), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var out, errOut bytes.Buffer
+	app := New(&out, &errOut)
+	if code := app.Run(context.Background(), []string{"validate", dir}); code != ExitOK {
+		t.Fatalf("authoring validation failed: code=%d stderr=%s stdout=%s", code, errOut.String(), out.String())
+	}
+	out.Reset()
+	errOut.Reset()
+	if code := app.Run(context.Background(), []string{"package", "build", dir, "--output", filepath.Join(t.TempDir(), "skill.tgz")}); code != ExitInput ||
+		!strings.Contains(errOut.String(), "checksums.txt") {
+		t.Fatalf("package build must still require release checksums: code=%d stderr=%s", code, errOut.String())
+	}
+}
+
+func TestPolicyInitCreatesValidatedPolicyWithoutOverwrite(t *testing.T) {
+	path := filepath.Join(t.TempDir(), ".skil", "policy.yaml")
+	var out, errOut bytes.Buffer
+	app := New(&out, &errOut)
+	if code := app.Run(context.Background(), []string{"policy", "init", "--output", path}); code != ExitOK {
+		t.Fatalf("policy init failed: code=%d stderr=%s", code, errOut.String())
+	}
+	if _, err := policy.Load(path); err != nil {
+		t.Fatalf("generated policy is invalid: %v", err)
+	}
+	out.Reset()
+	errOut.Reset()
+	if code := app.Run(context.Background(), []string{"policy", "init", "--output", path}); code != ExitInput {
+		t.Fatalf("policy init overwrote an existing file: code=%d stderr=%s", code, errOut.String())
+	}
+}
+
+func TestScanOutputInsideSourceDoesNotChangeSubjectDigest(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "SKILL.md"), []byte("# Safe\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	output := filepath.Join(dir, "skil.sarif")
+	var firstDigest string
+	for run := 0; run < 2; run++ {
+		var stdout, stderr bytes.Buffer
+		if code := New(&stdout, &stderr).Run(context.Background(), []string{
+			"scan", dir, "--format", "sarif", "--output", output,
+		}); code != ExitOK {
+			t.Fatalf("scan %d failed: code=%d stderr=%s", run, code, stderr.String())
+		}
+		data, err := os.ReadFile(output)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var document struct {
+			Runs []struct {
+				Properties struct {
+					Skil struct {
+						SubjectDigest string `json:"subject_digest"`
+					} `json:"skil"`
+				} `json:"properties"`
+			} `json:"runs"`
+		}
+		if err := json.Unmarshal(data, &document); err != nil {
+			t.Fatal(err)
+		}
+		digest := document.Runs[0].Properties.Skil.SubjectDigest
+		if run == 0 {
+			firstDigest = digest
+		} else if digest != firstDigest {
+			t.Fatalf("scan output changed its own subject digest: first=%s second=%s", firstDigest, digest)
 		}
 	}
 }

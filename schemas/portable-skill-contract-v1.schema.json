@@ -52,7 +52,8 @@
         "persistence": {"type": "boolean"},
         "agent": {"type": "object", "additionalProperties": false, "required": ["autonomous_actions", "external_side_effects", "confirm_destructive", "confirm_external"], "properties": {
           "autonomous_actions": {"type": "boolean"}, "external_side_effects": {"type": "boolean"},
-          "confirm_destructive": {"type": "boolean"}, "confirm_external": {"type": "boolean"}
+          "confirm_destructive": {"type": "boolean"}, "confirm_external": {"type": "boolean"},
+          "external_targets": {"$ref": "#/$defs/strings"}
         }},
         "resources": {"type": "object", "additionalProperties": false, "properties": {
           "max_runtime_seconds": {"type": "integer", "minimum": 0},

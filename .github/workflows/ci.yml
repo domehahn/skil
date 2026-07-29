@@ -24,7 +24,10 @@ jobs:
       - run: go build -trimpath ./cmd/skil
       - run: go run ./cmd/skil validate tests/fixtures/clean-skill
       - run: go run ./cmd/skil scan tests/fixtures/clean-skill --format sarif --output skil.sarif
+      - run: go run ./cmd/skil scan-all .agents/skills --format json --output /tmp/skil-collection.json
       - run: go run ./cmd/skil policy check tests/fixtures/example --policy examples/policy.yaml
+      - name: Verify embedded YARA rule pack
+        run: go run ./cmd/skil scan tests/fixtures/clean-skill --yara-builtin --require-complete
       - name: Verify YARA security gate
         run: |
           set +e
@@ -66,6 +69,22 @@ jobs:
           name: osv-provider-proof
           path: osv-proof.json
           if-no-files-found: error
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build non-root scanner image
+        run: docker build -t skil:ci .
+      - name: Smoke test image identity and YARA directory
+        shell: bash
+        run: |
+          docker run --rm skil:ci version
+          test "$(docker run --rm --entrypoint id skil:ci -u)" != "0"
+          set +e
+          docker run --rm -v "$PWD:/scan:ro" skil:ci scan tests/fixtures/security/yara-malware --yara-rules-dir rules
+          code=$?
+          set -e
+          test "$code" -eq 1
   windows-isolation:
     runs-on: windows-latest
     steps:

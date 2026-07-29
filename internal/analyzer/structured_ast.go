@@ -135,7 +135,8 @@ func structuredSecurityNode(family, kind string) bool {
 func controlForFamily(id, family string) bool {
 	if family == "shell" {
 		return strings.HasPrefix(id, "SKIL-SH-") || id == "SKIL-NET-001" ||
-			id == "SKIL-FS-001" || id == "SKIL-SEC-001"
+			id == "SKIL-FS-001" || id == "SKIL-SEC-001" ||
+			id == "SKIL-PERSISTENCE-STARTUP" || id == "SKIL-CONTAINER-TRUST"
 	}
 	return strings.HasPrefix(id, "SKIL-JS-") || id == "SKIL-NET-001" ||
 		id == "SKIL-FS-001" || id == "SKIL-SEC-001"
@@ -149,6 +150,8 @@ func structuredFinding(rule RulePattern, file skil.File, node *tree_sitter.Node,
 	switch rule.Rule.ID {
 	case "SKIL-JS-001", "SKIL-JS-002", "SKIL-SH-001", "SKIL-SH-002", "SKIL-SH-003", "SKIL-SH-004":
 		finding.Evidence["capability"] = "commands.execute"
+	case "SKIL-PERSISTENCE-STARTUP":
+		finding.Evidence["capability"] = "persistence"
 	case "SKIL-NET-001":
 		finding.Evidence["capability"] = "network.outbound"
 	case "SKIL-FS-001":

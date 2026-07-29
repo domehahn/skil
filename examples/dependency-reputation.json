@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "packages": [
+    {
+      "ecosystem": "PyPI",
+      "name": "replace-with-reviewed-package",
+      "abandoned": false,
+      "last_update": "2026-07-29T00:00:00Z"
+    }
+  ]
+}

@@ -46,3 +46,64 @@ func TestYARARejectsBinaryRules(t *testing.T) {
 		t.Fatal("expected rejection")
 	}
 }
+
+func TestBuiltinYARARulePackIsEmbedded(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("shell fixture")
+	}
+	binary := filepath.Join(t.TempDir(), "fake-yara")
+	if err := os.WriteFile(binary, []byte("#!/bin/sh\nexit 0\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	analyzer, err := NewBuiltinYARA(binary)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(analyzer.RulesData) == 0 || analyzer.RulesPath != "" {
+		t.Fatal("built-in YARA source was not embedded")
+	}
+	findings, err := analyzer.Analyze(context.Background(), skil.AnalysisContext{Artifact: artifactWith("payload", "safe")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(findings) != 0 {
+		t.Fatalf("safe content produced YARA finding: %#v", findings)
+	}
+}
+
+func TestYARADirectoryLoadsSortedSourceFilesAndRejectsSymlinks(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("shell fixture")
+	}
+	root := t.TempDir()
+	binary := filepath.Join(root, "fake-yara")
+	if err := os.WriteFile(binary, []byte("#!/bin/sh\nexit 0\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	rules := filepath.Join(root, "rules")
+	if err := os.Mkdir(rules, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	for name, content := range map[string]string{
+		"b.yara":  "rule B { condition: false }",
+		"a.yar":   "rule A { condition: false }",
+		"note.md": "ignored",
+	} {
+		if err := os.WriteFile(filepath.Join(rules, name), []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	analyzer, err := NewYARADirectory(binary, rules)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(analyzer.RulesData) != "rule A { condition: false }\n\nrule B { condition: false }\n\n" {
+		t.Fatalf("unexpected deterministic rules: %q", analyzer.RulesData)
+	}
+	link := filepath.Join(root, "rules-link")
+	if err := os.Symlink(rules, link); err == nil {
+		if _, err := NewYARADirectory(binary, link); err == nil {
+			t.Fatal("expected symlinked YARA directory rejection")
+		}
+	}
+}

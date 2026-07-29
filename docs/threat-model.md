@@ -2,6 +2,11 @@
 
 ## Adversaries and threats
 
+The agent is an untrusted principal. It need not be malicious: dangerous
+behavior can emerge from goal optimization, autonomy, capability,
+environmental opportunity, and model-dependent behavior. A prompt is guidance,
+not a security boundary.
+
 We consider a malicious skill author; compromised source, dependency, registry,
 builder, or scanner; artifact substitution; direct and indirect prompt
 injection; secret exfiltration; tool abuse; MCP poisoning and rug pulls;
@@ -22,11 +27,17 @@ memory, tools, MCP servers, organizational systems, CI/CD, and registries.
   executable only through native isolation plus a host-mediated tool gateway
 - adapter-owned authorization and audit claims are rejected; registered host
   tools derive operations and are checked before execution
+- eval target constraints can only narrow the contract; denied operations are
+  host-recorded containment violations and never reach tool execution
+- task correctness and policy, capability, and containment compliance are
+  independent results bound to artifact and eval-spec digests
 - analysis coverage prevents a partial scan from masquerading as full assurance
 
 Residual risk includes static-analysis evasion, unknown dependencies,
 compromised providers, malicious but policy-compliant behavior, TOCTOU after
 verification, platform sandbox vulnerabilities, and compromised host-tool
 implementations.
+The local simulator proves gateway and evidence behavior, not the absence of
+kernel, hypervisor, provider, or trusted-tool vulnerabilities.
 Deployments must reverify digests at install time and may layer stronger
 container or VM isolation around behavioral evaluation.

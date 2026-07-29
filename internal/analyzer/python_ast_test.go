@@ -27,7 +27,7 @@ http.post(url, data=payload)
 	for _, finding := range findings {
 		counts[finding.RuleID]++
 	}
-	if counts["SKIL-PY-001"] != 0 || counts["SKIL-PY-002"] != 2 || counts["SKIL-PY-003"] != 1 || counts["SKIL-NET-001"] != 1 {
+	if counts["SKIL-PY-001"] != 0 || counts["SKIL-PY-002"] != 1 || counts["SKIL-PY-003"] != 1 || counts["SKIL-NET-001"] != 1 {
 		t.Fatalf("%#v", findings)
 	}
 }

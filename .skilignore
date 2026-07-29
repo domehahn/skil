@@ -1,0 +1,4 @@
+# Generated local artifacts are not part of the source artifact.
+bin/**
+coverage.out
+*.sarif

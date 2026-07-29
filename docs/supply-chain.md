@@ -3,6 +3,11 @@
 Artifacts keep the raw package-blob SHA-256 separate from the reproducible
 content-manifest SHA-256 and per-file SHA-256 values. Dependency checks flag
 missing pins, generic near-name typosquatting, and provider-reported abandonment.
+
+Abandonment evidence is opt-in through `--dependency-reputation`. It is local,
+strictly schema-validated, and intended to be generated or reviewed by a
+trusted dependency-governance process. The scanned skill cannot trigger
+registry lookups implicitly.
 `VulnerabilityProvider` permits organization adapters without
 network coupling in core; the concrete OSV adapter is registered only by
 `--osv`.

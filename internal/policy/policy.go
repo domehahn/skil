@@ -20,27 +20,34 @@ import (
 )
 
 type Policy struct {
-	Version                    int                 `json:"version" yaml:"version"`
-	MaximumSeverity            string              `json:"maximum_severity" yaml:"maximum_severity"`
-	RequiredAnalysis           []string            `json:"required_analysis,omitempty" yaml:"required_analysis,omitempty"`
-	ForbiddenCapabilities      []string            `json:"forbidden_capabilities,omitempty" yaml:"forbidden_capabilities,omitempty"`
-	AllowedCapabilities        []string            `json:"allowed_capabilities,omitempty" yaml:"allowed_capabilities,omitempty"`
-	ForbiddenRules             []string            `json:"forbidden_rules,omitempty" yaml:"forbidden_rules,omitempty"`
-	MinimumScans               int                 `json:"minimum_scans,omitempty" yaml:"minimum_scans,omitempty"`
-	RequiredScanners           []string            `json:"required_scanners,omitempty" yaml:"required_scanners,omitempty"`
-	TrustedScanners            []string            `json:"trusted_scanners,omitempty" yaml:"trusted_scanners,omitempty"`
-	TrustedScannerKeys         map[string][]string `json:"trusted_scanner_keys,omitempty" yaml:"trusted_scanner_keys,omitempty"`
-	TrustedSigners             map[string]string   `json:"trusted_signers,omitempty" yaml:"trusted_signers,omitempty"`
-	TrustedBuilders            []string            `json:"trusted_builders,omitempty" yaml:"trusted_builders,omitempty"`
-	TrustedBuilderKeys         map[string][]string `json:"trusted_builder_keys,omitempty" yaml:"trusted_builder_keys,omitempty"`
-	AllowedRepositories        []string            `json:"allowed_repositories,omitempty" yaml:"allowed_repositories,omitempty"`
-	AllowedRegistries          []string            `json:"allowed_registries,omitempty" yaml:"allowed_registries,omitempty"`
-	MaxAttestationAge          string              `json:"max_attestation_age,omitempty" yaml:"max_attestation_age,omitempty"`
-	RequireDigest              bool                `json:"require_artifact_digest" yaml:"require_artifact_digest"`
-	RequireSignature           bool                `json:"require_signature" yaml:"require_signature"`
-	RequireProvenance          bool                `json:"require_provenance" yaml:"require_provenance"`
-	RequireProvenanceSignature bool                `json:"require_provenance_signature" yaml:"require_provenance_signature"`
-	MaxEvidenceAge             string              `json:"max_evidence_age,omitempty" yaml:"max_evidence_age,omitempty"`
+	Version                         int                 `json:"version" yaml:"version"`
+	MaximumSeverity                 string              `json:"maximum_severity" yaml:"maximum_severity"`
+	RequiredAnalysis                []string            `json:"required_analysis,omitempty" yaml:"required_analysis,omitempty"`
+	MinimumInspectionCompleteness   float64             `json:"minimum_inspection_completeness,omitempty" yaml:"minimum_inspection_completeness,omitempty"`
+	ForbiddenCapabilities           []string            `json:"forbidden_capabilities,omitempty" yaml:"forbidden_capabilities,omitempty"`
+	AllowedCapabilities             []string            `json:"allowed_capabilities,omitempty" yaml:"allowed_capabilities,omitempty"`
+	ForbiddenRules                  []string            `json:"forbidden_rules,omitempty" yaml:"forbidden_rules,omitempty"`
+	MinimumScans                    int                 `json:"minimum_scans,omitempty" yaml:"minimum_scans,omitempty"`
+	RequiredScanners                []string            `json:"required_scanners,omitempty" yaml:"required_scanners,omitempty"`
+	TrustedScanners                 []string            `json:"trusted_scanners,omitempty" yaml:"trusted_scanners,omitempty"`
+	TrustedScannerKeys              map[string][]string `json:"trusted_scanner_keys,omitempty" yaml:"trusted_scanner_keys,omitempty"`
+	TrustedSigners                  map[string]string   `json:"trusted_signers,omitempty" yaml:"trusted_signers,omitempty"`
+	TrustedBuilders                 []string            `json:"trusted_builders,omitempty" yaml:"trusted_builders,omitempty"`
+	TrustedBuilderKeys              map[string][]string `json:"trusted_builder_keys,omitempty" yaml:"trusted_builder_keys,omitempty"`
+	AllowedRepositories             []string            `json:"allowed_repositories,omitempty" yaml:"allowed_repositories,omitempty"`
+	AllowedRegistries               []string            `json:"allowed_registries,omitempty" yaml:"allowed_registries,omitempty"`
+	MaxAttestationAge               string              `json:"max_attestation_age,omitempty" yaml:"max_attestation_age,omitempty"`
+	RequireDigest                   bool                `json:"require_artifact_digest" yaml:"require_artifact_digest"`
+	RequireSignature                bool                `json:"require_signature" yaml:"require_signature"`
+	RequireProvenance               bool                `json:"require_provenance" yaml:"require_provenance"`
+	RequireProvenanceSignature      bool                `json:"require_provenance_signature" yaml:"require_provenance_signature"`
+	MaxEvidenceAge                  string              `json:"max_evidence_age,omitempty" yaml:"max_evidence_age,omitempty"`
+	RequireBehavioralEvaluation     bool                `json:"require_behavioral_evaluation,omitempty" yaml:"require_behavioral_evaluation,omitempty"`
+	RequireContainmentEvaluation    bool                `json:"require_containment_evaluation,omitempty" yaml:"require_containment_evaluation,omitempty"`
+	RequireRuntimeEnforcement       bool                `json:"require_runtime_enforcement,omitempty" yaml:"require_runtime_enforcement,omitempty"`
+	RequireNativeIsolation          bool                `json:"require_native_isolation,omitempty" yaml:"require_native_isolation,omitempty"`
+	MaximumContainmentViolationRate *float64            `json:"maximum_containment_violation_rate,omitempty" yaml:"maximum_containment_violation_rate,omitempty"`
+	RequireZeroForbiddenSideEffects bool                `json:"require_zero_forbidden_side_effects,omitempty" yaml:"require_zero_forbidden_side_effects,omitempty"`
 }
 type Violation struct {
 	Rule     string `json:"rule" yaml:"rule"`
@@ -59,6 +66,7 @@ type Input struct {
 	Provenance       *skil.Provenance
 	PackageStatement *skil.PackageStatement
 	ExternalEvidence []skil.EvidenceBundle
+	Eval             *skil.EvalResult
 }
 
 func Load(path string) (Policy, error) {
@@ -97,6 +105,11 @@ func Check(p Policy, in Input) Result {
 			add("required-analysis", required, in.Scan.Coverage[required], "required analysis was not completed")
 		}
 	}
+	if p.MinimumInspectionCompleteness > 0 &&
+		in.Scan.Completeness.Completeness < p.MinimumInspectionCompleteness {
+		add("inspection-completeness", p.MinimumInspectionCompleteness, in.Scan.Completeness.Completeness,
+			"applicable inspection work did not meet the required completion ratio")
+	}
 	for _, rule := range p.ForbiddenRules {
 		for _, f := range in.Scan.Findings {
 			if f.RuleID == rule && !f.Suppressed {
@@ -129,6 +142,7 @@ func Check(p Policy, in Input) Result {
 	if p.RequireDigest && in.Scan.Artifact.SubjectDigest() == "" {
 		add("artifact-digest", true, false, "artifact digest is required")
 	}
+	checkEvaluation(p, in, &result)
 	if p.RequireSignature && (in.PackageStatement == nil || in.PackageStatement.Signature == nil) {
 		add("package-signature", true, false, "a detached signature over the package blob is required")
 	} else if in.PackageStatement != nil {
@@ -173,6 +187,20 @@ func Check(p Policy, in Input) Result {
 			if item.Type == "security-scan" && item.Producer == "skil" && item.PayloadDigest != evidence.FindingsDigest(in.Scan.Findings) {
 				add("evidence-payload", evidence.FindingsDigest(in.Scan.Findings), item.PayloadDigest, "native scan evidence payload does not match the current findings")
 			}
+			if item.Type == "security-scan" && item.Producer == "skil" && item.InspectionDigest != "" &&
+				item.InspectionDigest != evidence.InspectionDigest(in.Scan.Inspection) {
+				add("inspection-evidence", evidence.InspectionDigest(in.Scan.Inspection), item.InspectionDigest,
+					"attested inspection ledger does not match the current scan")
+			}
+			if (item.Type == "behavioral-eval" || item.Type == "containment-eval") && item.Producer == "skil" {
+				if in.Eval == nil {
+					add("evaluation-evidence-payload", "matching evaluation result", "missing",
+						"attested evaluation evidence cannot be verified without --eval-result")
+				} else if item.PayloadDigest != evidence.EvalDigest(*in.Eval) {
+					add("evaluation-evidence-payload", evidence.EvalDigest(*in.Eval), item.PayloadDigest,
+						"attested evaluation payload does not match the supplied evaluation result")
+				}
+			}
 		}
 		if in.Attestation.Result.Status != in.Scan.Status ||
 			in.Attestation.Result.Verdict != in.Scan.Verdict ||
@@ -201,6 +229,65 @@ func Check(p Policy, in Input) Result {
 		result.Decision = "DENY"
 	}
 	return result
+}
+
+func checkEvaluation(p Policy, in Input, result *Result) {
+	add := func(rule string, expected, observed any, message string) {
+		result.Violations = append(result.Violations, Violation{rule, expected, observed, message})
+	}
+	required := p.RequireBehavioralEvaluation || p.RequireContainmentEvaluation ||
+		p.RequireRuntimeEnforcement || p.RequireNativeIsolation ||
+		p.MaximumContainmentViolationRate != nil || p.RequireZeroForbiddenSideEffects
+	if in.Eval == nil {
+		if required {
+			add("evaluation-evidence", true, false, "required behavioral evaluation result is missing")
+		}
+		return
+	}
+	evaluation := in.Eval
+	if evaluation.ArtifactDigest != in.Scan.Artifact.SubjectDigest() {
+		add("evaluation-subject", in.Scan.Artifact.SubjectDigest(), evaluation.ArtifactDigest,
+			"evaluation result is not bound to the scanned artifact")
+	}
+	if p.RequireBehavioralEvaluation && evaluation.Coverage.Behavioral != skil.CoverageCompleted {
+		add("behavioral-evaluation", skil.CoverageCompleted, evaluation.Coverage.Behavioral,
+			"behavioral evaluation was not completed")
+	}
+	if p.RequireContainmentEvaluation && evaluation.Coverage.Containment != skil.CoverageCompleted {
+		add("containment-evaluation", skil.CoverageCompleted, evaluation.Coverage.Containment,
+			"containment evaluation was not completed")
+	}
+	if p.RequireRuntimeEnforcement && evaluation.Coverage.Enforcement != skil.CoverageCompleted {
+		add("runtime-enforcement", skil.CoverageCompleted, evaluation.Coverage.Enforcement,
+			"runtime enforcement was not completed")
+	}
+	if p.RequireNativeIsolation && evaluation.Coverage.NativeIsolation != skil.CoverageCompleted {
+		add("native-isolation", skil.CoverageCompleted, evaluation.Coverage.NativeIsolation,
+			"native isolation was not completed")
+	}
+	if p.MaximumContainmentViolationRate != nil {
+		observed := 1.0
+		if evaluation.Metrics.ContainmentComplianceRate != nil {
+			observed = 1 - *evaluation.Metrics.ContainmentComplianceRate
+		}
+		if observed > *p.MaximumContainmentViolationRate {
+			add("containment-violation-rate", *p.MaximumContainmentViolationRate, observed,
+				"containment violation rate exceeds policy")
+		}
+	}
+	if p.RequireZeroForbiddenSideEffects {
+		count := 0
+		for _, run := range evaluation.Runs {
+			for _, violation := range run.Trace.ContainmentViolations {
+				if violation.SideEffect {
+					count++
+				}
+			}
+		}
+		if count > 0 {
+			add("forbidden-side-effects", 0, count, "evaluation recorded external or mutating side effects")
+		}
+	}
 }
 
 func verifyExternalEvidence(bundle skil.EvidenceBundle, artifact skil.Artifact, p Policy) error {

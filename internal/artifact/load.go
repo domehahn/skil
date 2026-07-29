@@ -24,6 +24,7 @@ const (
 	MaxFileSize   = 4 << 20
 	MaxTotalSize  = 100 << 20
 	MaxArchiveRaw = 100 << 20
+	MaxIgnoreSize = 64 << 10
 )
 
 var ErrRemoteUnsupported = errors.New("remote sources are disabled in this build; clone explicitly into a trusted staging directory")
@@ -114,7 +115,12 @@ func loadDir(root string, opts Options) ([]skil.File, error) {
 	var files []skil.File
 	var total int64
 	lowerSeen := map[string]string{}
-	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
+	ignorePatterns, err := loadIgnorePatterns(root)
+	if err != nil {
+		return nil, err
+	}
+	patterns := append(append([]string(nil), opts.Exclude...), ignorePatterns...)
+	err = filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
@@ -123,7 +129,8 @@ func loadDir(root string, opts Options) ([]skil.File, error) {
 			return err
 		}
 		rel = filepath.ToSlash(rel)
-		if rel == ".git" || strings.HasPrefix(rel, ".git/") || excluded(rel, opts.Exclude) {
+		if rel == ".git" || strings.HasPrefix(rel, ".git/") ||
+			(rel != ".skilignore" && excluded(rel, patterns)) {
 			if entry.IsDir() {
 				return filepath.SkipDir
 			}
@@ -162,6 +169,45 @@ func loadDir(root string, opts Options) ([]skil.File, error) {
 		return nil
 	})
 	return files, err
+}
+
+func loadIgnorePatterns(root string) ([]string, error) {
+	path := filepath.Join(root, ".skilignore")
+	info, err := os.Lstat(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read .skilignore: %w", err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
+		return nil, errors.New(".skilignore must be a regular file, not a symlink")
+	}
+	if info.Size() > MaxIgnoreSize {
+		return nil, fmt.Errorf(".skilignore exceeds %d-byte limit", MaxIgnoreSize)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read .skilignore: %w", err)
+	}
+	var patterns []string
+	for lineNumber, line := range strings.Split(string(data), "\n") {
+		pattern := strings.TrimSpace(line)
+		if pattern == "" || strings.HasPrefix(pattern, "#") {
+			continue
+		}
+		if strings.HasPrefix(pattern, "!") {
+			return nil, fmt.Errorf(".skilignore:%d: negated patterns are not supported", lineNumber+1)
+		}
+		pattern = strings.TrimPrefix(filepath.ToSlash(pattern), "/")
+		clean := filepath.ToSlash(filepath.Clean(pattern))
+		if clean == "." || clean == ".." || strings.HasPrefix(clean, "../") ||
+			filepath.IsAbs(pattern) || strings.ContainsRune(pattern, '\x00') {
+			return nil, fmt.Errorf(".skilignore:%d: unsafe pattern %q", lineNumber+1, pattern)
+		}
+		patterns = append(patterns, pattern)
+	}
+	return patterns, nil
 }
 
 func loadZIP(path string) ([]skil.File, error) {
@@ -252,7 +298,7 @@ func loadTGZ(path string) ([]skil.File, error) {
 		if h.Typeflag == tar.TypeDir {
 			continue
 		}
-		if h.Typeflag != tar.TypeReg && h.Typeflag != tar.TypeRegA {
+		if h.Typeflag != tar.TypeReg && h.Typeflag != 0 {
 			return nil, fmt.Errorf("non-regular archive member rejected: %s", h.Name)
 		}
 		name, err := safeArchivePath(h.Name)

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/domehahn/skil/schemas/mcp-tools-lock-v1.schema.json",
+  "title": "skil MCP metadata lock v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "tools"],
+  "properties": {
+    "version": {"const": 1},
+    "tools": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {"type": "string", "minLength": 1},
+      "additionalProperties": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+    }
+  }
+}

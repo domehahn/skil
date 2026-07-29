@@ -47,13 +47,15 @@ func (e *Enforcer) Authorize(operation skil.Operation) error {
 	if err := e.authorizeCapability(operation); err != nil {
 		return err
 	}
-	if operation.Capability == "tools.call" || operation.Capability == "mcp.tool" {
+	if operation.Capability == "tools.call" || operation.Capability == "tool.invoke" ||
+		operation.Capability == "mcp.tool" || operation.Capability == "mcp.invoke" {
 		if limit := e.contract.Capabilities.Resources.MaxToolCalls; limit > 0 && e.toolCalls+1 > limit {
 			return errors.New("maximum tool call count exceeded")
 		}
 		e.toolCalls++
 	}
-	if operation.Capability == "network.outbound" {
+	if operation.Capability == "network.outbound" || operation.Capability == "network.external" ||
+		operation.Capability == "network.lateral" {
 		if operation.NetworkBytes < 0 {
 			return errors.New("network byte count cannot be negative")
 		}
@@ -68,8 +70,9 @@ func (e *Enforcer) Authorize(operation skil.Operation) error {
 
 func classifyOperationRisk(operation skil.Operation) skil.Operation {
 	switch operation.Capability {
-	case "filesystem.write", "filesystem.delete", "network.outbound", "network.inbound",
-		"secrets.expose", "mcp.tool", "persistence":
+	case "filesystem.write", "filesystem.delete", "network.outbound", "network.external",
+		"network.lateral", "network.inbound", "secrets.expose", "mcp.tool", "mcp.invoke",
+		"external.action", "persistence":
 		operation.External = true
 	}
 	if operation.Capability == "filesystem.delete" {
@@ -96,7 +99,7 @@ func (e *Enforcer) authorizeCapability(operation skil.Operation) error {
 		if !matchPath(operation.Target, c.Filesystem.Delete) {
 			return deny()
 		}
-	case "network.outbound":
+	case "network.outbound", "network.external", "network.lateral":
 		if !c.Network.Outbound || !matchHost(operation.Target, c.Network.Hosts) {
 			return deny()
 		}
@@ -120,7 +123,7 @@ func (e *Enforcer) authorizeCapability(operation skil.Operation) error {
 		if !contains(c.Environment.Read, operation.Target) {
 			return deny()
 		}
-	case "tools.call":
+	case "tools.call", "tool.invoke":
 		if contains(c.Tools.Deny, operation.Target) || !contains(c.Tools.Allow, operation.Target) {
 			return deny()
 		}
@@ -128,10 +131,22 @@ func (e *Enforcer) authorizeCapability(operation skil.Operation) error {
 		if !contains(c.MCP.Servers, operation.Target) {
 			return deny()
 		}
-	case "mcp.tool":
+	case "mcp.tool", "mcp.invoke":
 		if !contains(c.MCP.Tools, operation.Target) {
 			return deny()
 		}
+	case "external.action":
+		if !c.Agent.ExternalSideEffects || !contains(c.Agent.ExternalTargets, operation.Target) {
+			return deny()
+		}
+	case "privilege.escalate":
+		return errors.New("privilege escalation is an attempt-only capability and cannot be granted")
+	case "runtime.escape":
+		return errors.New("runtime escape is an attempt-only capability and cannot be granted")
+	case "enforcement.bypass":
+		return errors.New("enforcement bypass is an attempt-only capability and cannot be granted")
+	case "goal.boundary":
+		return errors.New("goal boundary violation is an attempt-only capability and cannot be granted")
 	case "persistence":
 		if !c.Persistence {
 			return deny()

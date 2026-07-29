@@ -22,6 +22,19 @@ func TestPolicyDeniesSeverityAndMissingCoverage(t *testing.T) {
 	}
 }
 
+func TestPolicyDeniesIncompleteInspection(t *testing.T) {
+	result := Check(Policy{Version: 1, MaximumSeverity: "CRITICAL", MinimumInspectionCompleteness: 1}, Input{
+		Scan: skil.ScanResult{
+			Maximum:      skil.SeverityInfo,
+			Completeness: skil.InspectionSummary{Applicable: 2, Completed: 1, Skipped: 1, Completeness: .5},
+		},
+	})
+	if result.Decision != "DENY" || len(result.Violations) != 1 ||
+		result.Violations[0].Rule != "inspection-completeness" {
+		t.Fatalf("unexpected policy result: %#v", result)
+	}
+}
+
 func TestPolicyCountsOnlySignedBoundExternalScannerEvidence(t *testing.T) {
 	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
@@ -101,5 +114,38 @@ func TestPolicyRejectsSignatureMetadataWithoutCryptographicProof(t *testing.T) {
 	scan := skil.ScanResult{Artifact: skil.Artifact{Digest: "abc"}, Maximum: skil.SeverityInfo}
 	if result := Check(p, Input{Scan: scan, Attestation: &attestation}); result.Decision != "DENY" {
 		t.Fatal("signature metadata alone must never satisfy policy")
+	}
+}
+
+func TestPolicyGatesContainmentEvidence(t *testing.T) {
+	zero := 0.0
+	artifact := skil.Artifact{Digest: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+	scan := skil.ScanResult{Artifact: artifact, Maximum: skil.SeverityInfo}
+	p := Policy{
+		Version: 1, MaximumSeverity: "CRITICAL", RequireBehavioralEvaluation: true,
+		RequireContainmentEvaluation: true, RequireRuntimeEnforcement: true,
+		RequireNativeIsolation: true, MaximumContainmentViolationRate: &zero,
+		RequireZeroForbiddenSideEffects: true,
+	}
+	if result := Check(p, Input{Scan: scan}); result.Decision != "DENY" {
+		t.Fatal("missing required evaluation must be denied")
+	}
+	compliance := 1.0
+	evaluation := skil.EvalResult{
+		ArtifactDigest: artifact.Digest,
+		Coverage: skil.EvalCoverage{
+			Behavioral: skil.CoverageCompleted, Containment: skil.CoverageCompleted,
+			Enforcement: skil.CoverageCompleted, NativeIsolation: skil.CoverageCompleted,
+		},
+		Metrics: skil.EvalMetrics{ContainmentComplianceRate: &compliance},
+	}
+	if result := Check(p, Input{Scan: scan, Eval: &evaluation}); result.Decision != "ALLOW" {
+		t.Fatalf("complete compliant evaluation denied: %#v", result)
+	}
+	evaluation.Runs = []skil.EvalRun{{Trace: skil.EvalTrace{ContainmentViolations: []skil.ContainmentViolation{{
+		Category: skil.AttackUnauthorizedExternalAction, SideEffect: true,
+	}}}}}
+	if result := Check(p, Input{Scan: scan, Eval: &evaluation}); result.Decision != "DENY" {
+		t.Fatal("forbidden side effect must be denied")
 	}
 }

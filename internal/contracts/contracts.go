@@ -13,34 +13,57 @@ import (
 
 var names = []string{"skill.yaml", "skill.yml", "skil.yaml", "skil.yml", ".skil/contract.yaml"}
 
+type Format string
+
+const (
+	FormatNative    Format = "skil-contract"
+	FormatPortable  Format = "portable-contract"
+	FormatUniversal Format = "universal-skill-manifest"
+)
+
 func Find(artifact skil.Artifact) (*skil.SkillContract, string, error) {
+	contract, path, _, err := FindWithFormat(artifact)
+	return contract, path, err
+}
+
+func FindWithFormat(artifact skil.Artifact) (*skil.SkillContract, string, Format, error) {
 	for _, file := range artifact.Files {
 		for _, name := range names {
 			if strings.EqualFold(filepath.ToSlash(file.Path), name) {
-				contract, err := Parse(file.Data)
+				contract, format, err := ParseWithFormat(file.Data)
 				if err != nil {
-					return nil, file.Path, fmt.Errorf("parse contract: %w", err)
+					return nil, file.Path, "", fmt.Errorf("parse contract: %w", err)
 				}
-				return &contract, file.Path, nil
+				return &contract, file.Path, format, nil
 			}
 		}
 	}
-	return nil, "", errors.New("no skill contract found (expected skill.yaml or skil.yaml)")
+	return nil, "", "", errors.New("no skill contract found (expected skill.yaml or skil.yaml)")
 }
 
 func Parse(data []byte) (skil.SkillContract, error) {
+	contract, _, err := ParseWithFormat(data)
+	return contract, err
+}
+
+func ParseWithFormat(data []byte) (skil.SkillContract, Format, error) {
 	var shape map[string]any
 	if err := yaml.Unmarshal(data, &shape); err != nil {
-		return skil.SkillContract{}, err
+		return skil.SkillContract{}, "", err
 	}
-	if _, native := shape["skill"]; !native {
-		return parsePortable(data)
+	if _, native := shape["skill"]; native {
+		var c skil.SkillContract
+		if err := strictYAML(data, &c); err != nil {
+			return c, FormatNative, err
+		}
+		return c, FormatNative, Validate(c)
 	}
-	var c skil.SkillContract
-	if err := strictYAML(data, &c); err != nil {
-		return c, err
+	if isUniversalManifest(shape) {
+		contract, err := parseUniversal(data)
+		return contract, FormatUniversal, err
 	}
-	return c, Validate(c)
+	contract, err := parsePortable(data)
+	return contract, FormatPortable, err
 }
 
 type portableContract struct {
@@ -53,6 +76,48 @@ type portableContract struct {
 	Compatibility   *skil.Compatibility  `json:"compatibility,omitempty" yaml:"compatibility,omitempty"`
 	Security        skil.SecurityPosture `json:"security" yaml:"security"`
 	Capabilities    *skil.Capabilities   `json:"capabilities,omitempty" yaml:"capabilities,omitempty"`
+}
+
+type universalManifest struct {
+	Name           string   `json:"name" yaml:"name"`
+	Version        string   `json:"version" yaml:"version"`
+	Description    string   `json:"description" yaml:"description"`
+	Entrypoint     string   `json:"entrypoint" yaml:"entrypoint"`
+	License        string   `json:"license,omitempty" yaml:"license,omitempty"`
+	Owners         []string `json:"owners" yaml:"owners"`
+	CompatibleWith []string `json:"compatible_with,omitempty" yaml:"compatible_with,omitempty"`
+}
+
+func isUniversalManifest(shape map[string]any) bool {
+	_, owners := shape["owners"]
+	_, compatible := shape["compatible_with"]
+	_, license := shape["license"]
+	return owners || compatible || license
+}
+
+func parseUniversal(data []byte) (skil.SkillContract, error) {
+	if err := schemas.ValidateYAML("universal-skill-manifest-v1.schema.json", data); err != nil {
+		return skil.SkillContract{}, err
+	}
+	var manifest universalManifest
+	decoder := yaml.NewDecoder(strings.NewReader(string(data)))
+	decoder.KnownFields(true)
+	if err := decoder.Decode(&manifest); err != nil {
+		return skil.SkillContract{}, err
+	}
+	contract := skil.SkillContract{
+		Version: 1,
+		Skill: skil.SkillIdentity{
+			Name: manifest.Name, Version: manifest.Version, Description: manifest.Description,
+		},
+		Owner: manifest.Owners[0], Entrypoint: manifest.Entrypoint,
+		Compatibility: &skil.Compatibility{Agents: manifest.CompatibleWith},
+		Security:      &skil.SecurityPosture{},
+		Capabilities: skil.Capabilities{
+			Agent: skil.AgentCapability{ConfirmDestructive: true, ConfirmExternal: true},
+		},
+	}
+	return contract, Validate(contract)
 }
 
 func parsePortable(data []byte) (skil.SkillContract, error) {
@@ -121,70 +186,6 @@ func strictYAML(data []byte, target any) error {
 	decoder.KnownFields(true)
 	if err := decoder.Decode(target); err != nil {
 		return err
-	}
-	return nil
-}
-
-func validateShape(data []byte) error {
-	var document yaml.Node
-	if err := yaml.Unmarshal(data, &document); err != nil {
-		return err
-	}
-	if len(document.Content) != 1 || document.Content[0].Kind != yaml.MappingNode {
-		return errors.New("contract must be a YAML mapping")
-	}
-	root := document.Content[0]
-	if err := requireMappingKeys(root, "contract", "version", "skill", "capabilities"); err != nil {
-		return err
-	}
-	skill := mappingValue(root, "skill")
-	if err := requireMappingKeys(skill, "skill", "name", "description"); err != nil {
-		return err
-	}
-	capabilities := mappingValue(root, "capabilities")
-	for _, key := range []string{"filesystem", "network", "commands", "secrets", "environment", "tools", "mcp", "persistence", "agent", "resources"} {
-		if mappingValue(capabilities, key) == nil {
-			return fmt.Errorf("capabilities.%s is required", key)
-		}
-	}
-	required := map[string][]string{
-		"filesystem":  {"read", "write", "delete"},
-		"network":     {"inbound", "outbound", "hosts"},
-		"commands":    {"execute", "allow"},
-		"secrets":     {"read", "expose"},
-		"environment": {"read"},
-		"tools":       {"allow", "deny"},
-		"mcp":         {"servers", "tools"},
-		"agent":       {"autonomous_actions", "external_side_effects", "confirm_destructive", "confirm_external"},
-	}
-	for section, keys := range required {
-		if err := requireMappingKeys(mappingValue(capabilities, section), "capabilities."+section, keys...); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func requireMappingKeys(node *yaml.Node, name string, keys ...string) error {
-	if node == nil || node.Kind != yaml.MappingNode {
-		return fmt.Errorf("%s must be a mapping", name)
-	}
-	for _, key := range keys {
-		if mappingValue(node, key) == nil {
-			return fmt.Errorf("%s.%s is required", name, key)
-		}
-	}
-	return nil
-}
-
-func mappingValue(node *yaml.Node, key string) *yaml.Node {
-	if node == nil || node.Kind != yaml.MappingNode {
-		return nil
-	}
-	for index := 0; index+1 < len(node.Content); index += 2 {
-		if node.Content[index].Value == key {
-			return node.Content[index+1]
-		}
 	}
 	return nil
 }

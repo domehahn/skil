@@ -14,6 +14,7 @@ func BuiltinRules() []skil.Rule {
 	out = append(out, NewCode().Rules()...)
 	out = append(out, NewPythonAST().Rules()...)
 	out = append(out, NewStructuredAST().Rules()...)
+	out = append(out, NewBoundary().Rules()...)
 	out = append(out, nativeSupplementalRules()...)
 	byID := make(map[string]skil.Rule, len(out))
 	for _, rule := range out {
@@ -39,15 +40,25 @@ func nativeSupplementalRules() []skil.Rule {
 		{ID: "SKIL-DEP-002", Title: "Suspicious dependency name", Category: "dependency-trust", Severity: skil.SeverityHigh, Analysis: "dependency", Description: "A dependency resembles a deceptive package identity.", Remediation: "Verify the package identity and publisher."},
 		{ID: "SKIL-DEP-ABANDONED", Title: "Abandoned dependency", Category: "dependency-trust", Severity: skil.SeverityMedium, Analysis: "dependency", Description: "Package reputation metadata marks the dependency as abandoned.", Remediation: "Replace the package with an actively maintained alternative."},
 		{ID: "SKIL-DEP-VULN", Title: "Known vulnerable dependency", Category: "dependency-trust", Severity: skil.SeverityHigh, Analysis: "dependency", Description: "A vulnerability provider reported a known issue.", Remediation: "Upgrade to a patched version."},
+		{ID: "SKIL-CONTAINER-TRUST", Title: "Disabled container trust", Category: "supply-chain-integrity", Severity: skil.SeverityHigh, Analysis: "ast", Description: "Container content trust or registry verification is disabled.", Remediation: "Use immutable image digests and verified signatures."},
 		{ID: "SKIL-MCP-001", Title: "Wildcard MCP permission", Category: "tool-protocol", Severity: skil.SeverityHigh, Analysis: "mcp", Description: "MCP configuration grants an unconstrained wildcard.", Remediation: "Declare exact servers and tools."},
 		{ID: "SKIL-MCP-002", Title: "MCP metadata instruction injection", Category: "tool-protocol", Severity: skil.SeverityCritical, Analysis: "mcp", Description: "A tool description embeds manipulative instructions.", Remediation: "Remove instructions and bind descriptions to reviewed behavior."},
+		{ID: "SKIL-MCP-003", Title: "Mutable MCP tool identity", Category: "tool-protocol", Severity: skil.SeverityHigh, Analysis: "mcp", Description: "An MCP server or tool is resolved from a mutable package or revision.", Remediation: "Pin an immutable version and verify its digest."},
+		{ID: "SKIL-MCP-004", Title: "MCP parameter description injection", Category: "tool-protocol", Severity: skil.SeverityCritical, Analysis: "mcp", Description: "An MCP parameter description requests secrets or credentials.", Remediation: "Remove credential-collection instructions from parameter metadata."},
+		{ID: "SKIL-MCP-005", Title: "MCP tool metadata rug pull", Category: "tool-protocol", Severity: skil.SeverityCritical, Analysis: "mcp", Description: "MCP metadata differs from its reviewed immutable lock.", Remediation: "Re-review metadata before updating the lock."},
+		{ID: "SKIL-MCP-006", Title: "MCP description and behavior mismatch", Category: "tool-protocol", Severity: skil.SeverityHigh, Analysis: "mcp", Description: "MCP implementation behavior exceeds its reviewed description.", Remediation: "Align behavior and description."},
 		{ID: "SKIL-UNI-001", Title: "Unicode deception control", Category: "artifact-integrity", Severity: skil.SeverityHigh, Analysis: "pattern", Description: "Text contains invisible or bidirectional control characters.", Remediation: "Remove or explicitly justify the controls."},
 		{ID: "SKIL-OBF-001", Title: "Encoded security-sensitive instruction", Category: "instruction-integrity", Severity: skil.SeverityHigh, Analysis: "pattern", Description: "Encoded content contains security-sensitive instructions.", Remediation: "Use reviewable plaintext and remove malicious instructions."},
 		{ID: "SKIL-INTENT-DESCRIPTION", Title: "Description and behavior conflict", Category: "intent-integrity", Severity: skil.SeverityMedium, Analysis: "semantic", Description: "Observed behavior conflicts with the stated purpose.", Remediation: "Align the implementation and the reviewed description."},
 		{ID: "SKIL-INTENT-CONTEXT", Title: "Context-inappropriate capability", Category: "intent-integrity", Severity: skil.SeverityMedium, Analysis: "semantic", Description: "A capability is inappropriate for the declared operating context.", Remediation: "Remove the capability or constrain the operating context."},
 		{ID: "SKIL-INTENT-SCOPE", Title: "Capability scope expansion", Category: "intent-integrity", Severity: skil.SeverityHigh, Analysis: "semantic", Description: "Behavior extends beyond the declared capability boundary.", Remediation: "Remove the behavior or explicitly narrow and approve the contract."},
 		{ID: "SKIL-INTENT-IMPLEMENTATION", Title: "Intent and implementation divergence", Category: "intent-integrity", Severity: skil.SeverityHigh, Analysis: "semantic", Description: "Implementation contradicts an explicit behavioral statement.", Remediation: "Make the implementation conform to the reviewed intent."},
+		{ID: "SKIL-SEM-SECURITY", Title: "Semantic security weakness", Category: "semantic-security", Severity: skil.SeverityHigh, Analysis: "semantic", Description: "Contextual analysis identified a security weakness not reducible to a lexical pattern.", Remediation: "Constrain the behavior and add an enforceable security control."},
+		{ID: "SKIL-SEM-QUALITY", Title: "Semantic quality defect", Category: "quality-policy", Severity: skil.SeverityMedium, Analysis: "semantic", Description: "Contextual analysis identified ambiguity, contradiction, or a missing precondition.", Remediation: "Clarify the contract and make behavior deterministic and testable."},
+		{ID: "SKIL-SEM-COMPOSITE", Title: "Composite semantic risk", Category: "semantic-composition", Severity: skil.SeverityHigh, Analysis: "semantic", Description: "Independent semantic observations combine into a material cross-boundary risk.", Remediation: "Resolve the contributing observations and verify the combined behavior."},
 		{ID: "SKIL-YARA-*", Title: "YARA malware signature", Category: "malware", Severity: skil.SeverityCritical, Analysis: "yara", Description: "A trusted YARA source rule matched artifact content.", Remediation: "Quarantine and investigate the artifact."},
+		{ID: "SKIL-UNI-002", Title: "Unicode hostname confusable", Category: "artifact-integrity", Severity: skil.SeverityHigh, Analysis: "pattern", Description: "A hostname-like token mixes Latin and Cyrillic characters.", Remediation: "Use an ASCII or IDNA-normalized reviewed hostname."},
+		{ID: "SKIL-UNI-003", Title: "Unicode tag instruction smuggling", Category: "instruction-integrity", Severity: skil.SeverityHigh, Analysis: "pattern", Description: "Unicode tag characters conceal a security-sensitive instruction.", Remediation: "Remove tag characters and keep instructions visible."},
 		{ID: "SKIL-CAP-001", Title: "Undeclared capability", Category: "contract-conformance", Severity: skil.SeverityHigh, Analysis: "verification", Description: "Observed behavior is outside the declared contract.", Remediation: "Remove or explicitly constrain the capability."},
 	}
 }
@@ -73,6 +84,9 @@ func NativeControlImplementations() map[string]ControlImplementation {
 	for _, rule := range NewStructuredAST().Rules() {
 		out[rule.ID] = ControlImplementation{Engine: "builtin.structured-ast"}
 	}
+	for _, rule := range NewBoundary().Rules() {
+		out[rule.ID] = ControlImplementation{Engine: "builtin.boundary"}
+	}
 	for _, id := range []string{"SKIL-PY-001", "SKIL-PY-002", "SKIL-PY-003", "SKIL-PY-004"} {
 		out[id] = ControlImplementation{Engine: "builtin.python-ast"}
 	}
@@ -85,15 +99,25 @@ func NativeControlImplementations() map[string]ControlImplementation {
 		"SKIL-DEP-002":                {Engine: "builtin.dependency"},
 		"SKIL-DEP-ABANDONED":          {Engine: "reputation-provider", ProviderBacked: true},
 		"SKIL-DEP-VULN":               {Engine: "vulnerability-provider", ProviderBacked: true},
+		"SKIL-CONTAINER-TRUST":        {Engine: "builtin.structured-ast"},
 		"SKIL-MCP-001":                {Engine: "builtin.mcp"},
 		"SKIL-MCP-002":                {Engine: "builtin.mcp"},
+		"SKIL-MCP-003":                {Engine: "builtin.mcp"},
+		"SKIL-MCP-004":                {Engine: "builtin.mcp"},
+		"SKIL-MCP-005":                {Engine: "builtin.mcp"},
+		"SKIL-MCP-006":                {Engine: "builtin.mcp"},
 		"SKIL-UNI-001":                {Engine: "builtin.unicode"},
 		"SKIL-OBF-001":                {Engine: "builtin.unicode"},
 		"SKIL-INTENT-DESCRIPTION":     {Engine: "semantic-provider", ProviderBacked: true},
 		"SKIL-INTENT-CONTEXT":         {Engine: "semantic-provider", ProviderBacked: true},
 		"SKIL-INTENT-SCOPE":           {Engine: "semantic-provider", ProviderBacked: true},
 		"SKIL-INTENT-IMPLEMENTATION":  {Engine: "semantic-provider", ProviderBacked: true},
+		"SKIL-SEM-SECURITY":           {Engine: "semantic-provider", ProviderBacked: true},
+		"SKIL-SEM-QUALITY":            {Engine: "semantic-provider", ProviderBacked: true},
+		"SKIL-SEM-COMPOSITE":          {Engine: "semantic-provider", ProviderBacked: true},
 		"SKIL-YARA-*":                 {Engine: "yara-provider", ProviderBacked: true},
+		"SKIL-UNI-002":                {Engine: "builtin.obfuscation"},
+		"SKIL-UNI-003":                {Engine: "builtin.obfuscation"},
 		"SKIL-CAP-001":                {Engine: "contract-verification"},
 	}
 	for id, implementation := range engines {

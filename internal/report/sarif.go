@@ -65,16 +65,21 @@ func SARIF(scan skil.ScanResult) SarifLog {
 	rules := map[string]SarifRule{}
 	results := make([]SarifResult, 0, len(scan.Findings))
 	for _, f := range scan.Findings {
-		rules[f.RuleID] = SarifRule{ID: f.RuleID, Name: f.Title,
-			ShortDescription: SarifMessage{f.Title}, FullDescription: SarifMessage{f.Description},
-			Help: SarifMessage{f.Remediation}, Properties: map[string]any{"category": f.Category, "security-severity": severityScore(f.Severity)}}
-		result := SarifResult{RuleID: f.RuleID, Level: sarifLevel(f.Severity), Message: SarifMessage{f.Message},
+		ruleID := safeDisplay(f.RuleID)
+		rules[ruleID] = SarifRule{ID: ruleID, Name: safeDisplay(f.Title),
+			ShortDescription: SarifMessage{safeDisplay(f.Title)}, FullDescription: SarifMessage{safeDisplay(f.Description)},
+			Help: SarifMessage{safeDisplay(f.Remediation)}, Properties: map[string]any{"category": safeDisplay(f.Category), "security-severity": severityScore(f.Severity)}}
+		result := SarifResult{RuleID: ruleID, Level: sarifLevel(f.Severity), Message: SarifMessage{safeDisplay(f.Message)},
 			PartialFingerprints: map[string]string{"primaryLocationLineHash": f.Fingerprint}}
 		if f.Location.File != "" {
-			result.Locations = []SarifLocation{{PhysicalLocation{ArtifactLocation{f.Location.File}, Region{f.Location.StartLine, f.Location.EndLine}}}}
+			result.Locations = []SarifLocation{{PhysicalLocation{ArtifactLocation{safeDisplay(f.Location.File)}, Region{f.Location.StartLine, f.Location.EndLine}}}}
 		}
 		if f.Suppressed {
-			result.Suppressions = []map[string]string{{"kind": "external", "status": "accepted"}}
+			suppression := map[string]string{"kind": "external", "status": "accepted"}
+			if f.SuppressionReason != "" {
+				suppression["justification"] = safeDisplay(f.SuppressionReason)
+			}
+			result.Suppressions = []map[string]string{suppression}
 		}
 		results = append(results, result)
 	}
@@ -88,7 +93,7 @@ func SARIF(scan skil.ScanResult) SarifLog {
 			InformationURI: "https://github.com/domehahn/skil", Rules: ruleList}}, Results: results,
 			Properties: map[string]any{"skil": map[string]any{
 				"subject_digest": scan.Artifact.Digest, "subject_name": scan.Artifact.Name,
-				"subject_version": scan.Artifact.Version,
+				"subject_version": scan.Artifact.Version, "inspection_summary": scan.Completeness,
 			}}}}}
 }
 func sarifLevel(s skil.Severity) string {
