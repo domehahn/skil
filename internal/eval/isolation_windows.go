@@ -12,6 +12,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"unicode/utf16"
 	"unsafe"
 )
 
@@ -206,12 +207,15 @@ func runWindowsIsolation(ctx context.Context, executable string, request Isolati
 	if systemRoot == "" {
 		systemRoot = `C:\Windows`
 	}
-	environment := windowsEnvironment([]string{
+	environment, err := windowsEnvironment([]string{
 		"SystemRoot=" + systemRoot,
 		"PATH=" + filepath.Join(systemRoot, "System32"),
 		"TMP=" + folder,
 		"TEMP=" + folder,
 	})
+	if err != nil {
+		return err
+	}
 	var processInfo syscall.ProcessInformation
 	success, _, callErr := procCreateProcess.Call(
 		uintptr(unsafe.Pointer(applicationPtr)), uintptr(unsafe.Pointer(commandPtr)),
@@ -380,9 +384,16 @@ func setInheritable(file *os.File) error {
 	return nil
 }
 
-func windowsEnvironment(values []string) []uint16 {
-	joined := strings.Join(values, "\x00") + "\x00\x00"
-	return syscall.StringToUTF16(joined)
+func windowsEnvironment(values []string) ([]uint16, error) {
+	environment := make([]uint16, 0)
+	for _, value := range values {
+		if strings.IndexByte(value, 0) >= 0 {
+			return nil, errors.New("Windows environment value contains NUL")
+		}
+		environment = append(environment, utf16.Encode([]rune(value))...)
+		environment = append(environment, 0)
+	}
+	return append(environment, 0), nil
 }
 
 func copyRegularFile(source, destination string) error {
