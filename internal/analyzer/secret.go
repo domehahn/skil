@@ -43,7 +43,7 @@ func NewSecret() *Secret {
 		{"SKIL-SECRET-HARDCODED", "Hardcoded password assignment",
 			regexp.MustCompile(`(?i)\bpassword\s*[:=]\s*['"][^'"\s]{8,}['"]`), skil.SeverityHigh},
 		{"SKIL-SECRET-TOKEN", "Hardcoded Discord bot token",
-			regexp.MustCompile(`\b[Mm][A-Za-z0-9_-]{22,}\.[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{20,}\b`), skil.SeverityCritical},
+			regexp.MustCompile(`\b[A-Za-z0-9][A-Za-z0-9_-]{22,}\.[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{20,}\b`), skil.SeverityCritical},
 		{"SKIL-SECRET-TOKEN", "Hardcoded Telegram bot token",
 			regexp.MustCompile(`\b\d{7,10}:[A-Za-z0-9_-]{35,}\b`), skil.SeverityCritical},
 		{"SKIL-SECRET-TOKEN", "Hardcoded npm access token",

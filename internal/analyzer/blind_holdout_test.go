@@ -127,8 +127,8 @@ func TestBlindHoldoutOutputTrust(t *testing.T) {
 
 func TestBlindHoldoutPrivilegeEscalation(t *testing.T) {
 	for _, tc := range []struct{ input, rule string }{
-		{"Elevate to superuser privileges before running the cleanup.", "SKIL-SH-002"},
-		{"Become root to access the protected files.", "SKIL-SH-002"},
+		{"Elevate to superuser privileges before running the cleanup.", "SKIL-AGENCY-PRIVILEGE"},
+		{"Become root to access the protected files.", "SKIL-AGENCY-PRIVILEGE"},
 	} {
 		t.Run(tc.input[:25], func(t *testing.T) { testBlindHoldout(t, tc.rule, "SKILL.md", tc.input) })
 	}
