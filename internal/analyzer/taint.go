@@ -31,7 +31,7 @@ var (
 	}{
 		{"network", "network.outbound", regexp.MustCompile(`(?i)(requests\.(?:post|put|get)|fetch\s*\(|axios\.(?:post|get)|http\.(?:request|get)|urllib\.request)`), skil.SeverityCritical},
 		{"execution", "commands.execute", regexp.MustCompile(`(?i)(exec\s*\(|eval\s*\(|subprocess\.|os\.system|child_process\.)`), skil.SeverityCritical},
-		{"filesystem write", "filesystem.write", regexp.MustCompile(`(?i)(open\s*\([^)]*["'][wa+]|writeFile)`), skil.SeverityHigh},
+		{"filesystem write", "filesystem.write", regexp.MustCompile(`(?i)(open\s*\([^)]*["'][wa+]|writeFile|\.write\s*\()`), skil.SeverityHigh},
 		{"log", "external_side_effects", regexp.MustCompile(`(?i)(print\s*\(|console\.log|log(?:ger)?\.)`), skil.SeverityMedium},
 		{"output-execution", "commands.execute", regexp.MustCompile(`(?i)(exec\s*\(|eval\s*\(|innerHTML|inner_html|dangerouslySetInnerHTML|v-html|\.html\(|\.append\(|shell\s*\(|subprocess\.)`), skil.SeverityCritical},
 		{"output-sql", "commands.execute", regexp.MustCompile(`(?i)(execute\s*\(|cursor\.execute|db\.execute|query\s*\(|session\.execute)`), skil.SeverityCritical},
@@ -354,12 +354,10 @@ func analyzeFlow(file skil.File, assignments []flowAssignment, calls []flowCall,
 					}
 				}
 			}
-			if origin == "" {
-				for _, target := range assignment.targets {
-					if privilegedContextVars.MatchString(target) {
-						origin = "privileged_context"
-						break
-					}
+			for _, target := range assignment.targets {
+				if privilegedContextVars.MatchString(target) {
+					origin = "privileged_context"
+					break
 				}
 			}
 			if origin == "" {

@@ -35,6 +35,7 @@ var (
 		"run": true, "start": true, "do": true, "go": true, "help": true,
 		"test": true, "check": true, "list": true, "show": true, "get": true,
 		"set": true, "read": true, "write": true, "search": true, "find": true,
+		"always": true, "anything": true, "everything": true, "whatever": true,
 	}
 )
 
@@ -145,6 +146,23 @@ func (a *Trigger) Analyze(_ context.Context, ac skil.AnalysisContext) ([]skil.Fi
 			}
 		}
 		if ext == "md" || ext == "txt" {
+			// Extract YAML frontmatter triggers from .md/.txt files too
+			fmTriggers := extractTriggerPhrases(file.Data)
+			for _, t := range fmTriggers {
+				word := strings.TrimSpace(t)
+				if isSingleWord(word) && genericTriggerWords[word] {
+					ln := lineOf(file.Data, regexp.MustCompile(`(?i)\b`+regexp.QuoteMeta(word)+`\b`))
+					out = append(out, makeFinding(a.findRule("SKIL-TRIGGER-GENERIC"), file, ln, "trigger: "+word))
+				}
+				if isSingleWord(word) && shadowTriggerWords[word] {
+					ln := lineOf(file.Data, regexp.MustCompile(`(?i)\b`+regexp.QuoteMeta(word)+`\b`))
+					out = append(out, makeFinding(a.findRule("SKIL-TRIGGER-SHADOW"), file, ln, "trigger: "+word))
+				}
+				if isSingleWord(word) && baitingTriggerWords[word] {
+					ln := lineOf(file.Data, regexp.MustCompile(`(?i)\b`+regexp.QuoteMeta(word)+`\b`))
+					out = append(out, makeFinding(a.findRule("SKIL-TRIGGER-BAITING"), file, ln, "trigger: "+word))
+				}
+			}
 			for _, rule := range a.rules {
 				if rule.Pattern == nil || rule.Pattern.String() == "" {
 					continue

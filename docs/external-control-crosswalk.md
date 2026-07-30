@@ -13,6 +13,45 @@ Coverage states:
 - `PARTIAL`: a deliberately bounded implementation covers only the stated form.
 - `NOT_APPLICABLE`: the reference behavior does not fit skil's assurance model.
 
+The first section is auto-generated from `compat/external-scanner/properties.yaml`;
+the second section contains additional conformance-suite-backed entries maintained
+manually. Regenerate the first section with:
+
+    python3 compat/external-scanner/generate_crosswalk.py --check docs/external-control-crosswalk.md
+
+## Auto-generated (properties.yaml)
+
+| External ID | Reference behavior | Native equivalent | Coverage | Analyzer | Notes |
+|---|---|---|---|---|---|
+| AR1 | Instructions demand unconditional compliance / suppress refusal | `SKIL-INTENT-REFUSAL` | FULL | Pattern | Covers never-refuse, always-comply, comply-mandatory, refusal-prohibited. |
+| AS1 | Reads another agent's private configuration directory | `SKIL-BOUNDARY-AGENT-STATE` | FULL | Boundary | Covers .codex, .claude, .cursor, .gemini, .continue directories and agent history/session/transcript files. |
+| AS2 | Reads or enumerates the broader agent's MCP server configuration | `SKIL-BOUNDARY-MCP-CONFIG` | FULL | MCP | Covers opening or enumerating mcp.json/mcp_config.json in agent config dirs. |
+| AS3 | Enumerates or reads sibling skills' directories/manifests | `SKIL-BOUNDARY-PEER-SKILL` | FULL | Boundary | Covers os.listdir/glob/Path.iterdir on skill directories. |
+| AST1 | Python dynamically executes untrusted input (exec/eval) | `SKIL-PY-001` | FULL | Code / AST | Syntax-node match; code is never imported. |
+| AST9 | Reflective getattr()-resolved call to a dangerous execution sink | `SKIL-PY-REFLECT-EXEC` | FULL | Code / AST | Resolves reflective execution sinks. |
+| E3 | Code recursively enumerates a home/credential-bearing directory | `SKIL-FS-DISCOVERY-CODE` | FULL | Pattern | Covers glob/os.walk/Path/iterdir/Path.home on credential-bearing directories. |
+| E5 | Cloud object-storage SDK upload call (boto3/GCS/Azure SDK) | `SKIL-BOUNDARY-CLOUD-SDK-UPLOAD` | FULL | Boundary | SDK (put_object, upload_file, upload_blob) forms. |
+| EA3 | NL instructions requesting scope expansion beyond stated purpose | `SKIL-INTENT-SCOPE-CREEP` | FULL | Pattern | Covers extend-scope, general-purpose, act-as-omniscient, handle-everything requests. |
+| EA4 | Code-level unlimited resource pattern (float('inf'), math.inf, large number) | `SKIL-RESOURCE-UNLIMITED, SKIL-RESOURCE-TIMEOUT` | FULL | Pattern / Code | Covers code-level float('inf'), math.inf alongside NL unlimited phrasing. |
+| LP2 | MCP/tool permission grant uses an unconstrained wildcard | `SKIL-MCP-001` | FULL | MCP | Structured wildcard detection in mcp.yaml/mcp.json. |
+| OH1 | Model API output flows into an execution sink | `SKIL-TAINT-EXECUTION` | FULL | Taint | Model API output taint → exec/eval/subprocess sinks. |
+| P1 | Fabricated instruction attempts to override higher-priority guidance | `SKIL-PI-001` | FULL | Pattern | Contextual negative examples are tested. |
+| P2 | Markdown hidden comment [//]: #(...) with injection/suspicious content | `SKIL-PI-MD-HIDDEN-COMMENT, SKIL-PI-MD-SUSPICIOUS-COMMENT` | FULL | Pattern | [//]: #(...) patterns with injection or suspicious content. |
+| P4 | Covert behavioral steering / dark-pattern influence on the user | `SKIL-INTENT-BEHAVIOR-MANIPULATION` | FULL | Pattern | Covers always-prefer, never-recommend, prioritise-over-safety, gradual-steer, trust-then, appear-helpful-while patterns. |
+| P5 | Actionable operational instructions for causing physical harm | `SKIL-ABUSE-PHYSICAL-HARM` | FULL | Pattern | Action-anchored: poison-in-food, bleach+ammonia, self-harm, bomb/explosive construction. |
+| P8 | Privileged/system prompt content flows into a file write | `SKIL-TAINT-PRIVILEGED-CONTEXT` | FULL | Taint | system_prompt → file/network/tool sink tracked via taint. |
+| PE2 | Literal shell privilege-escalation command (sudo/doas/pkexec/su) | `SKIL-SH-002` | FULL | Code / AST | Covers sudo, doas, pkexec, su -, chmod u+s/+s. |
+| PE3 | Reads a concrete credential-bearing file path | `SKIL-SEC-001` | FULL | Pattern | Contextual path matching suppresses defensive statements. |
+| PE4 | Accesses the Docker/container control-plane socket | `SKIL-BOUNDARY-CONTAINER` | FULL | Boundary | Covers /var/run/docker.sock, /run/containerd/containerd.sock. |
+| PE5 | Privileged container or host-namespace escape primitive | `SKIL-BOUNDARY-CONTAINER-ESCAPE` | FULL | Boundary | Covers --privileged, hostNetwork/PID/IPC, nsenter, unshare. |
+| SQP-2 | Dangerous operation explicitly framed as hidden from the user | `SKIL-INTENT-UNDISCLOSED-OPERATION` | FULL | Pattern | Covers silently/secretly/covertly + dangerous operation, and reversed order. |
+| SSRF2 | Hardcoded request to an internal/loopback/private network address | `SKIL-BOUNDARY-SSRF-INTERNAL` | FULL | Boundary | Covers 127.0.0.0/8, localhost, 10.0.0.0/8, 192.168.0.0/16, 172.16.0.0/12. |
+| TP2 | Homoglyph substitution in an MCP tool/parameter identifier | `SKIL-UNI-002` | FULL | Pattern | Covers confusable hostname tokens (Latin + Cyrillic). |
+| TP3 | MCP tool parameter description embeds an injection payload | `SKIL-MCP-004` | FULL | MCP | Covers credential-collection and shell-command payloads in parameter descriptions. |
+| TR3 | Single-word trigger matches known baiting keyword | `SKIL-TRIGGER-BAITING` | FULL | Pattern / Structured | Covers anything/everything/always as triggers — structured and NL forms. |
+
+## Manually maintained
+
 | External ID | Reference behavior | Native equivalent | Coverage | Analyzer | Notes |
 |---|---|---|---|---|---|
 | P1 | Instruction override | `SKIL-PI-001` | FULL | Pattern | Contextual negative examples are tested. |
@@ -59,7 +98,7 @@ Coverage states:
 | SC2 | External script fetching and execution | `SKIL-SH-001` | FULL | Shell AST | Covers download-to-shell pipelines. |
 | SC3 | Obfuscated code | `SKIL-OBF-001`, `SKIL-UNI-*` | FULL | Unicode / Pattern | Conservative decoded-content and concealment checks. |
 | SC4 | Known vulnerable dependency | `SKIL-DEP-VULN` | PROVIDER_BACKED | OSV | Explicit `--osv` or `--full`; default scan stays offline. |
-| SC5 | Abandoned dependency | `SKIL-DEP-ABANDONED` | PROVIDER_BACKED | Offline reputation | A versioned built-in seed covers `pycrypto`; optional reviewed evidence extends it. |
+| SC5 | Abandoned dependency | `SKIL-DEP-ABANDONED` | PARTIAL | Offline reputation | Built-in seed covers 27 packages (was 15) across PyPI/npm/Go; the reference scanner has ~35. No provider required. |
 | SC6 | Typosquatting | `SKIL-DEP-002` | FULL | Dependency | Ecosystem-aware canonical package names. |
 | SC7 | Untrusted container image | `SKIL-CONTAINER-TRUST`, `SKIL-BOUNDARY-MUTABLE-IMAGE` | FULL | Code / Boundary | Disabled trust and mutable tags are separate signals. |
 | TM1 | Unsafe tool parameters | `SKIL-PY-002`, `SKIL-TAINT-EXECUTION` | FULL | Python AST / Taint | Covers dynamic argv and `shell=True`. |
@@ -72,6 +111,12 @@ Coverage states:
 | OH3 | Unbounded generated output | `SKIL-OUTPUT-LIMIT` | FULL | Pattern | Covers no/unlimited/unbounded output/token/response limit. |
 | TR1 | Overly generic activation phrase | `SKIL-TRIGGER-GENERIC` | FULL | Pattern | Covers help/code/file/question as catch-all triggers. |
 | TR2 | Trusted trigger shadowing | `SKIL-TRIGGER-SHADOW` | FULL | Pattern | Covers intercepting/replacing built-in commands. |
+| TR3 | Keyword baiting trigger | `SKIL-TRIGGER-BAITING` | FULL | Pattern / Structured | Covers anything/everything/always as triggers — structured YAML manifest check and NL prose pattern. |
+| EA3 | Scope creep | `SKIL-INTENT-SCOPE-CREEP` | FULL | Pattern / Local-semantic | Covers extend-scope, general-purpose, act-as-omniscient, handle-everything requests. Limited-scope claims remapped to real analyzer observations. |
+| EA4 / OH3 | Unbounded resource / output limits | `SKIL-RESOURCE-UNLIMITED` | FULL | Pattern / Code | Covers code-level float("inf"), math.inf, 999999, 1000000 alongside NL "unlimited" phrasing. |
+| OH1 (code-level) | Model output taint → execution | `SKIL-TAINT-EXECUTION` | FULL | Taint | client.responses.create(...)/chat.completions.create(...) recognized as taint source flowing to exec/eval/subprocess sinks. |
+| P8 | Prompt exfiltration via tool | `SKIL-TAINT-PRIVILEGED-CONTEXT`, `SKIL-EX-001`, `SKIL-PL-001` | FULL | Taint / Pattern | system_prompt → file/network/tool sink tracked via taint, plus existing NL prompt-disclosure and exfiltration rules. |
+| P2 (Markdown) | Hidden instructions in Markdown comments | `SKIL-PI-MD-HIDDEN-COMMENT`, `SKIL-PI-MD-SUSPICIOUS-COMMENT` | FULL | Pattern / Hidden-instruction | [//]: #(...) patterns with injection or suspicious content. Distinct severities (Medium/High). |
 | RA1 | Rogue agent self-modification | `SKIL-AGENT-SELF-MODIFY` | FULL | Pattern | Covers rewriting own code/skill.md/configuration/policy. |
 | RA2 | Unapproved startup persistence | `SKIL-PERSISTENCE-STARTUP` | FULL | Pattern / Code | Covers cron/crontab/systemd/launchctl/autorun/schtasks. |
 | SDI1 | Unsafe Python deserialization | `SKIL-PY-003` | FULL | Code | Covers pickle.load(s), marshal.load(s). |

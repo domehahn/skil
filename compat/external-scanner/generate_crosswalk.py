@@ -1,0 +1,109 @@
+#!/usr/bin/env python3
+"""
+Generate or verify the auto-generated section of external-control-crosswalk.md
+from properties.yaml.
+
+Usage:
+    python3 generate_crosswalk.py                          # print table to stdout
+    python3 generate_crosswalk.py --check <path>            # exit 1 if auto-gen section differs
+"""
+
+import argparse
+import os
+import sys
+import yaml
+
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+PROPERTIES = os.path.join(HERE, "properties.yaml")
+
+
+def load_properties(path: str) -> list[dict]:
+    with open(path) as f:
+        data = yaml.safe_load(f)
+    return data["properties"]
+
+
+def analyzer_for(prop: dict) -> str:
+    pid = prop["id"]
+    rules = [r for r in prop.get("skil_rules", [])]
+    if "MCP" in pid.upper() or any("SKIL-MCP" in r for r in rules):
+        return "MCP"
+    if "TAINT" in str(rules).upper():
+        return "Taint"
+    if "AST" in pid.upper() or any("SKIL-PY-" in r or "SKIL-SH-" in r for r in rules):
+        return "Code / AST"
+    if "SSRF" in pid.upper() or any("SKIL-BOUNDARY" in r for r in rules):
+        return "Boundary"
+    if any("SKIL-RESOURCE" in r for r in rules):
+        return "Pattern / Code"
+    if any("SKIL-TRIGGER" in r for r in rules):
+        return "Pattern / Structured"
+    return "Pattern"
+
+
+def generate_table(properties: list[dict]) -> str:
+    lines = [
+        "| External ID | Reference behavior | Native equivalent | Coverage | Analyzer | Notes |",
+        "|---|---|---|---|---|---|",
+    ]
+    for prop in sorted(properties, key=lambda p: p["external_rule"]):
+        ext_id = prop["external_rule"]
+        behavior = prop["description"]
+        natives = ", ".join(prop["skil_rules"])
+        status = prop.get("status", "")
+        analyzer = analyzer_for(prop)
+        note = prop.get("notes", "")
+        lines.append(f"| {ext_id} | {behavior} | `{natives}` | {status} | {analyzer} | {note} |")
+    return "\n".join(lines) + "\n"
+
+
+def extract_auto_section(filepath: str):
+    """Extract the auto-generated table section from the crosswalk file."""
+    with open(filepath) as f:
+        lines = f.readlines()
+
+    start = end = -1
+    for i, line in enumerate(lines):
+        if line.strip() == "## Auto-generated (properties.yaml)":
+            start = i
+        elif start >= 0 and line.strip() == "## Manually maintained":
+            end = i
+            break
+
+    if start < 0 or end < 0:
+        return None
+
+    # Return lines from start to end (inclusive of header, exclusive of manual section)
+    return "".join(lines[start:end]).rstrip("\n") + "\n"
+
+
+def generate_auto_section(properties: list[dict]) -> str:
+    header = "## Auto-generated (properties.yaml)\n\n"
+    return header + generate_table(properties)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Generate external control crosswalk")
+    parser.add_argument("--check", help="Check file auto-gen section matches (exit 1 if differs)")
+    args = parser.parse_args()
+
+    properties = load_properties(PROPERTIES)
+    generated = generate_auto_section(properties)
+
+    if args.check:
+        existing = extract_auto_section(args.check)
+        if existing is None:
+            print(f"Error: could not find '## Auto-generated' section in {args.check}", file=sys.stderr)
+            sys.exit(1)
+        if existing != generated:
+            print(f"Error: auto-generated section in {args.check} is out of date.", file=sys.stderr)
+            print("Regenerate with: python3 compat/external-scanner/generate_crosswalk.py --check <path>", file=sys.stderr)
+            sys.exit(1)
+        print("Auto-generated crosswalk section is up to date.")
+    else:
+        print(generated, end="")
+
+
+if __name__ == "__main__":
+    main()

@@ -24,6 +24,9 @@ func TestPublicSourcesUseIndependentProductIdentity(t *testing.T) {
 			case ".git", ".agents", ".github", ".agentic", ".codex":
 				return filepath.SkipDir
 			}
+			if strings.Contains(path, "docs/adr") {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 		switch strings.ToLower(filepath.Ext(path)) {

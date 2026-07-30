@@ -1,111 +1,217 @@
-schema_version: "1.0.0"
-# Property-level differential comparison manifest. Each entry names a
-# general security property (not a benchmark-specific ID) and records:
-#   - the fixture pair used to exercise it (positive/negative)
-#   - the skil native rule ID(s) expected to fire on the positive fixture
-#   - the external reference scanner's rule ID for the same property, for
-#     traceability back to docs/external-scanner-feature-parity.md
-# This file intentionally does not name the external tool; see
-# docs/external-scanner-feature-parity.md and README.md in this directory
-# for why.
+schema_version: 1.0.0
 properties:
-  - id: instruction-override
-    description: Fabricated instruction attempts to override higher-priority guidance
-    fixture: instruction-override
-    skil_rules: [SKIL-PI-001]
-    external_rule: P1
-  - id: anti-refusal
-    description: Instructions demand unconditional compliance / suppress refusal
-    fixture: anti-refusal
-    skil_rules: [SKIL-INTENT-REFUSAL]
-    external_rule: AR1
-  - id: agent-config-snooping
-    description: Reads another agent's private configuration directory
-    fixture: agent-config-snooping
-    skil_rules: [SKIL-BOUNDARY-AGENT-STATE]
-    external_rule: AS1
-  - id: mcp-config-snooping
-    description: Reads or enumerates the broader agent's MCP server configuration
-    fixture: mcp-config-snooping
-    skil_rules: [SKIL-BOUNDARY-MCP-CONFIG]
-    external_rule: AS2
-  - id: peer-skill-enumeration
-    description: Enumerates or reads sibling skills' directories/manifests
-    fixture: peer-skill-enumeration
-    skil_rules: [SKIL-BOUNDARY-PEER-SKILL]
-    external_rule: AS3
-  - id: sudo-root-escalation
-    description: Literal shell privilege-escalation command (sudo/doas/pkexec/su)
-    fixture: sudo-root-escalation
-    skil_rules: [SKIL-SH-002]
-    external_rule: PE2
-  - id: credential-file-access
-    description: Reads a concrete credential-bearing file path
-    fixture: credential-file-access
-    skil_rules: [SKIL-SEC-001]
-    external_rule: PE3
-  - id: docker-socket-access
-    description: Accesses the Docker/container control-plane socket
-    fixture: docker-socket-access
-    skil_rules: [SKIL-BOUNDARY-CONTAINER]
-    external_rule: PE4
-  - id: container-escape
-    description: Privileged container or host-namespace escape primitive
-    fixture: container-escape
-    skil_rules: [SKIL-BOUNDARY-CONTAINER-ESCAPE]
-    external_rule: PE5
-  - id: internal-ssrf
-    description: Hardcoded request to an internal/loopback/private network address
-    fixture: internal-ssrf
-    skil_rules: [SKIL-BOUNDARY-SSRF-INTERNAL]
-    external_rule: SSRF2
-  - id: behavior-manipulation
-    description: Covert behavioral steering / dark-pattern influence on the user
-    fixture: behavior-manipulation
-    skil_rules: [SKIL-INTENT-BEHAVIOR-MANIPULATION]
-    external_rule: P4
-  - id: physical-harm-content
-    description: Actionable operational instructions for causing physical harm
-    fixture: physical-harm-content
-    skil_rules: [SKIL-ABUSE-PHYSICAL-HARM]
-    external_rule: P5
-  - id: undisclosed-operation
-    description: Dangerous operation explicitly framed as hidden from the user
-    fixture: undisclosed-operation
-    skil_rules: [SKIL-INTENT-UNDISCLOSED-OPERATION]
-    external_rule: SQP-2
-  - id: cloud-sdk-upload
-    description: Cloud object-storage SDK upload call (boto3/GCS/Azure SDK)
-    fixture: cloud-sdk-upload
-    skil_rules: [SKIL-BOUNDARY-CLOUD-SDK-UPLOAD]
-    external_rule: E5
-  - id: code-level-fs-enumeration
-    description: Code recursively enumerates a home/credential-bearing directory
-    fixture: code-level-fs-enumeration
-    skil_rules: [SKIL-FS-DISCOVERY-CODE]
-    external_rule: E3
-  - id: mcp-wildcard-permission
-    description: MCP/tool permission grant uses an unconstrained wildcard
-    fixture: mcp-wildcard-permission
-    skil_rules: [SKIL-MCP-001]
-    external_rule: LP2
-  - id: mcp-parameter-injection
-    description: MCP tool parameter description embeds an injection payload
-    fixture: mcp-parameter-injection
-    skil_rules: [SKIL-MCP-004]
-    external_rule: TP3
-  - id: unicode-homoglyph
-    description: Homoglyph substitution in an MCP tool/parameter identifier
-    fixture: unicode-homoglyph
-    skil_rules: [SKIL-UNI-002]
-    external_rule: TP2
-  - id: dynamic-python-execution
-    description: Python dynamically executes untrusted input (exec/eval)
-    fixture: dynamic-python-execution
-    skil_rules: [SKIL-PY-001]
-    external_rule: AST1
-  - id: reflective-execution
-    description: Reflective getattr()-resolved call to a dangerous execution sink
-    fixture: reflective-execution
-    skil_rules: [SKIL-PY-REFLECT-EXEC]
-    external_rule: AST9
+- id: instruction-override
+  description: Fabricated instruction attempts to override higher-priority guidance
+  fixture: instruction-override
+  skil_rules:
+  - SKIL-PI-001
+  external_rule: P1
+  status: FULL
+  notes: Contextual negative examples are tested.
+- id: anti-refusal
+  description: Instructions demand unconditional compliance / suppress refusal
+  fixture: anti-refusal
+  skil_rules:
+  - SKIL-INTENT-REFUSAL
+  external_rule: AR1
+  status: FULL
+  notes: Covers never-refuse, always-comply, comply-mandatory, refusal-prohibited.
+- id: agent-config-snooping
+  description: Reads another agent's private configuration directory
+  fixture: agent-config-snooping
+  skil_rules:
+  - SKIL-BOUNDARY-AGENT-STATE
+  external_rule: AS1
+  status: FULL
+  notes: Covers .codex, .claude, .cursor, .gemini, .continue directories and agent
+    history/session/transcript files.
+- id: mcp-config-snooping
+  description: Reads or enumerates the broader agent's MCP server configuration
+  fixture: mcp-config-snooping
+  skil_rules:
+  - SKIL-BOUNDARY-MCP-CONFIG
+  external_rule: AS2
+  status: FULL
+  notes: Covers opening or enumerating mcp.json/mcp_config.json in agent config dirs.
+- id: peer-skill-enumeration
+  description: Enumerates or reads sibling skills' directories/manifests
+  fixture: peer-skill-enumeration
+  skil_rules:
+  - SKIL-BOUNDARY-PEER-SKILL
+  external_rule: AS3
+  status: FULL
+  notes: Covers os.listdir/glob/Path.iterdir on skill directories.
+- id: sudo-root-escalation
+  description: Literal shell privilege-escalation command (sudo/doas/pkexec/su)
+  fixture: sudo-root-escalation
+  skil_rules:
+  - SKIL-SH-002
+  external_rule: PE2
+  status: FULL
+  notes: Covers sudo, doas, pkexec, su -, chmod u+s/+s.
+- id: credential-file-access
+  description: Reads a concrete credential-bearing file path
+  fixture: credential-file-access
+  skil_rules:
+  - SKIL-SEC-001
+  external_rule: PE3
+  status: FULL
+  notes: Contextual path matching suppresses defensive statements.
+- id: docker-socket-access
+  description: Accesses the Docker/container control-plane socket
+  fixture: docker-socket-access
+  skil_rules:
+  - SKIL-BOUNDARY-CONTAINER
+  external_rule: PE4
+  status: FULL
+  notes: Covers /var/run/docker.sock, /run/containerd/containerd.sock.
+- id: container-escape
+  description: Privileged container or host-namespace escape primitive
+  fixture: container-escape
+  skil_rules:
+  - SKIL-BOUNDARY-CONTAINER-ESCAPE
+  external_rule: PE5
+  status: FULL
+  notes: Covers --privileged, hostNetwork/PID/IPC, nsenter, unshare.
+- id: internal-ssrf
+  description: Hardcoded request to an internal/loopback/private network address
+  fixture: internal-ssrf
+  skil_rules:
+  - SKIL-BOUNDARY-SSRF-INTERNAL
+  external_rule: SSRF2
+  status: FULL
+  notes: Covers 127.0.0.0/8, localhost, 10.0.0.0/8, 192.168.0.0/16, 172.16.0.0/12.
+- id: behavior-manipulation
+  description: Covert behavioral steering / dark-pattern influence on the user
+  fixture: behavior-manipulation
+  skil_rules:
+  - SKIL-INTENT-BEHAVIOR-MANIPULATION
+  external_rule: P4
+  status: FULL
+  notes: Covers always-prefer, never-recommend, prioritise-over-safety, gradual-steer,
+    trust-then, appear-helpful-while patterns.
+- id: physical-harm-content
+  description: Actionable operational instructions for causing physical harm
+  fixture: physical-harm-content
+  skil_rules:
+  - SKIL-ABUSE-PHYSICAL-HARM
+  external_rule: P5
+  status: FULL
+  notes: 'Action-anchored: poison-in-food, bleach+ammonia, self-harm, bomb/explosive
+    construction.'
+- id: undisclosed-operation
+  description: Dangerous operation explicitly framed as hidden from the user
+  fixture: undisclosed-operation
+  skil_rules:
+  - SKIL-INTENT-UNDISCLOSED-OPERATION
+  external_rule: SQP-2
+  status: FULL
+  notes: Covers silently/secretly/covertly + dangerous operation, and reversed order.
+- id: cloud-sdk-upload
+  description: Cloud object-storage SDK upload call (boto3/GCS/Azure SDK)
+  fixture: cloud-sdk-upload
+  skil_rules:
+  - SKIL-BOUNDARY-CLOUD-SDK-UPLOAD
+  external_rule: E5
+  status: FULL
+  notes: SDK (put_object, upload_file, upload_blob) forms.
+- id: code-level-fs-enumeration
+  description: Code recursively enumerates a home/credential-bearing directory
+  fixture: code-level-fs-enumeration
+  skil_rules:
+  - SKIL-FS-DISCOVERY-CODE
+  external_rule: E3
+  status: FULL
+  notes: Covers glob/os.walk/Path/iterdir/Path.home on credential-bearing directories.
+- id: mcp-wildcard-permission
+  description: MCP/tool permission grant uses an unconstrained wildcard
+  fixture: mcp-wildcard-permission
+  skil_rules:
+  - SKIL-MCP-001
+  external_rule: LP2
+  status: FULL
+  notes: Structured wildcard detection in mcp.yaml/mcp.json.
+- id: mcp-parameter-injection
+  description: MCP tool parameter description embeds an injection payload
+  fixture: mcp-parameter-injection
+  skil_rules:
+  - SKIL-MCP-004
+  external_rule: TP3
+  status: FULL
+  notes: Covers credential-collection and shell-command payloads in parameter descriptions.
+- id: unicode-homoglyph
+  description: Homoglyph substitution in an MCP tool/parameter identifier
+  fixture: unicode-homoglyph
+  skil_rules:
+  - SKIL-UNI-002
+  external_rule: TP2
+  status: FULL
+  notes: Covers confusable hostname tokens (Latin + Cyrillic).
+- id: dynamic-python-execution
+  description: Python dynamically executes untrusted input (exec/eval)
+  fixture: dynamic-python-execution
+  skil_rules:
+  - SKIL-PY-001
+  external_rule: AST1
+  status: FULL
+  notes: Syntax-node match; code is never imported.
+- id: reflective-execution
+  description: Reflective getattr()-resolved call to a dangerous execution sink
+  fixture: reflective-execution
+  skil_rules:
+  - SKIL-PY-REFLECT-EXEC
+  external_rule: AST9
+  status: FULL
+  notes: Resolves reflective execution sinks.
+- id: hidden-instructions-markdown
+  description: 'Markdown hidden comment [//]: #(...) with injection/suspicious content'
+  fixture: hidden-instructions-markdown
+  skil_rules:
+  - SKIL-PI-MD-HIDDEN-COMMENT
+  - SKIL-PI-MD-SUSPICIOUS-COMMENT
+  external_rule: P2
+  status: FULL
+  notes: '[//]: #(...) patterns with injection or suspicious content.'
+- id: scope-creep
+  description: NL instructions requesting scope expansion beyond stated purpose
+  fixture: scope-creep
+  skil_rules:
+  - SKIL-INTENT-SCOPE-CREEP
+  external_rule: EA3
+  status: FULL
+  notes: Covers extend-scope, general-purpose, act-as-omniscient, handle-everything
+    requests.
+- id: trigger-baiting
+  description: Single-word trigger matches known baiting keyword
+  fixture: trigger-baiting
+  skil_rules:
+  - SKIL-TRIGGER-BAITING
+  external_rule: TR3
+  status: FULL
+  notes: Covers anything/everything/always as triggers — structured and NL forms.
+- id: model-output-taint-execution
+  description: Model API output flows into an execution sink
+  fixture: model-output-taint-execution
+  skil_rules:
+  - SKIL-TAINT-EXECUTION
+  external_rule: OH1
+  status: FULL
+  notes: Model API output taint → exec/eval/subprocess sinks.
+- id: prompt-taint-to-file
+  description: Privileged/system prompt content flows into a file write
+  fixture: prompt-taint-to-file
+  skil_rules:
+  - SKIL-TAINT-PRIVILEGED-CONTEXT
+  external_rule: P8
+  status: FULL
+  notes: system_prompt → file/network/tool sink tracked via taint.
+- id: unbounded-resource-code
+  description: Code-level unlimited resource pattern (float('inf'), math.inf, large
+    number)
+  fixture: unbounded-resource-code
+  skil_rules:
+  - SKIL-RESOURCE-UNLIMITED
+  - SKIL-RESOURCE-TIMEOUT
+  external_rule: EA4
+  status: FULL
+  notes: Covers code-level float('inf'), math.inf alongside NL unlimited phrasing.

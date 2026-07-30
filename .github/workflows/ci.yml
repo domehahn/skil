@@ -19,6 +19,10 @@ jobs:
       - run: gofmt -l cmd internal pkg tests | tee /tmp/gofmt && test ! -s /tmp/gofmt
       - run: go vet ./...
       - run: go test -race -coverprofile=coverage.out ./...
+      - name: Property crosswalk CI gate
+        run: go test ./compat/external-scanner/ -v -count=1
+      - name: Crosswalk generation check
+        run: python3 compat/external-scanner/generate_crosswalk.py --check docs/external-control-crosswalk.md
       - run: go build -trimpath ./cmd/skil
       - run: go run ./cmd/skil validate tests/fixtures/clean-skill
       - run: go run ./cmd/skil scan tests/fixtures/clean-skill --format sarif --output skil.sarif
