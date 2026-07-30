@@ -80,17 +80,45 @@ func pyRule(id, title, category, description, remediation, capability string, se
 }
 
 func (p *PythonAST) Analyze(ctx context.Context, ac skil.AnalysisContext) ([]skil.Finding, error) {
+	findings, _, err := p.AnalyzeCapabilities(ctx, ac)
+	return findings, err
+}
+
+// AnalyzeCapabilities performs the same syntax-tree walk as Analyze but also
+// records a CapabilityObservation for every capability-relevant call it
+// resolves, whether or not that call was unsafe enough to also produce a
+// Finding. This keeps "the skill uses this capability" (observation)
+// independent of "this specific use is dangerous" (finding): a safe,
+// argv-only subprocess call is legitimate declared-capability usage and
+// must be observable even though it deliberately produces no Finding.
+func (p *PythonAST) AnalyzeCapabilities(ctx context.Context, ac skil.AnalysisContext) ([]skil.Finding, []skil.CapabilityObservation, error) {
 	var out []skil.Finding
+	var observations []skil.CapabilityObservation
 	for _, file := range ac.Artifact.Files {
 		if extension(file.Path) != "py" {
 			continue
 		}
 		tree, err := parsePython(ctx, file.Data)
 		if err != nil {
-			return nil, fmt.Errorf("%s: %w", file.Path, err)
+			return nil, nil, fmt.Errorf("%s: %w", file.Path, err)
 		}
 		aliases := collectAliases(tree.RootNode(), file.Data)
 		reflectiveVars := collectReflectiveAliases(tree.RootNode(), file.Data, aliases)
+		observe := func(node *tree_sitter.Node, target, capability, value string, evidence map[string]any) {
+			if capability == "" {
+				return
+			}
+			start := node.StartPosition()
+			obs := skil.CapabilityObservation{
+				Capability: capability, Value: value, Analyzer: "builtin.python-ast",
+				Location: skil.Location{File: file.Path, StartLine: int(start.Row) + 1, EndLine: int(start.Row) + 1},
+				Evidence: map[string]any{"call_target": target},
+			}
+			for k, v := range evidence {
+				obs.Evidence[k] = v
+			}
+			observations = append(observations, obs)
+		}
 		emit := func(node *tree_sitter.Node, target string, rule astRule) {
 			rp := RulePattern{Rule: skil.Rule{ID: rule.id, Title: rule.title, Category: rule.category,
 				Severity: rule.severity, Description: rule.description, Analysis: "ast", AppliesTo: []string{"py"},
@@ -104,26 +132,41 @@ func (p *PythonAST) Analyze(ctx context.Context, ac skil.AnalysisContext) ([]ski
 				finding.Evidence["capability"] = rule.capability
 			}
 			literal := firstStringLiteral(node, file.Data)
+			value := ""
 			switch rule.capability {
 			case "network.outbound":
 				if parsed, err := url.Parse(literal); err == nil && parsed.Hostname() != "" {
 					finding.Evidence["network_host"] = parsed.Hostname()
+					value = parsed.Hostname()
 				}
 			case "commands.execute":
 				if literal != "" {
-					finding.Evidence["command"] = strings.Fields(literal)[0]
+					value = strings.Fields(literal)[0]
+					finding.Evidence["command"] = value
 				}
 			case "filesystem.write":
 				if literal != "" {
 					finding.Evidence["filesystem_path"] = literal
+					value = literal
 				}
 			case "secrets.read":
 				if literal != "" {
 					finding.Evidence["secret"] = literal
 					finding.Evidence["environment"] = literal
+					value = literal
 				}
 			}
 			out = append(out, finding)
+			observe(node, target, rule.capability, value, finding.Evidence)
+			if rule.capability == "secrets.read" && value != "" {
+				// An environment-variable read is simultaneously a
+				// secrets.read concern (the value may hold a secret) and a
+				// distinct declared environment.read capability in the
+				// skill contract schema; both must be independently
+				// observable so contract verification can tie either
+				// declaration to real usage.
+				observe(node, target, "environment.read", value, finding.Evidence)
+			}
 		}
 		walkNode(tree.RootNode(), func(node *tree_sitter.Node) {
 			if node.Kind() == "subscript" {
@@ -167,7 +210,30 @@ func (p *PythonAST) Analyze(ctx context.Context, ac skil.AnalysisContext) ([]ski
 			if target == "open" && writeMode(node, file.Data) {
 				rule, found = pyRule("SKIL-FS-001", "Filesystem write", "tool-misuse", "Python opens a file in a write-capable mode.", "Declare and constrain writable paths.", "filesystem.write", skil.SeverityMedium), true
 			}
+			if target == "open" && !found && !writeMode(node, file.Data) {
+				// A file opened in (the default) read mode is not itself
+				// dangerous and must not produce a Finding, but it is
+				// legitimate declared filesystem.read capability usage and
+				// must still be observable, mirroring the safe-subprocess
+				// observation below.
+				literal := firstStringLiteral(node, file.Data)
+				observe(node, target, "filesystem.read", literal, map[string]any{"node_type": node.Kind()})
+				return
+			}
 			if found && strings.HasPrefix(target, "subprocess.") && safeSubprocessCall(node, file.Data) {
+				// A safe, argv-only subprocess call is legitimate declared
+				// capability usage: it must not produce a Finding, but the
+				// capability was genuinely observed and must be recorded as
+				// such, or verification cannot distinguish "safely used a
+				// declared capability" from "never used it at all".
+				literal := firstStringLiteral(node, file.Data)
+				value := ""
+				evidence := map[string]any{"node_type": node.Kind()}
+				if literal != "" {
+					value = strings.Fields(literal)[0]
+					evidence["command"] = value
+				}
+				observe(node, target, "commands.execute", value, evidence)
 				return
 			}
 			if !found {
@@ -177,7 +243,7 @@ func (p *PythonAST) Analyze(ctx context.Context, ac skil.AnalysisContext) ([]ski
 		})
 		tree.Close()
 	}
-	return out, nil
+	return out, observations, nil
 }
 
 func safeSubprocessCall(call *tree_sitter.Node, source []byte) bool {

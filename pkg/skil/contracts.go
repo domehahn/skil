@@ -100,6 +100,7 @@ type ObservedCapabilities struct {
 	Secrets             []string `json:"secrets,omitempty"`
 	Persistence         bool     `json:"persistence"`
 	ExternalSideEffects bool     `json:"external_side_effects"`
+	EnvironmentRead     bool     `json:"environment_read"`
 	Environment         []string `json:"environment,omitempty"`
 	Tools               []string `json:"tools,omitempty"`
 	MCPServers          []string `json:"mcp_servers,omitempty"`

@@ -157,6 +157,7 @@ type ScanResult struct {
 	RiskScore     int                      `json:"risk_score"`
 	Maximum       Severity                 `json:"maximum_severity"`
 	Findings      []Finding                `json:"findings"`
+	Observations  []CapabilityObservation  `json:"observations,omitempty"`
 	Coverage      map[string]CoverageState `json:"analysis"`
 	Scanners      []string                 `json:"scanners"`
 	Inspection    []InspectionWorkItem     `json:"inspection_ledger,omitempty"`
@@ -181,6 +182,31 @@ type AnalysisContext struct {
 type Analyzer interface {
 	Metadata() AnalyzerMetadata
 	Analyze(context.Context, AnalysisContext) ([]Finding, error)
+}
+
+// CapabilityObservation records that an analyzer observed a skill artifact
+// actually using a capability, independent of whether that usage was unsafe
+// enough to also produce a Finding. Safe use of a declared capability (e.g.
+// an argv-only subprocess call with a static allowlisted command) is
+// legitimate and correctly produces no Finding — but it still must count as
+// the capability having been observed, or contract verification cannot tell
+// "safe declared use" apart from "never actually used" and will misreport
+// the former as an overdeclared capability.
+type CapabilityObservation struct {
+	Capability string         `json:"capability" yaml:"capability"`
+	Value      string         `json:"value,omitempty" yaml:"value,omitempty"`
+	Location   Location       `json:"location" yaml:"location"`
+	Analyzer   string         `json:"analyzer" yaml:"analyzer"`
+	Evidence   map[string]any `json:"evidence,omitempty" yaml:"evidence,omitempty"`
+}
+
+// ObservationAnalyzer is an additive capability an Analyzer may implement to
+// report CapabilityObservations alongside its Findings in a single pass
+// (avoiding a second parse/walk). Analyzers that do not implement it are
+// unaffected; capability verification falls back to Finding-based inference
+// for any capability no ObservationAnalyzer reports on.
+type ObservationAnalyzer interface {
+	AnalyzeCapabilities(context.Context, AnalysisContext) ([]Finding, []CapabilityObservation, error)
 }
 
 type SemanticProvider interface {

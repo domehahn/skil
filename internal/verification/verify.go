@@ -30,8 +30,8 @@ type Result struct {
 	Mismatches []Mismatch                `json:"mismatches" yaml:"mismatches"`
 }
 
-func Verify(contract skil.SkillContract, findings []skil.Finding) Result {
-	observed := Infer(findings)
+func Verify(contract skil.SkillContract, findings []skil.Finding, observations []skil.CapabilityObservation) Result {
+	observed := Infer(findings, observations)
 	result := Result{Status: skil.StatusPass, Declared: contract.Capabilities, Observed: observed, Mismatches: []Mismatch{}}
 	check := func(name string, declared, actual bool, severity skil.Severity, rules ...string) {
 		if actual && !declared {
@@ -78,6 +78,8 @@ func Verify(contract skil.SkillContract, findings []skil.Finding) Result {
 	overdeclared("secrets.read", len(c.Secrets.Read) > 0, observed.SecretsRead)
 	overdeclared("persistence", c.Persistence, observed.Persistence)
 	overdeclared("external_side_effects", c.Agent.ExternalSideEffects, observed.ExternalSideEffects)
+	overdeclared("filesystem.read", len(c.Filesystem.Read) > 0, observed.FilesystemRead)
+	overdeclared("environment.read", len(c.Environment.Read) > 0, observed.EnvironmentRead)
 
 	for _, mismatch := range result.Mismatches {
 		if mismatch.Kind == "underdeclared" || mismatch.Kind == "outside-allowlist" {
@@ -94,8 +96,49 @@ func Verify(contract skil.SkillContract, findings []skil.Finding) Result {
 	return result
 }
 
-func Infer(findings []skil.Finding) skil.ObservedCapabilities {
+// Infer derives observed capability usage from two independent sources:
+// direct CapabilityObservations (an analyzer explicitly reporting that a
+// capability was used, whether or not that use was unsafe) and, as a
+// fallback for analyzers not yet migrated to emit observations, the
+// Findings a scan produced. A capability observed by either source counts
+// as observed — Findings can only ever add observations here, never
+// subtract one an ObservationAnalyzer already reported.
+func Infer(findings []skil.Finding, observations []skil.CapabilityObservation) skil.ObservedCapabilities {
 	var o skil.ObservedCapabilities
+	for _, obs := range observations {
+		switch obs.Capability {
+		case "network.outbound":
+			o.NetworkOutbound = true
+		case "commands.execute":
+			o.CommandsExecute = true
+		case "filesystem.write":
+			o.FilesystemWrite = true
+		case "filesystem.delete":
+			o.FilesystemDelete = true
+		case "secrets.read":
+			o.SecretsRead = true
+		case "persistence":
+			o.Persistence = true
+		case "external.side_effect":
+			o.ExternalSideEffects = true
+		case "filesystem.read":
+			o.FilesystemRead = true
+		case "environment.read":
+			o.EnvironmentRead = true
+		}
+		switch obs.Capability {
+		case "network.outbound":
+			appendEvidenceValue(&o.NetworkHosts, obs.Value)
+		case "commands.execute":
+			appendEvidenceValue(&o.Commands, obs.Value)
+		case "filesystem.write", "filesystem.read":
+			appendEvidenceValue(&o.FilesystemPaths, obs.Value)
+		case "secrets.read":
+			appendEvidenceValue(&o.Secrets, obs.Value)
+		case "environment.read":
+			appendEvidenceValue(&o.Environment, obs.Value)
+		}
+	}
 	for _, f := range findings {
 		if f.RuleID == capabilityMismatchRuleID {
 			// Verification output must never be fed back into inference: a
@@ -158,7 +201,14 @@ func Infer(findings []skil.Finding) skil.ObservedCapabilities {
 
 func appendEvidenceString(target *[]string, evidence map[string]any, key string) {
 	value, ok := evidence[key].(string)
-	if !ok || strings.TrimSpace(value) == "" {
+	if !ok {
+		return
+	}
+	appendEvidenceValue(target, value)
+}
+
+func appendEvidenceValue(target *[]string, value string) {
+	if strings.TrimSpace(value) == "" {
 		return
 	}
 	for _, existing := range *target {

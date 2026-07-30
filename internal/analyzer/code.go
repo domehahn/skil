@@ -28,7 +28,7 @@ func NewCode() *Code {
 		r("SKIL-SH-001", "Remote script pipeline", "dependency-trust", skil.SeverityCritical,
 			`(?i)\b(?:curl|wget)\b[^\n|]{0,300}\|\s*(?:ba)?sh\b`, "Downloads and immediately executes remote content.", "Download, pin a digest, inspect, and execute in a sandbox."),
 		r("SKIL-SH-002", "Privilege escalation", "privilege-boundary", skil.SeverityHigh,
-			`(?m)^\s*sudo(?:\s|$)`, "Shell code requests elevated privileges.", "Remove sudo and operate with least privilege."),
+			`(?m)^\s*(?:sudo|doas|pkexec)(?:\s|$)|(?m)^\s*su\s+-|\bchmod\s+(?:u\+s|\+s|4[0-7]{3})\b`, "Shell code requests elevated privileges.", "Remove privilege-escalation commands and operate with least privilege."),
 		r("SKIL-SH-003", "Dangerous recursive removal", "dynamic-execution", skil.SeverityCritical,
 			`(?m)\brm\s+(?:-[a-zA-Z]*r[a-zA-Z]*f|-rf|-fr)\s+(?:/|~|\$HOME)(?:\s|$)`, "Shell code can recursively delete a broad directory.", "Use an explicit validated narrow target and recoverable deletion."),
 		r("SKIL-SH-004", "Shell dynamic evaluation", "dynamic-execution", skil.SeverityHigh,

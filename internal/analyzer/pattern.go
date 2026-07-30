@@ -87,7 +87,7 @@ func buildIntentRules() []RulePattern {
 			`(?:(?:发送|上传|传输).{0,30}(?:密钥|凭据|密码|环境变量)|(?:秘密|認証情報|APIキー|環境変数).{0,30}(?:送信|アップロード)|(?:비밀|자격\s*증명|API\s*키|환경\s*변수).{0,30}(?:전송|업로드))`,
 			`(?:不要|禁止|阻止|拒绝|送信しない|禁止|拒否|전송하지\s*마|금지|거부)`, "Instructions request secret transfer in Chinese, Japanese, or Korean.", "Remove the data flow; use explicit allowlists and redaction."),
 		r("SKIL-SEC-001", "Credential file access", "data-boundary", skil.SeverityHigh,
-			`(?:read|collect|search|enumerate|copy|upload|extract|open).{0,80}(?:~?/?\.ssh/id_(?:rsa|ed25519)|~?/?\.aws/credentials|(?:^|[/\s])\.env(?:\W|$)|credentials\.json|token\s+file|api\s*key\s+file)`,
+			`(?:read|collect|search|enumerate|copy|upload|extract|open).{0,80}(?:~?/?\.ssh/id_(?:rsa|ed25519)|~?/?\.aws/credentials|(?:^|[/\s])\.env(?:\W|$)|credentials\.json|token\s+file|api\s*key\s+file|~?/?\.kube/config|~?/?\.docker/config\.json|~?/?\.npmrc|~?/?\.git-credentials|~?/?\.netrc|/etc/shadow|~?/?\.config/gcloud/(?:credentials|application_default_credentials)\.json|~?/?\.azure/(?:credentials|accessTokens\.json)|browser\s+(?:login\s+data|keychain|cookie)|~?/?\.gnupg/)`,
 			`(?:do\s+not|never|exclude|avoid|must\s+not).{0,80}(?:read|collect|search|enumerate|copy|upload|extract|open)`,
 			"Instructions access a concrete credential-bearing path or file.",
 			"Remove credential access or declare and constrain the exact secret source."),
@@ -106,6 +106,11 @@ func buildIntentRules() []RulePattern {
 		r("SKIL-INTENT-FS-DISCOVERY", "Broad filesystem discovery intent", "data-boundary", skil.SeverityMedium,
 			`(?:scan|list|enumerate|search|find|walk\s+through|traverse).{0,60}(?:home directory|filesystem|all files|credentials?|ssh keys?|secret files?)`,
 			`(?:do\s+not|never|prevent|detect)`, "Instructions request broad filesystem enumeration.", "Constrain reads to explicit paths."),
+		r("SKIL-FS-DISCOVERY-CODE", "Code-level credential-directory enumeration", "data-boundary", skil.SeverityHigh,
+			`glob\s*\.\s*glob\s*\([^)]{0,80}(?:\.env|\.ssh|\.aws|\.config|\.kube|\.docker|credentials)|os\s*\.\s*walk\s*\([^)]{0,60}(?:home|~|/Users|/home)|Path\s*\.\s*home\s*\(\s*\)\s*\.\s*(?:glob|rglob)\s*\(|os\s*\.\s*listdir\s*\([^)]{0,60}(?:\.ssh|\.aws|\.config|\.gnupg|\.kube)`,
+			"",
+			"Code recursively enumerates a home or credential-bearing directory.",
+			"Constrain filesystem enumeration to explicit, narrowly scoped, non-credential paths."),
 		r("SKIL-AGENCY-TOOLS", "Unbounded tool selection", "action-control", skil.SeverityHigh,
 			`(?:use|access|invoke).{0,40}(?:any|all|every|unrestricted)\s+(?:available\s+)?tools?|(?:whichever|whatever)\s+tools?\s+(?:exists?|available|works?)|no\s+(?:tool\s+)?allowlist`,
 			`(?:do\s+not|never|prevent|deny)`, "Instructions request unrestricted tool access.", "Use an explicit tool allowlist."),
@@ -126,7 +131,15 @@ func buildIntentRules() []RulePattern {
 			`(?:must|require|enforce)`, "Output generation has no explicit bound.", "Set a maximum output size and rate."),
 		r("SKIL-PROMPT-INDIRECT-LEAK", "Indirect privileged-context extraction", "instruction-confidentiality", skil.SeverityMedium,
 			`(?:translate|rephrase|encode|summarize).{0,60}(?:system prompt|developer instructions?|hidden (?:rules?|instructions?)|your instructions?|the instructions?)`,
-			`(?:do\s+not|never|prevent|detect|reject|refuse|decline).{0,40}(?:translate|rephrase|encode|summarize)|(?:translate|rephrase|encode|summarize).{0,40}(?:decline|refuse|reject)`, "Instructions attempt indirect extraction of privileged prompts.", "Remove the extraction path."),
+			`(?:do\s+not|never|prevent|detect|reject|refuse|decline).{0,40}(?:translate|rephrase|encode|summarize)|(?:translate|rephrase|encode|summarize).{0,40}(?:decline|refuse|reject)|`+
+				// Polarity is not only pre-action ("do not translate ...");
+				// a target can instead be excluded from the whole class of
+				// transformation actions after the fact, e.g. "Developer
+				// instructions are excluded from transformations." Handle
+				// this post-target exclusion clause generically so it is
+				// not tied to any single benchmark sentence.
+				`(?:system prompt|developer instructions?|hidden (?:rules?|instructions?)|instructions?|context)\s+(?:are|is)?\s*(?:excluded|exempt|omitted)\s+from\s+(?:transformations?|this|these|processing|output|translation|summar(?:y|ization)|encoding)`,
+			"Instructions attempt indirect extraction of privileged prompts.", "Remove the extraction path."),
 		r("SKIL-MEMORY-SATURATION", "Trusted-context displacement", "state-integrity", skil.SeverityMedium,
 			`(?:fill|stuff|flood|pad).{0,50}(?:context window|token budget).{0,80}(?:forget|displace|override|push(?:ed)?\s+out)|(?:fill|stuff|flood|pad)\s+(?:the\s+)?(?:context\s+window|token\s+budget)\s+with\s+(?:filler|padding|repeated|junk|noise)|(?:repeated\s+)?padding\s+to\s+displace.{0,40}(?:trusted\s+)?context|displace\s+(?:earlier|prior)\s+trusted\s+context`,
 			`(?:do\s+not|never|prevent|detect)`, "Content attempts to displace trusted context.", "Bound input and preserve trusted instructions."),
@@ -183,6 +196,26 @@ func buildIntentRules() []RulePattern {
 			`(?:do\s+not|never|prevent|reject|deny|revoke)`,
 			"Instructions request an escalation of privileges.",
 			"Remove the escalation request and use least-privilege scoped access."),
+		r("SKIL-INTENT-UNDISCLOSED-OPERATION", "Dangerous operation withheld from user disclosure", "action-control", skil.SeverityHigh,
+			`(?:silently|secretly|covertly|quietly|without\s+(?:the\s+user'?s?\s+)?(?:knowledge|consent|approval|confirmation)|without\s+(?:telling|informing|notifying|alerting|asking)\s+(?:the\s+)?user)\s+(?:\w+\s+){0,4}(?:delete|remove|wipe|erase|destroy|execute|run|send|transmit|upload|exfiltrate|install|modify|overwrite|disable)|(?:delete|remove|wipe|erase|destroy|execute|run|send|transmit|upload|exfiltrate|install|modify|overwrite|disable)\s+(?:\w+\s+){0,4}(?:silently|secretly|covertly|quietly|without\s+(?:the\s+user'?s?\s+)?(?:knowledge|consent|approval|confirmation)|without\s+(?:telling|informing|notifying|alerting|asking)\s+(?:the\s+)?user)`,
+			`(?:do\s+not|never|must\s+not|should\s+not|reject|prevent|detect|require).{0,50}(?:silently|secretly|covertly|without\s+(?:the\s+user'?s?\s+)?(?:knowledge|consent|approval|confirmation)|without\s+(?:telling|informing|notifying|alerting|asking))`,
+			"Instructions perform a dangerous operation while explicitly withholding disclosure, consent, or confirmation from the user.",
+			"Require an explicit, logged, user-visible disclosure or confirmation before any dangerous operation."),
+		r("SKIL-INTENT-BEHAVIOR-MANIPULATION", "Covert behavioral steering", "instruction-integrity", skil.SeverityMedium,
+			`(?:always\s+(?:recommend|suggest|prefer|choose|use)\s+(?:\w+\s+){0,3}(?:over|instead\s+of|rather\s+than)|never\s+(?:recommend|suggest|mention|tell|warn|inform)\s+(?:the\s+)?(?:user|them)|(?:prioritize|prefer)\s+(?:\w+\s+){0,3}(?:over|above)\s+(?:user\s+)?(?:safety|security|privacy|preferences?)|(?:subtly|gradually|slowly|covertly)\s+(?:steer|guide|push|nudge)\s+(?:the\s+)?(?:user|conversation)|(?:without|before)\s+(?:the\s+)?user\s+(?:knowing|realizing|noticing).{0,60}(?:change|modify|alter|influence)|(?:gain|build|establish)\s+(?:the\s+)?user(?:'s)?\s+trust\s+(?:and\s+then|before|so\s+that)|(?:appear|seem|act)\s+(?:helpful|friendly|trustworthy)\s+(?:while|but|then))`,
+			`(?:do\s+not|never|avoid|reject|detect|prevent).{0,40}(?:steer|nudge|manipulat|prioritiz|prefer.{0,20}over|gain.{0,20}trust)`,
+			"Instructions covertly steer user behavior, suppress information from the user, or prioritize an objective over user safety without disclosure.",
+			"Remove covert influence framing; any behavioral guidance must be transparent to the user."),
+		r("SKIL-MANIFEST-UNPINNED-VERSION", "Unpinned skill manifest version", "least-privilege", skil.SeverityMedium,
+			`^\s*version\s*:\s*['"]?(?:\*|latest|x(?:\.x)*|>=|<=|~|\^)`,
+			"",
+			"The skill manifest declares its own version as a wildcard or open range rather than an exact, reviewable version.",
+			"Declare an exact skill version instead of a wildcard or range."),
+		r("SKIL-MANIFEST-PERMISSION-STAGING", "Permission pre-staging language", "least-privilege", skil.SeverityMedium,
+			`(?:add|request|will\s+(?:need|require)|plan(?:s|ning)?\s+to\s+add|reserve(?:d)?\s+for)\s+(?:new|additional|extra|more|further)\s+(?:permissions?|capabilities|access|scopes?)`,
+			`(?:do\s+not|never|reject|deny)\s+(?:add|request)\s+(?:new|additional|extra)\s+(?:permissions?|capabilities|access)`,
+			"A manifest or instruction hints at future permission expansion beyond what is currently declared.",
+			"Declare only the exact permissions the skill currently uses; expand the reviewed contract when new capability is actually needed."),
 	}
 }
 
@@ -302,20 +335,32 @@ func extractFrontMatter(data []byte) []byte {
 	return []byte(rest[:idx])
 }
 
-func structuredTriggerFindings(file skil.File) []skil.Finding {
+// loadStructuredManifest parses a skill manifest file (a standalone YAML
+// file, or the YAML front matter of a Markdown file) into a generic
+// document, shared by every structured (non-regex) manifest check so each
+// one does not reimplement front-matter extraction and YAML parsing.
+func loadStructuredManifest(file skil.File) (any, bool) {
 	ext := extension(file.Path)
 	var document any
 	switch {
 	case ext == "yaml" || ext == "yml":
 		if yaml.Unmarshal(file.Data, &document) != nil {
-			return nil
+			return nil, false
 		}
 	case ext == "md":
 		frontMatter := extractFrontMatter(file.Data)
 		if frontMatter == nil || yaml.Unmarshal(frontMatter, &document) != nil {
-			return nil
+			return nil, false
 		}
 	default:
+		return nil, false
+	}
+	return document, true
+}
+
+func structuredTriggerFindings(file skil.File) []skil.Finding {
+	document, ok := loadStructuredManifest(file)
+	if !ok {
 		return nil
 	}
 	generic := map[string]bool{"help": true, "code": true, "file": true, "question": true, "task": true, "please": true}

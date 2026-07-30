@@ -212,7 +212,7 @@ func Check(p Policy, in Input) Result {
 	if len(p.AllowedRegistries) > 0 && !hasAllowedPrefix(in.Scan.Artifact.Source, p.AllowedRegistries) {
 		add("allowed-registry", p.AllowedRegistries, in.Scan.Artifact.Source, "artifact source is not from an allowed registry")
 	}
-	observed := verification.Infer(in.Scan.Findings)
+	observed := verification.Infer(in.Scan.Findings, in.Scan.Observations)
 	for _, denied := range p.ForbiddenCapabilities {
 		if capabilityObserved(denied, observed) {
 			add("forbidden-capability", denied, true, "forbidden capability was observed")

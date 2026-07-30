@@ -32,6 +32,82 @@ http.post(url, data=payload)
 	}
 }
 
+func TestPythonASTSafeSubprocessCallIsObservedWithoutFinding(t *testing.T) {
+	// A static, argv-only subprocess call with no shell=True is legitimate
+	// declared-capability usage and must not itself produce a Finding, but
+	// verification cannot tell "safely used the capability" apart from
+	// "never used it" unless the usage is still recorded as an observation.
+	source := "import subprocess\nsubprocess.Popen([\"git\", \"status\", \"--short\"]).wait()\n"
+	findings, observations, err := NewPythonAST().AnalyzeCapabilities(context.Background(), skil.AnalysisContext{Artifact: artifactWith("run.py", source)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, finding := range findings {
+		if finding.RuleID == "SKIL-PY-002" {
+			t.Fatalf("safe argv-only subprocess call must not produce a finding: %#v", findings)
+		}
+	}
+	found := false
+	for _, obs := range observations {
+		if obs.Capability == "commands.execute" && obs.Value == "git" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected a commands.execute observation for the safe subprocess call: %#v", observations)
+	}
+}
+
+func TestPythonASTReadOnlyFileOpenIsObservedWithoutFinding(t *testing.T) {
+	// Reading a file in the default (read) mode is not itself dangerous and
+	// must not produce a Finding, but it is legitimate declared
+	// filesystem.read capability usage and must be observable so a
+	// contract that declares filesystem.read is not reported overdeclared.
+	source := "data = open(\"docs/readme.txt\").read()\n"
+	findings, observations, err := NewPythonAST().AnalyzeCapabilities(context.Background(), skil.AnalysisContext{Artifact: artifactWith("run.py", source)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(findings) != 0 {
+		t.Fatalf("read-only open() must not produce a finding: %#v", findings)
+	}
+	found := false
+	for _, obs := range observations {
+		if obs.Capability == "filesystem.read" && obs.Value == "docs/readme.txt" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected a filesystem.read observation for the read-only open() call: %#v", observations)
+	}
+}
+
+func TestPythonASTEnvironmentVariableReadIsObservedForBothCapabilities(t *testing.T) {
+	// os.getenv reading a named variable is simultaneously secrets.read
+	// evidence (the SKIL-SEC-001 finding) and environment.read capability
+	// usage, both of which must be independently observable.
+	source := "import os\ntoken = os.getenv(\"API_TOKEN\")\n"
+	findings, observations, err := NewPythonAST().AnalyzeCapabilities(context.Background(), skil.AnalysisContext{Artifact: artifactWith("run.py", source)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasRule(findings, "SKIL-SEC-001") {
+		t.Fatalf("expected the existing SKIL-SEC-001 finding to still fire: %#v", findings)
+	}
+	var sawSecrets, sawEnvironment bool
+	for _, obs := range observations {
+		if obs.Capability == "secrets.read" && obs.Value == "API_TOKEN" {
+			sawSecrets = true
+		}
+		if obs.Capability == "environment.read" && obs.Value == "API_TOKEN" {
+			sawEnvironment = true
+		}
+	}
+	if !sawSecrets || !sawEnvironment {
+		t.Fatalf("expected both secrets.read and environment.read observations: %#v", observations)
+	}
+}
+
 func TestPythonASTDynamicGetattrAndWriteMode(t *testing.T) {
 	source := "name = input()\ngetattr(target, name)()\nopen('safe.txt', 'r')\nopen('out.txt', mode='w')\n"
 	findings, err := NewPythonAST().Analyze(context.Background(), skil.AnalysisContext{Artifact: artifactWith("run.py", source)})

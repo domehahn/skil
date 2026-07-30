@@ -74,7 +74,14 @@ func (r *Registry) Scan(ctx context.Context, ac skil.AnalysisContext) (skil.Scan
 			}
 			result.Inspection = append(result.Inspection, item)
 		}
-		findings, err := a.Analyze(ctx, ac)
+		var findings []skil.Finding
+		var observations []skil.CapabilityObservation
+		var err error
+		if oa, ok := a.(skil.ObservationAnalyzer); ok {
+			findings, observations, err = oa.AnalyzeCapabilities(ctx, ac)
+		} else {
+			findings, err = a.Analyze(ctx, ac)
+		}
 		if err != nil {
 			for index := start; index < len(result.Inspection); index++ {
 				if result.Inspection[index].Outcome == skil.InspectionCompleted {
@@ -91,6 +98,7 @@ func (r *Registry) Scan(ctx context.Context, ac skil.AnalysisContext) (skil.Scan
 			}
 		}
 		result.Findings = append(result.Findings, findings...)
+		result.Observations = append(result.Observations, observations...)
 		if source, ok := a.(interface{ Diagnostics() []skil.Diagnostic }); ok {
 			result.Diagnostics = append(result.Diagnostics, source.Diagnostics()...)
 		}

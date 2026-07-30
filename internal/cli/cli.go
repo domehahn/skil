@@ -612,7 +612,7 @@ func (a *App) verify(ctx context.Context, args []string) int {
 	if contract == nil {
 		return a.inputError(errors.New("verification requires skil.yaml"))
 	}
-	result := verification.Verify(*contract, scan.Findings)
+	result := verification.Verify(*contract, scan.Findings, scan.Observations)
 	if *format == "json" {
 		_ = writeJSON(a.Out, result)
 	} else {
@@ -1465,7 +1465,7 @@ func (a *App) assure(ctx context.Context, args []string) int {
 	if contract == nil {
 		return a.inputError(errors.New("assure requires a valid skill contract"))
 	}
-	verified := verification.Verify(*contract, scan.Findings)
+	verified := verification.Verify(*contract, scan.Findings, scan.Observations)
 	evaluation, err := a.performEvaluationArtifact(ctx, scan.Artifact, evaluationOptions{
 		TestPath: *testPath, RuntimeName: "isolated", RuntimeCommand: *runtimeCommand,
 		RuntimeArgs: *runtimeArgs, MaxOutput: *maxOutput, Runs: *runs, RequireContainment: true,
@@ -1863,7 +1863,7 @@ func (a *App) performScanWithRegistryOptions(
 		return result, contract, err
 	}
 	if contract != nil {
-		verified := verification.Verify(*contract, result.Findings)
+		verified := verification.Verify(*contract, result.Findings, result.Observations)
 		result.Findings = append(result.Findings, verification.Findings(verified, art)...)
 		result.Maximum, result.RiskScore, result.Status = analyzer.Risk(result.Findings, result.Coverage)
 		result.Verdict = analyzer.Verdict(result.Maximum, result.RiskScore, result.Coverage)
