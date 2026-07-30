@@ -28,6 +28,7 @@ func NewStructuredAST() *StructuredAST {
 func (s *StructuredAST) Metadata() skil.AnalyzerMetadata {
 	return skil.AnalyzerMetadata{
 		ID: "builtin.structured-ast", Version: "1.0.0",
+		Domain: "code", Subdomain: "ast",
 		Categories:     []string{"dynamic-execution", "dependency-trust", "privilege-boundary", "data-boundary"},
 		AnalysisTypes:  []string{"ast", "static-code"},
 		SupportedTypes: []string{"sh", "bash", "js", "jsx", "ts", "tsx"},

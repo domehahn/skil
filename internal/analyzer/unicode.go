@@ -15,6 +15,7 @@ type Unicode struct{}
 func NewUnicode() *Unicode { return &Unicode{} }
 func (u *Unicode) Metadata() skil.AnalyzerMetadata {
 	return skil.AnalyzerMetadata{ID: "builtin.obfuscation", Version: "1.0.0",
+		Domain: "code", Subdomain: "obfuscation",
 		Categories: []string{"artifact-integrity", "instruction-integrity"}, AnalysisTypes: []string{"pattern"},
 		SupportedTypes: []string{"text"}}
 }
@@ -101,16 +102,18 @@ func isEmojiRune(r rune) bool {
 // rather than pasted literally so the source stays unambiguous byte-for-byte.
 func suspiciousInvisible(text string) bool {
 	const (
-		zeroWidthSpace   = '\u200b'
-		zeroWidthNonJoin = '\u200c'
-		zeroWidthJoiner  = '\u200d'
-		wordJoiner       = '\u2060'
-		byteOrderMark    = '\ufeff'
+		zeroWidthSpace    = '\u200b'
+		zeroWidthNonJoin  = '\u200c'
+		zeroWidthJoiner   = '\u200d'
+		wordJoiner        = '\u2060'
+		byteOrderMark     = '\ufeff'
+		softHyphen        = '\u00ad'
+		combiningGraphJoi = '\u034f'
 	)
 	runs := []rune(text)
 	for i, r := range runs {
 		switch r {
-		case zeroWidthSpace, zeroWidthNonJoin, wordJoiner, byteOrderMark:
+		case zeroWidthSpace, zeroWidthNonJoin, wordJoiner, byteOrderMark, softHyphen, combiningGraphJoi:
 			return true
 		case zeroWidthJoiner:
 			var prev, next rune

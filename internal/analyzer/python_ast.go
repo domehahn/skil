@@ -30,6 +30,7 @@ func (p *PythonAST) Rules() []skil.Rule {
 func (p *PythonAST) Metadata() skil.AnalyzerMetadata {
 	return skil.AnalyzerMetadata{
 		ID: "builtin.python-ast", Version: "1.0.0",
+		Domain: "code", Subdomain: "ast",
 		Categories:    []string{"dynamic-execution", "data-boundary"},
 		AnalysisTypes: []string{"ast"}, SupportedTypes: []string{"py"},
 	}

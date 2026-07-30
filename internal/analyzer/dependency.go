@@ -14,9 +14,10 @@ type Dependency struct{ provider skil.VulnerabilityProvider }
 
 var (
 	popularPackages = map[string][]string{
-		"PyPI": {"requests", "urllib3", "numpy", "pandas", "django", "flask", "boto3", "cryptography", "pydantic", "pytest", "setuptools", "python-dateutil", "colorama", "jellyfish"},
-		"npm":  {"react", "express", "lodash", "axios", "typescript", "webpack", "next", "vue", "angular", "cross-env", "eslint", "prettier"},
-		"Go":   {"github.com/gin-gonic/gin", "github.com/spf13/cobra", "github.com/stretchr/testify", "golang.org/x/text", "gopkg.in/yaml.v3"},
+		"PyPI":        {"requests", "urllib3", "numpy", "pandas", "django", "flask", "boto3", "cryptography", "pydantic", "pytest", "setuptools", "python-dateutil", "colorama", "jellyfish"},
+		"npm":         {"react", "express", "lodash", "axios", "typescript", "webpack", "next", "vue", "angular", "cross-env", "eslint", "prettier"},
+		"Go":          {"github.com/gin-gonic/gin", "github.com/spf13/cobra", "github.com/stretchr/testify", "golang.org/x/text", "gopkg.in/yaml.v3"},
+		"HuggingFace": {"openai", "meta-llama", "google", "mistralai", "stabilityai", "microsoft", "nvidia", "huggingface", "facebook", "EleutherAI", "bigscience", "tiiuae", "deepseek-ai", "Qwen", "anthropic"},
 	}
 )
 
@@ -38,6 +39,7 @@ func (d *Dependency) Metadata() skil.AnalyzerMetadata {
 		types = append(types, "reputation")
 	}
 	return skil.AnalyzerMetadata{ID: "builtin.dependency", Version: "1.0.0",
+		Domain: "supply-chain", Subdomain: "dependencies",
 		Categories: []string{"dependency-trust"}, AnalysisTypes: types,
 		SupportedTypes: []string{"requirements.txt", "package.json", "package-lock.json", "go.mod",
 			"pyproject.toml", "poetry.lock", "uv.lock", "Cargo.toml", "Cargo.lock", "Gemfile.lock", "pom.xml"}}
@@ -148,6 +150,23 @@ func vulnerabilityEnabled(provider skil.VulnerabilityProvider) bool {
 func vulnerabilityFindings(file skil.File, line int, text, name string, vulnerabilities []skil.Vulnerability) []skil.Finding {
 	out := make([]skil.Finding, 0, len(vulnerabilities))
 	for _, vulnerability := range vulnerabilities {
+		// A package with a known CVE is vulnerable; a package flagged by
+		// OSV's malicious-package advisories (ID/alias prefixed "MAL-",
+		// OSV's cross-ecosystem convention for intentionally malicious
+		// packages, not accidental vulnerabilities) is actively hostile.
+		// "Upgrade to a patched version" is actively wrong advice for the
+		// latter — every version published by a compromised or malicious
+		// account is suspect, not just this one.
+		if isMaliciousPackageAdvisory(vulnerability) {
+			rule := RulePattern{Rule: skil.Rule{ID: "SKIL-DEP-MALICIOUS", Title: "Malicious dependency",
+				Category: "dependency-trust", Severity: skil.SeverityCritical,
+				Description: fmt.Sprintf("%s %s: %s", vulnerability.ID, name, vulnerability.Summary), Analysis: "dependency",
+				Remediation: "Remove the package entirely; do not merely upgrade it. Every version from a malicious or compromised publisher may be hostile."}, Confidence: .99}
+			finding := makeFinding(rule, file, line, text)
+			finding.References = vulnerabilityReferences(vulnerability)
+			out = append(out, finding)
+			continue
+		}
 		rule := RulePattern{Rule: skil.Rule{ID: "SKIL-DEP-VULN", Title: "Known vulnerable dependency",
 			Category: "dependency-trust", Severity: vulnerability.Severity,
 			Description: fmt.Sprintf("%s %s: %s", vulnerability.ID, name, vulnerability.Summary), Analysis: "dependency",
@@ -157,6 +176,23 @@ func vulnerabilityFindings(file skil.File, line int, text, name string, vulnerab
 		out = append(out, finding)
 	}
 	return out
+}
+
+// isMaliciousPackageAdvisory reports whether an OSV record is a
+// malicious-package advisory rather than an ordinary vulnerability. OSV's
+// cross-ecosystem malicious-packages feed (sourced from OpenSSF and
+// per-ecosystem malware databases) publishes these under a "MAL-" ID
+// prefix; the underlying ID or any GHSA/CVE alias can carry it.
+func isMaliciousPackageAdvisory(vulnerability skil.Vulnerability) bool {
+	if strings.HasPrefix(vulnerability.ID, "MAL-") {
+		return true
+	}
+	for _, alias := range vulnerability.Aliases {
+		if strings.HasPrefix(alias, "MAL-") {
+			return true
+		}
+	}
+	return false
 }
 
 func vulnerabilityReferences(vulnerability skil.Vulnerability) []string {

@@ -50,6 +50,7 @@ func NewCode() *Code {
 
 func (c *Code) Metadata() skil.AnalyzerMetadata {
 	return skil.AnalyzerMetadata{ID: "builtin.code", Version: "1.0.0",
+		Domain: "code", Subdomain: "dynamic-execution",
 		Categories:    []string{"dynamic-execution", "dependency-trust", "privilege-boundary", "data-boundary"},
 		AnalysisTypes: []string{"static-code"}, SupportedTypes: []string{"sh", "bash", "js", "ts"}}
 }

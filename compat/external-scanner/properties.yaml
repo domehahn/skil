@@ -1,0 +1,111 @@
+schema_version: "1.0.0"
+# Property-level differential comparison manifest. Each entry names a
+# general security property (not a benchmark-specific ID) and records:
+#   - the fixture pair used to exercise it (positive/negative)
+#   - the skil native rule ID(s) expected to fire on the positive fixture
+#   - the external reference scanner's rule ID for the same property, for
+#     traceability back to docs/external-scanner-feature-parity.md
+# This file intentionally does not name the external tool; see
+# docs/external-scanner-feature-parity.md and README.md in this directory
+# for why.
+properties:
+  - id: instruction-override
+    description: Fabricated instruction attempts to override higher-priority guidance
+    fixture: instruction-override
+    skil_rules: [SKIL-PI-001]
+    external_rule: P1
+  - id: anti-refusal
+    description: Instructions demand unconditional compliance / suppress refusal
+    fixture: anti-refusal
+    skil_rules: [SKIL-INTENT-REFUSAL]
+    external_rule: AR1
+  - id: agent-config-snooping
+    description: Reads another agent's private configuration directory
+    fixture: agent-config-snooping
+    skil_rules: [SKIL-BOUNDARY-AGENT-STATE]
+    external_rule: AS1
+  - id: mcp-config-snooping
+    description: Reads or enumerates the broader agent's MCP server configuration
+    fixture: mcp-config-snooping
+    skil_rules: [SKIL-BOUNDARY-MCP-CONFIG]
+    external_rule: AS2
+  - id: peer-skill-enumeration
+    description: Enumerates or reads sibling skills' directories/manifests
+    fixture: peer-skill-enumeration
+    skil_rules: [SKIL-BOUNDARY-PEER-SKILL]
+    external_rule: AS3
+  - id: sudo-root-escalation
+    description: Literal shell privilege-escalation command (sudo/doas/pkexec/su)
+    fixture: sudo-root-escalation
+    skil_rules: [SKIL-SH-002]
+    external_rule: PE2
+  - id: credential-file-access
+    description: Reads a concrete credential-bearing file path
+    fixture: credential-file-access
+    skil_rules: [SKIL-SEC-001]
+    external_rule: PE3
+  - id: docker-socket-access
+    description: Accesses the Docker/container control-plane socket
+    fixture: docker-socket-access
+    skil_rules: [SKIL-BOUNDARY-CONTAINER]
+    external_rule: PE4
+  - id: container-escape
+    description: Privileged container or host-namespace escape primitive
+    fixture: container-escape
+    skil_rules: [SKIL-BOUNDARY-CONTAINER-ESCAPE]
+    external_rule: PE5
+  - id: internal-ssrf
+    description: Hardcoded request to an internal/loopback/private network address
+    fixture: internal-ssrf
+    skil_rules: [SKIL-BOUNDARY-SSRF-INTERNAL]
+    external_rule: SSRF2
+  - id: behavior-manipulation
+    description: Covert behavioral steering / dark-pattern influence on the user
+    fixture: behavior-manipulation
+    skil_rules: [SKIL-INTENT-BEHAVIOR-MANIPULATION]
+    external_rule: P4
+  - id: physical-harm-content
+    description: Actionable operational instructions for causing physical harm
+    fixture: physical-harm-content
+    skil_rules: [SKIL-ABUSE-PHYSICAL-HARM]
+    external_rule: P5
+  - id: undisclosed-operation
+    description: Dangerous operation explicitly framed as hidden from the user
+    fixture: undisclosed-operation
+    skil_rules: [SKIL-INTENT-UNDISCLOSED-OPERATION]
+    external_rule: SQP-2
+  - id: cloud-sdk-upload
+    description: Cloud object-storage SDK upload call (boto3/GCS/Azure SDK)
+    fixture: cloud-sdk-upload
+    skil_rules: [SKIL-BOUNDARY-CLOUD-SDK-UPLOAD]
+    external_rule: E5
+  - id: code-level-fs-enumeration
+    description: Code recursively enumerates a home/credential-bearing directory
+    fixture: code-level-fs-enumeration
+    skil_rules: [SKIL-FS-DISCOVERY-CODE]
+    external_rule: E3
+  - id: mcp-wildcard-permission
+    description: MCP/tool permission grant uses an unconstrained wildcard
+    fixture: mcp-wildcard-permission
+    skil_rules: [SKIL-MCP-001]
+    external_rule: LP2
+  - id: mcp-parameter-injection
+    description: MCP tool parameter description embeds an injection payload
+    fixture: mcp-parameter-injection
+    skil_rules: [SKIL-MCP-004]
+    external_rule: TP3
+  - id: unicode-homoglyph
+    description: Homoglyph substitution in an MCP tool/parameter identifier
+    fixture: unicode-homoglyph
+    skil_rules: [SKIL-UNI-002]
+    external_rule: TP2
+  - id: dynamic-python-execution
+    description: Python dynamically executes untrusted input (exec/eval)
+    fixture: dynamic-python-execution
+    skil_rules: [SKIL-PY-001]
+    external_rule: AST1
+  - id: reflective-execution
+    description: Reflective getattr()-resolved call to a dangerous execution sink
+    fixture: reflective-execution
+    skil_rules: [SKIL-PY-REFLECT-EXEC]
+    external_rule: AST9

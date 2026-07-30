@@ -60,19 +60,39 @@ func NewBoundary() *Boundary {
 			"Code calls a cloud storage SDK method that uploads data to object storage.",
 			"Declare and constrain the exact destination bucket/container and review the uploaded data for sensitive content."),
 		rule("SKIL-BOUNDARY-CONTAINER-ESCAPE", "Privileged container or host-namespace access", "infrastructure-boundary", skil.SeverityCritical,
-			`(?:docker|podman)\s+run.{0,160}(?:--privileged|--pid[= ]host|--network[= ]host|--volume[= ]/(?:\s|:)|--cap-add[= ]?(?:sys_admin|sys_ptrace|net_admin))|(?:privileged|hostNetwork|hostPID|hostIPC)\s*:\s*true|hostPath\s*:\s*(?:\n\s*)?path\s*:\s*/(?:\s|$)|\bnsenter\b.{0,60}--(?:target|mount|uts|ipc|net|pid)|\bunshare\s+(?:--user|--mount|--pid|--uts|--net)\b|release_agent\s*=|/sys/fs/cgroup/[^\n]{0,60}release_agent`,
-			"Content enables privileged container execution, a host namespace, or a root host mount.",
+			`(?:docker|podman)\s+run.{0,160}(?:--privileged|--pid[= ]host|--network[= ]host|--volume[= ]/(?:\s|:)|--cap-add[= ]?(?:sys_admin|sys_ptrace|net_admin))|(?:privileged|hostNetwork|hostPID|hostIPC|allowPrivilegeEscalation|automountServiceAccountToken)\s*:\s*true|runAsUser\s*:\s*0\b|(?:add|capabilities)\s*:\s*\[[^\]]*(?:SYS_ADMIN|SYS_PTRACE|NET_ADMIN|SYS_MODULE)[^\]]*\]|hostPath\s*:\s*(?:\n\s*)?path\s*:\s*/(?:\s|$)|\bnsenter\b.{0,60}--(?:target|mount|uts|ipc|net|pid)|\bunshare\s+(?:--user|--mount|--pid|--uts|--net)\b|release_agent\s*=|/sys/fs/cgroup/[^\n]{0,60}release_agent`,
+			"Content enables privileged container execution, a host namespace, a root host mount, or grants a dangerous Linux capability.",
 			"Use a non-root container with dropped capabilities, isolated namespaces, and narrow read-only mounts."),
 		rule("SKIL-BOUNDARY-MUTABLE-IMAGE", "Mutable container image reference", "supply-chain-integrity", skil.SeverityHigh,
 			`(?:docker|podman)\s+pull\s+[A-Za-z0-9._/-]+(?::latest)?(?:\s|$)|image\s*:\s*[A-Za-z0-9._/-]+(?::latest)?\s*$`,
 			"Content pulls or deploys a container image without an immutable digest.",
 			"Pin the image by verified sha256 digest and enforce signature verification."),
+		rule("SKIL-IAC-WILDCARD-POLICY", "Wildcard IAM policy action", "infrastructure-boundary", skil.SeverityCritical,
+			// Scoped to the action value being the bare wildcard "*"
+			// specifically (not e.g. "s3:*", a common and often legitimate
+			// service-scoped wildcard) — "any action whatsoever" is the
+			// well-established dangerous pattern (cf. Checkov/cfn-nag),
+			// not merely a wildcard anywhere in a policy statement.
+			`"?[Aa]ctions?"?\s*[:=]\s*\[?\s*"\*"\s*\]?`,
+			"An Infrastructure-as-Code IAM/policy statement grants permission to perform any action whatsoever.",
+			"Scope the policy to exact, named actions; never grant a bare action wildcard."),
+		rule("SKIL-IAC-OPEN-CIDR", "Unrestricted full-internet CIDR range", "infrastructure-boundary", skil.SeverityMedium,
+			// Field names used for both ingress and egress rules across
+			// Terraform/CloudFormation/GCP, so this cannot reliably
+			// distinguish direction from a single line; kept at Medium
+			// (advisory) severity rather than asserting "ingress"
+			// specifically, since egress-to-anywhere is comparatively
+			// more common and less severe than open ingress.
+			`(?:cidr_blocks?|CidrIp|source_range)s?\s*[:=]\s*\[?\s*"?0\.0\.0\.0/0"?`,
+			"An Infrastructure-as-Code network rule references the full-internet CIDR range 0.0.0.0/0.",
+			"Scope the rule to specific, reviewed CIDR ranges rather than 0.0.0.0/0; confirm whether this is an ingress or egress rule and whether that exposure is intended."),
 	}}
 }
 
 func (b *Boundary) Metadata() skil.AnalyzerMetadata {
 	return skil.AnalyzerMetadata{
 		ID: "builtin.boundary", Version: "1.0.0",
+		Domain: "runtime-infra", Subdomain: "container-escape",
 		Categories:    []string{"infrastructure-boundary", "network-boundary", "agent-boundary"},
 		AnalysisTypes: []string{"boundary"}, SupportedTypes: []string{"text"},
 	}

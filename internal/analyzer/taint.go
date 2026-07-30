@@ -61,6 +61,7 @@ type fileFlow struct {
 func NewTaint() *Taint { return &Taint{} }
 func (t *Taint) Metadata() skil.AnalyzerMetadata {
 	return skil.AnalyzerMetadata{ID: "builtin.taint", Version: "2.0.0",
+		Domain: "code", Subdomain: "taint",
 		Categories: []string{"data-flow"}, AnalysisTypes: []string{"taint"},
 		SupportedTypes: []string{"py", "js", "jsx", "ts", "tsx"}}
 }

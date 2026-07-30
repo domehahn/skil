@@ -17,7 +17,8 @@ type Registry struct {
 func DefaultRegistry(vuln skil.VulnerabilityProvider) *Registry {
 	items := []skil.Analyzer{
 		NewPattern(), NewPythonAST(), NewStructuredAST(), NewTaint(), NewDependency(vuln), NewMCP(), NewBoundary(), NewUnicode(),
-		NewLocalSemantic(),
+		NewLocalSemantic(), NewModelArtifact(), NewSecret(), NewBuild(), NewIdentity(), NewLateral(), NewAsset(),
+		NewSkill(), NewToolCapability(), NewDataDataset(), NewRAGContext(), NewMultiAgent(), NewAuditEvidence(), NewPolicyEnforcement(),
 	}
 	return &Registry{analyzers: items}
 }
@@ -45,6 +46,47 @@ func (r *Registry) Metadata() []skil.AnalyzerMetadata {
 	return out
 }
 
+// Domains returns the unique set of domain identifiers registered.
+func (r *Registry) Domains() []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, a := range r.analyzers {
+		d := a.Metadata().Domain
+		if d != "" && !seen[d] {
+			seen[d] = true
+			out = append(out, d)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+// AnalyzersByDomain returns analyzers whose domain matches the given filter.
+func (r *Registry) AnalyzersByDomain(domain string) []skil.Analyzer {
+	var out []skil.Analyzer
+	for _, a := range r.analyzers {
+		if a.Metadata().Domain == domain {
+			out = append(out, a)
+		}
+	}
+	return out
+}
+
+// DomainCoverage returns domain -> completed/not_requested for all registered domains.
+func (r *Registry) DomainCoverage() map[string]skil.CoverageState {
+	out := map[string]skil.CoverageState{}
+	for _, a := range r.analyzers {
+		d := a.Metadata().Domain
+		if d == "" {
+			continue
+		}
+		if _, exists := out[d]; !exists {
+			out[d] = skil.CoverageNotRequested
+		}
+	}
+	return out
+}
+
 func (r *Registry) Scan(ctx context.Context, ac skil.AnalysisContext) (skil.ScanResult, error) {
 	nativeRules := nativeRuleIDs()
 	result := skil.ScanResult{
@@ -60,8 +102,23 @@ func (r *Registry) Scan(ctx context.Context, ac skil.AnalysisContext) (skil.Scan
 		},
 		Scanners: []string{"skil"},
 	}
+	domainFilter := ac.DomainFilter
+	filterSet := map[string]bool{}
+	for _, d := range domainFilter {
+		filterSet[d] = true
+	}
+	if len(domainFilter) > 0 {
+		for _, d := range r.Domains() {
+			if filterSet[d] {
+				result.Coverage["domain:"+d] = skil.CoverageNotRequested
+			}
+		}
+	}
 	for _, a := range r.analyzers {
 		meta := a.Metadata()
+		if len(domainFilter) > 0 && meta.Domain != "" && !filterSet[meta.Domain] {
+			continue
+		}
 		start := len(result.Inspection)
 		for _, file := range ac.Artifact.Files {
 			item := skil.InspectionWorkItem{
@@ -112,6 +169,9 @@ func (r *Registry) Scan(ctx context.Context, ac skil.AnalysisContext) (skil.Scan
 		for _, typ := range meta.AnalysisTypes {
 			result.Coverage[typ] = skil.CoverageCompleted
 		}
+		if len(domainFilter) > 0 && meta.Domain != "" && filterSet[meta.Domain] {
+			result.Coverage["domain:"+meta.Domain] = skil.CoverageCompleted
+		}
 	}
 	if ac.Contract == nil {
 		if advisory, ok := missingCapabilityDeclaration(result.Findings); ok {
@@ -132,6 +192,18 @@ func (r *Registry) Scan(ctx context.Context, ac skil.AnalysisContext) (skil.Scan
 	result.Maximum, result.RiskScore, result.Status = Risk(result.Findings, result.Coverage)
 	result.Verdict = Verdict(result.Maximum, result.RiskScore, result.Coverage)
 	return result, nil
+}
+
+func makeFinding(rule RulePattern, file skil.File, line int, matched string) skil.Finding {
+	fp := fingerprint(rule.Rule.ID, file.Path, strconv.Itoa(line), normalizeEvidence(matched))
+	return skil.Finding{
+		ID: "F-" + strings.ToUpper(fp[:12]), RuleID: rule.Rule.ID, Category: rule.Rule.Category,
+		Severity: rule.Rule.Severity, Confidence: rule.Confidence, Title: rule.Rule.Title,
+		Message: rule.Rule.Description, Description: rule.Rule.Description,
+		Location: skil.Location{File: file.Path, StartLine: line, EndLine: line},
+		Evidence: map[string]any{"match": truncate(matched, 160)}, Remediation: rule.Rule.Remediation,
+		References: rule.Rule.References, Fingerprint: fp,
+	}
 }
 
 func missingCapabilityDeclaration(findings []skil.Finding) (skil.Finding, bool) {
@@ -260,8 +332,6 @@ func nativeRuleKnown(rules []string, id string) bool {
 	return false
 }
 
-// Verdict is skil's native disposition. It deliberately uses boundaries that
-// follow the local threat model rather than a third-party score table.
 func Verdict(maximum skil.Severity, score int, coverage map[string]skil.CoverageState) skil.Verdict {
 	if maximum == skil.SeverityCritical || maximum == skil.SeverityHigh || score >= 40 {
 		return skil.VerdictBlock
@@ -309,16 +379,4 @@ func Risk(findings []skil.Finding, coverage map[string]skil.CoverageState) (skil
 		status = skil.StatusFail
 	}
 	return max, int(score + 0.5), status
-}
-
-func makeFinding(rule RulePattern, file skil.File, line int, matched string) skil.Finding {
-	fp := fingerprint(rule.Rule.ID, file.Path, strconv.Itoa(line), normalizeEvidence(matched))
-	return skil.Finding{
-		ID: "F-" + strings.ToUpper(fp[:12]), RuleID: rule.Rule.ID, Category: rule.Rule.Category,
-		Severity: rule.Rule.Severity, Confidence: rule.Confidence, Title: rule.Rule.Title,
-		Message: rule.Rule.Description, Description: rule.Rule.Description,
-		Location: skil.Location{File: file.Path, StartLine: line, EndLine: line},
-		Evidence: map[string]any{"match": truncate(matched, 160)}, Remediation: rule.Rule.Remediation,
-		References: rule.Rule.References, Fingerprint: fp,
-	}
 }

@@ -33,6 +33,9 @@
     "require_runtime_enforcement": {"type": "boolean"},
     "require_native_isolation": {"type": "boolean"},
     "maximum_containment_violation_rate": {"type": "number", "minimum": 0, "maximum": 1},
-    "require_zero_forbidden_side_effects": {"type": "boolean"}
+    "require_zero_forbidden_side_effects": {"type": "boolean"},
+    "required_domains": {"type": "array", "items": {"type": "string"}},
+    "allowed_domains": {"type": "array", "items": {"type": "string"}},
+    "forbidden_domains": {"type": "array", "items": {"type": "string"}}
   }
 }

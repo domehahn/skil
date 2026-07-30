@@ -75,6 +75,8 @@ type analysisFlags struct {
 	requireComplete      *bool
 	allowRemote          *bool
 	dependencyReputation *string
+	domain               *string
+	listDomains          *bool
 }
 
 func bindAnalysisFlags(fs *flag.FlagSet) analysisFlags {
@@ -100,7 +102,16 @@ func bindAnalysisFlags(fs *flag.FlagSet) analysisFlags {
 		requireComplete:      fs.Bool("require-complete", false, "fail the gate unless every applicable inspection work item completed"),
 		allowRemote:          fs.Bool("allow-remote", false, "explicitly permit a public HTTPS archive or Git source"),
 		dependencyReputation: fs.String("dependency-reputation", "", "trusted offline package-reputation JSON"),
+		domain:               fs.String("domain", "", "only run analyzers matching this taxonomy domain (comma-separated)"),
+		listDomains:          fs.Bool("list-domains", false, "list available taxonomy domains and exit"),
 	}
+}
+
+func domainFilter(f analysisFlags) []string {
+	if f.domain == nil || *f.domain == "" {
+		return nil
+	}
+	return strings.Split(*f.domain, ",")
 }
 
 func New(out, errOut io.Writer) *App {
@@ -191,8 +202,8 @@ Usage:
   skil validate <skill> [--format json]
   skil lint <skill> [--strict|--profile default|strict|portable|publish] [--format terminal|json|markdown|sarif] [--output file]
   skil lint-all <collection> [--profile default|strict|portable|publish] [--workers N] [--format terminal|json|markdown] [--output file]
-  skil scan <skill> [--full] [--static-only] [--osv] [--yara-rules file|--yara-rules-dir dir] [--semantic --semantic-model model] [--require-complete] [--allow-remote]
-             [--format terminal|json|markdown|sarif] [--compact] [--output file] [--baseline file] [--show-suppressed=false]
+   skil scan <skill> [--full] [--static-only] [--osv] [--yara-rules file|--yara-rules-dir dir] [--semantic --semantic-model model] [--require-complete] [--allow-remote]
+              [--format terminal|json|markdown|sarif] [--compact] [--output file] [--baseline file] [--show-suppressed=false] [--domain domain] [--list-domains]
   skil scan-all <collection> [analysis flags] [--workers N] [--format terminal|json|markdown] [--output file]
   skil serve (--stdio | --listen 127.0.0.1:port --token-env ENV) --root <directory>
   skil verify <skill> [--format json] [--osv] [--yara-rules file] [--semantic --semantic-model model]
@@ -443,6 +454,12 @@ func (a *App) scan(ctx context.Context, args []string) int {
 	if code := parse(fs, args, 1); code != ExitOK {
 		return code
 	}
+	if *analysis.listDomains {
+		for _, d := range analyzer.DefaultRegistry(nil).Domains() {
+			fmt.Fprintln(a.Out, d)
+		}
+		return ExitOK
+	}
 	result, _, err := a.performScanConfiguredExcluding(
 		ctx, fs.Arg(0), *baselinePath, analysis, scanOutputExcludes(fs.Arg(0), *output),
 	)
@@ -502,6 +519,12 @@ func (a *App) scanAll(ctx context.Context, args []string) int {
 	analysis := bindAnalysisFlags(fs)
 	if code := parse(fs, args, 1); code != ExitOK {
 		return code
+	}
+	if *analysis.listDomains {
+		for _, d := range analyzer.DefaultRegistry(nil).Domains() {
+			fmt.Fprintln(a.Out, d)
+		}
+		return ExitOK
 	}
 	if *format != "terminal" && *format != "json" && *format != "markdown" && *format != "md" {
 		return a.inputError(errors.New("scan-all supports terminal, json, or markdown output"))
@@ -605,6 +628,12 @@ func (a *App) verify(ctx context.Context, args []string) int {
 	if code := parse(fs, args, 1); code != ExitOK {
 		return code
 	}
+	if *analysis.listDomains {
+		for _, d := range analyzer.DefaultRegistry(nil).Domains() {
+			fmt.Fprintln(a.Out, d)
+		}
+		return ExitOK
+	}
 	scan, contract, err := a.performScanConfigured(ctx, fs.Arg(0), "", analysis)
 	if err != nil {
 		return a.inputError(err)
@@ -636,6 +665,12 @@ func (a *App) attest(ctx context.Context, args []string) int {
 	analysis := bindAnalysisFlags(fs)
 	if code := parse(fs, args, 1); code != ExitOK {
 		return code
+	}
+	if *analysis.listDomains {
+		for _, d := range analyzer.DefaultRegistry(nil).Domains() {
+			fmt.Fprintln(a.Out, d)
+		}
+		return ExitOK
 	}
 	scan, _, err := a.performScanConfigured(ctx, fs.Arg(0), "", analysis)
 	if err != nil {
@@ -849,6 +884,12 @@ func (a *App) installOrUpdate(ctx context.Context, args []string, replace bool) 
 	analysis := bindAnalysisFlags(fs)
 	if code := parse(fs, args, 1); code != ExitOK {
 		return code
+	}
+	if *analysis.listDomains {
+		for _, d := range analyzer.DefaultRegistry(nil).Domains() {
+			fmt.Fprintln(a.Out, d)
+		}
+		return ExitOK
 	}
 	if *destination == "" || *policyPath == "" || *packageSignaturePath == "" || *attestationPath == "" || *provenancePath == "" {
 		return a.inputError(errors.New("--destination, --policy, --package-signature, --attestation, and --provenance are required"))
@@ -1160,6 +1201,12 @@ func (a *App) policyCheck(ctx context.Context, args []string) int {
 	if code := parse(fs, args[1:], 1); code != ExitOK {
 		return code
 	}
+	if *analysis.listDomains {
+		for _, d := range analyzer.DefaultRegistry(nil).Domains() {
+			fmt.Fprintln(a.Out, d)
+		}
+		return ExitOK
+	}
 	if *path == "" {
 		return a.inputError(errors.New("--policy is required"))
 	}
@@ -1452,6 +1499,12 @@ func (a *App) assure(ctx context.Context, args []string) int {
 	if code := parse(fs, args, 1); code != ExitOK {
 		return code
 	}
+	if *analysis.listDomains {
+		for _, d := range analyzer.DefaultRegistry(nil).Domains() {
+			fmt.Fprintln(a.Out, d)
+		}
+		return ExitOK
+	}
 	if strings.TrimSpace(*runtimeCommand) == "" {
 		return a.inputError(errors.New("assure requires --runtime-command for a real isolated agent adapter"))
 	}
@@ -1653,7 +1706,7 @@ func (a *App) performScanConfiguredExcluding(
 	}
 	result, contract, err := a.performScanWithRegistryOptions(ctx, staged, baselinePath, registry, artifact.Options{
 		Exclude: configuredExcludes,
-	})
+	}, domainFilter(flags))
 	if staged != source {
 		result.Artifact.Source = source
 		result.Artifact.Repository = source
@@ -1841,7 +1894,7 @@ func (p combinedDependencyProvider) Reputation(ctx context.Context, ecosystem, n
 func (a *App) performScanWithRegistry(ctx context.Context, source, baselinePath string, registry *analyzer.Registry) (skil.ScanResult, *skil.SkillContract, error) {
 	return a.performScanWithRegistryOptions(ctx, source, baselinePath, registry, artifact.Options{
 		Exclude: []string{"vendor/**", "node_modules/**"},
-	})
+	}, nil)
 }
 
 func (a *App) performScanWithRegistryOptions(
@@ -1849,6 +1902,7 @@ func (a *App) performScanWithRegistryOptions(
 	source, baselinePath string,
 	registry *analyzer.Registry,
 	options artifact.Options,
+	domainFilter []string,
 ) (skil.ScanResult, *skil.SkillContract, error) {
 	art, err := artifact.Load(source, options)
 	if err != nil {
@@ -1858,7 +1912,7 @@ func (a *App) performScanWithRegistryOptions(
 	if contractErr != nil {
 		contract = nil
 	}
-	result, err := registry.Scan(ctx, skil.AnalysisContext{Artifact: art, Contract: contract})
+	result, err := registry.Scan(ctx, skil.AnalysisContext{Artifact: art, Contract: contract, DomainFilter: domainFilter})
 	if err != nil {
 		return result, contract, err
 	}

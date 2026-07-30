@@ -15,6 +15,12 @@ func BuiltinRules() []skil.Rule {
 	out = append(out, NewPythonAST().Rules()...)
 	out = append(out, NewStructuredAST().Rules()...)
 	out = append(out, NewBoundary().Rules()...)
+	out = append(out, NewModelArtifact().Rules()...)
+	out = append(out, NewSecret().Rules()...)
+	out = append(out, NewBuild().Rules()...)
+	out = append(out, NewIdentity().Rules()...)
+	out = append(out, NewLateral().Rules()...)
+	out = append(out, NewAsset().Rules()...)
 	out = append(out, nativeSupplementalRules()...)
 	byID := make(map[string]skil.Rule, len(out))
 	for _, rule := range out {
@@ -40,6 +46,7 @@ func nativeSupplementalRules() []skil.Rule {
 		{ID: "SKIL-DEP-002", Title: "Suspicious dependency name", Category: "dependency-trust", Severity: skil.SeverityHigh, Analysis: "dependency", Description: "A dependency resembles a deceptive package identity.", Remediation: "Verify the package identity and publisher."},
 		{ID: "SKIL-DEP-ABANDONED", Title: "Abandoned dependency", Category: "dependency-trust", Severity: skil.SeverityMedium, Analysis: "dependency", Description: "Package reputation metadata marks the dependency as abandoned.", Remediation: "Replace the package with an actively maintained alternative."},
 		{ID: "SKIL-DEP-VULN", Title: "Known vulnerable dependency", Category: "dependency-trust", Severity: skil.SeverityHigh, Analysis: "dependency", Description: "A vulnerability provider reported a known issue.", Remediation: "Upgrade to a patched version."},
+		{ID: "SKIL-DEP-MALICIOUS", Title: "Malicious dependency", Category: "dependency-trust", Severity: skil.SeverityCritical, Analysis: "dependency", Description: "A malicious-package advisory reports the dependency itself is hostile, not merely vulnerable.", Remediation: "Remove the package entirely; do not merely upgrade it."},
 		{ID: "SKIL-CONTAINER-TRUST", Title: "Disabled container trust", Category: "supply-chain-integrity", Severity: skil.SeverityHigh, Analysis: "ast", Description: "Container content trust or registry verification is disabled.", Remediation: "Use immutable image digests and verified signatures."},
 		{ID: "SKIL-MCP-001", Title: "Wildcard MCP permission", Category: "tool-protocol", Severity: skil.SeverityHigh, Analysis: "mcp", Description: "MCP configuration grants an unconstrained wildcard.", Remediation: "Declare exact servers and tools."},
 		{ID: "SKIL-MCP-002", Title: "MCP metadata instruction injection", Category: "tool-protocol", Severity: skil.SeverityCritical, Analysis: "mcp", Description: "A tool description embeds manipulative instructions.", Remediation: "Remove instructions and bind descriptions to reviewed behavior."},
@@ -47,6 +54,7 @@ func nativeSupplementalRules() []skil.Rule {
 		{ID: "SKIL-MCP-004", Title: "MCP parameter description injection", Category: "tool-protocol", Severity: skil.SeverityCritical, Analysis: "mcp", Description: "An MCP parameter description requests secrets or credentials.", Remediation: "Remove credential-collection instructions from parameter metadata."},
 		{ID: "SKIL-MCP-005", Title: "MCP tool metadata rug pull", Category: "tool-protocol", Severity: skil.SeverityCritical, Analysis: "mcp", Description: "MCP metadata differs from its reviewed immutable lock.", Remediation: "Re-review metadata before updating the lock."},
 		{ID: "SKIL-MCP-006", Title: "MCP description and behavior mismatch", Category: "tool-protocol", Severity: skil.SeverityHigh, Analysis: "mcp", Description: "MCP implementation behavior exceeds its reviewed description.", Remediation: "Align behavior and description."},
+		{ID: "SKIL-MCP-007", Title: "Excessive MCP parameter description length", Category: "tool-protocol", Severity: skil.SeverityMedium, Analysis: "mcp", Description: "A parameter description is unusually long, which can conceal an embedded instruction payload.", Remediation: "Keep parameter descriptions short and limited to describing the parameter's value."},
 		{ID: "SKIL-UNI-001", Title: "Unicode deception control", Category: "artifact-integrity", Severity: skil.SeverityHigh, Analysis: "pattern", Description: "Text contains invisible or bidirectional control characters.", Remediation: "Remove or explicitly justify the controls."},
 		{ID: "SKIL-OBF-001", Title: "Encoded security-sensitive instruction", Category: "instruction-integrity", Severity: skil.SeverityHigh, Analysis: "pattern", Description: "Encoded content contains security-sensitive instructions.", Remediation: "Use reviewable plaintext and remove malicious instructions."},
 		{ID: "SKIL-INTENT-DESCRIPTION", Title: "Description and behavior conflict", Category: "intent-integrity", Severity: skil.SeverityMedium, Analysis: "semantic", Description: "Observed behavior conflicts with the stated purpose.", Remediation: "Align the implementation and the reviewed description."},
@@ -88,6 +96,24 @@ func NativeControlImplementations() map[string]ControlImplementation {
 	for _, rule := range NewBoundary().Rules() {
 		out[rule.ID] = ControlImplementation{Engine: "builtin.boundary"}
 	}
+	for _, rule := range NewModelArtifact().Rules() {
+		out[rule.ID] = ControlImplementation{Engine: "builtin.model-artifact"}
+	}
+	for _, rule := range NewSecret().Rules() {
+		out[rule.ID] = ControlImplementation{Engine: "builtin.secret"}
+	}
+	for _, rule := range NewBuild().Rules() {
+		out[rule.ID] = ControlImplementation{Engine: "builtin.build"}
+	}
+	for _, rule := range NewIdentity().Rules() {
+		out[rule.ID] = ControlImplementation{Engine: "builtin.identity"}
+	}
+	for _, rule := range NewLateral().Rules() {
+		out[rule.ID] = ControlImplementation{Engine: "builtin.lateral"}
+	}
+	for _, rule := range NewAsset().Rules() {
+		out[rule.ID] = ControlImplementation{Engine: "builtin.asset"}
+	}
 	for _, id := range []string{"SKIL-PY-001", "SKIL-PY-002", "SKIL-PY-003", "SKIL-PY-004"} {
 		out[id] = ControlImplementation{Engine: "builtin.python-ast"}
 	}
@@ -100,6 +126,7 @@ func NativeControlImplementations() map[string]ControlImplementation {
 		"SKIL-DEP-002":                 {Engine: "builtin.dependency"},
 		"SKIL-DEP-ABANDONED":           {Engine: "reputation-provider", ProviderBacked: true},
 		"SKIL-DEP-VULN":                {Engine: "vulnerability-provider", ProviderBacked: true},
+		"SKIL-DEP-MALICIOUS":           {Engine: "vulnerability-provider", ProviderBacked: true},
 		"SKIL-CONTAINER-TRUST":         {Engine: "builtin.structured-ast"},
 		"SKIL-MCP-001":                 {Engine: "builtin.mcp"},
 		"SKIL-MCP-002":                 {Engine: "builtin.mcp"},
@@ -107,6 +134,7 @@ func NativeControlImplementations() map[string]ControlImplementation {
 		"SKIL-MCP-004":                 {Engine: "builtin.mcp"},
 		"SKIL-MCP-005":                 {Engine: "builtin.mcp"},
 		"SKIL-MCP-006":                 {Engine: "builtin.mcp"},
+		"SKIL-MCP-007":                 {Engine: "builtin.mcp"},
 		"SKIL-UNI-001":                 {Engine: "builtin.unicode"},
 		"SKIL-OBF-001":                 {Engine: "builtin.unicode"},
 		"SKIL-INTENT-DESCRIPTION":      {Engine: "semantic-provider", ProviderBacked: true},

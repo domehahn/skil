@@ -133,7 +133,9 @@ func NewBuiltinYARA(binary string) (*YARA, error) {
 }
 
 func (y *YARA) Metadata() skil.AnalyzerMetadata {
-	return skil.AnalyzerMetadata{ID: "builtin.yara", Version: "1.0.0", Categories: []string{"malware"},
+	return skil.AnalyzerMetadata{ID: "builtin.yara", Version: "1.0.0",
+		Domain: "asset-malware", Subdomain: "malware",
+		Categories: []string{"malware"},
 		AnalysisTypes: []string{"malware"}, SupportedTypes: []string{"*"}}
 }
 

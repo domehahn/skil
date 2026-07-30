@@ -48,6 +48,9 @@ type Policy struct {
 	RequireNativeIsolation          bool                `json:"require_native_isolation,omitempty" yaml:"require_native_isolation,omitempty"`
 	MaximumContainmentViolationRate *float64            `json:"maximum_containment_violation_rate,omitempty" yaml:"maximum_containment_violation_rate,omitempty"`
 	RequireZeroForbiddenSideEffects bool                `json:"require_zero_forbidden_side_effects,omitempty" yaml:"require_zero_forbidden_side_effects,omitempty"`
+	RequiredDomains                 []string            `json:"required_domains,omitempty" yaml:"required_domains,omitempty"`
+	AllowedDomains                  []string            `json:"allowed_domains,omitempty" yaml:"allowed_domains,omitempty"`
+	ForbiddenDomains                []string            `json:"forbidden_domains,omitempty" yaml:"forbidden_domains,omitempty"`
 }
 type Violation struct {
 	Rule     string `json:"rule" yaml:"rule"`
@@ -222,6 +225,33 @@ func Check(p Policy, in Input) Result {
 		for _, capability := range observedNames(observed) {
 			if !contains(p.AllowedCapabilities, capability) {
 				add("allowed-capability", p.AllowedCapabilities, capability, "observed capability is outside the allowlist")
+			}
+		}
+	}
+	for _, required := range p.RequiredDomains {
+		if in.Scan.Coverage["domain:"+required] != skil.CoverageCompleted {
+			add("required-domain", required, in.Scan.Coverage["domain:"+required], "required domain analysis was not completed")
+		}
+	}
+	if len(p.AllowedDomains) > 0 {
+		for domain, state := range in.Scan.Coverage {
+			if !strings.HasPrefix(domain, "domain:") {
+				continue
+			}
+			d := strings.TrimPrefix(domain, "domain:")
+			if state == skil.CoverageCompleted && !contains(p.AllowedDomains, d) {
+				add("allowed-domain", p.AllowedDomains, d, "domain analysis was completed but domain is outside the allowlist")
+			}
+		}
+	}
+	if len(p.ForbiddenDomains) > 0 {
+		for domain, state := range in.Scan.Coverage {
+			if !strings.HasPrefix(domain, "domain:") {
+				continue
+			}
+			d := strings.TrimPrefix(domain, "domain:")
+			if state == skil.CoverageCompleted && contains(p.ForbiddenDomains, d) {
+				add("forbidden-domain", d, true, "forbidden domain analysis produced coverage")
 			}
 		}
 	}

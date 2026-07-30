@@ -99,6 +99,41 @@ func TestDependencyVulnerabilityProvider(t *testing.T) {
 	}
 }
 
+type maliciousPackageProvider struct{}
+
+func (maliciousPackageProvider) ID() string { return "test-malicious" }
+func (maliciousPackageProvider) Query(context.Context, string, string, string) ([]skil.Vulnerability, error) {
+	return []skil.Vulnerability{{
+		ID: "MAL-2024-1234", Aliases: []string{"MAL-2024-1234"},
+		Summary: "package is malicious", Severity: skil.SeverityCritical,
+	}}, nil
+}
+
+func TestMaliciousPackageAdvisoryIsDistinctFromOrdinaryVulnerability(t *testing.T) {
+	artifact := artifactWith("requirements.txt", "demo==1.0.0\n")
+	findings, err := NewDependency(maliciousPackageProvider{}).Analyze(context.Background(), skil.AnalysisContext{Artifact: artifact})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasRule(findings, "SKIL-DEP-MALICIOUS") {
+		t.Fatalf("expected a MAL- advisory to produce SKIL-DEP-MALICIOUS, not the generic vulnerable-dependency rule: %#v", findings)
+	}
+	if hasRule(findings, "SKIL-DEP-VULN") {
+		t.Fatalf("a malicious-package advisory should not also be reported as an ordinary vulnerability: %#v", findings)
+	}
+}
+
+func TestOrdinaryVulnerabilityStaysSeparateFromMaliciousRule(t *testing.T) {
+	artifact := artifactWith("requirements.txt", "demo==1.0.0\n")
+	findings, err := NewDependency(vulnerabilityProvider{}).Analyze(context.Background(), skil.AnalysisContext{Artifact: artifact})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hasRule(findings, "SKIL-DEP-MALICIOUS") {
+		t.Fatalf("an ordinary GHSA vulnerability should not be reported as malicious: %#v", findings)
+	}
+}
+
 func TestDependencyControlMatrixNegativeCases(t *testing.T) {
 	findings, err := NewDependency(cleanVulnerabilityProvider{}).Analyze(context.Background(), skil.AnalysisContext{
 		Artifact: artifactWith("requirements.txt", "requests==2.32.4\n"),

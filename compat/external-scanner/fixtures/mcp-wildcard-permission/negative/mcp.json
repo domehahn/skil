@@ -1,0 +1,1 @@
+{"permissions": ["weather.read"], "tools": [{"name": "weather"}]}

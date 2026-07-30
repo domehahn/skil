@@ -186,10 +186,15 @@ func buildIntentRules() []RulePattern {
 			`(?:detect|reject|block|prevent|test|limit|protect).{0,50}(?:fork bomb|denial of service|resource exhaustion)`,
 			"Instructions deliberately exhaust compute, storage, process, or connection resources.",
 			"Remove the exhaustion objective and enforce bounded load testing in an isolated target."),
+		r("SKIL-ABUSE-PHYSICAL-HARM", "Physical-harm operational instruction", "abuse-prevention", skil.SeverityCritical,
+			`(?:add|mix|include|incorporate|stir)\s+(?:\w+\s+){0,3}(?:poison|toxin|a\s+lethal\s+dose|a\s+harmful\s+substance|cyanide|arsenic|ricin|botulinum|strychnine|thallium|polonium|sarin|vx\s+gas|mustard\s+gas|anthrax|deadly\s+nightshade|aconite|hemlock|oleander)\s+(?:in|into|to)\s+(?:\w+\s+){0,4}(?:food|drink|meal|recipe|dish)|mix\s+(?:bleach\s+(?:and|with)\s+ammonia|ammonia\s+(?:and|with)\s+bleach)|(?:drink|consume|ingest)\s+(?:the\s+)?(?:bleach|antifreeze|drain\s+cleaner)|(?:you\s+should|try\s+to|please)\s+(?:hurt|harm|injure)\s+yourself|(?:cut|burn|starve)\s+yourself|(?:instructions?\s+(?:for|to|on)\s+)?(?:make|build|create|assemble)\s+(?:a\s+)?(?:bomb|explosive\s+device|pipe\s+bomb)|(?:how\s+to\s+)?(?:poison|murder)\s+(?:someone|a\s+person|people)`,
+			`(?:detect|reject|block|prevent|warn\s+against|do\s+not|never|refuse).{0,60}(?:poison|bomb|explosive|harm\s+yourself|bleach\s+(?:and|with)\s+ammonia)|poison\s+control|safety\s+data\s+sheet|\bMSDS\b`,
+			"Instructions provide actionable operational guidance for causing physical harm (poisoning, self-harm, explosive construction), not merely discussion of a harmful subject.",
+			"Remove the operational harmful-content objective; safety documentation, historical discussion, and defensive analysis remain unaffected."),
 		r("SKIL-PI-003", "Role-token instruction spoofing", "instruction-integrity", skil.SeverityHigh,
-			`^\s*(?:system|assistant|developer|root)\s*:\s*.{0,60}?(?:grant|escalate|elevate|ignore|disregard|override|reveal|disable|bypass)\b`,
-			`(?:do\s+not|never|example|detect|reject).{0,40}(?:system|assistant|developer)\s*:`,
-			"A fabricated role-prefixed line attempts to inject a privileged directive.",
+			`^\s*(?:system|assistant|developer|root)\s*:\s*.{0,60}?(?:grant|escalate|elevate|ignore|disregard|override|reveal|disable|bypass)\b|</?(?:system|assistant|developer)>|\[/?(?:INST|SYSTEM|ASSISTANT)\]`,
+			`(?:do\s+not|never|example|detect|reject).{0,40}(?:(?:system|assistant|developer)\s*:|</?(?:system|assistant|developer)>|\[/?(?:INST|SYSTEM|ASSISTANT)\])`,
+			"A fabricated role-prefixed line or prompt-formatting control token attempts to inject a privileged directive.",
 			"Strip role-token prefixes from untrusted content before it reaches the model."),
 		r("SKIL-AGENCY-PRIVILEGE", "Privilege escalation request", "action-control", skil.SeverityHigh,
 			`(?:grant|escalate|elevate)\s+(?:admin|root|elevated|superuser)\s+(?:privileges?|access|rights?)`,
@@ -221,6 +226,7 @@ func buildIntentRules() []RulePattern {
 
 func (p *Pattern) Metadata() skil.AnalyzerMetadata {
 	return skil.AnalyzerMetadata{ID: "builtin.pattern", Version: "1.0.0",
+		Domain: "instruction", Subdomain: "prompt-injection",
 		Categories:    []string{"instruction-integrity", "instruction-confidentiality", "data-boundary", "state-integrity", "activation-integrity", "action-control", "output-trust", "control-integrity", "persistence", "secure-defaults", "abuse-prevention"},
 		AnalysisTypes: []string{"pattern"}, SupportedTypes: []string{"md", "txt", "yaml", "json"}}
 }

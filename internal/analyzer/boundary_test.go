@@ -161,3 +161,53 @@ func TestOrdinaryLocalFileWriteIsNotCloudUpload(t *testing.T) {
 		t.Fatalf("an ordinary local file write should not fire: %#v", findings)
 	}
 }
+
+func TestPodSecurityContextEscapesAreDetected(t *testing.T) {
+	cases := []string{
+		"runAsUser: 0\n",
+		"allowPrivilegeEscalation: true\n",
+		"automountServiceAccountToken: true\n",
+		"capabilities:\n  add: [\"SYS_ADMIN\"]\n",
+	}
+	for _, content := range cases {
+		findings := analyzeBoundary(t, "pod.yaml", content)
+		if !hasRule(findings, "SKIL-BOUNDARY-CONTAINER-ESCAPE") {
+			t.Fatalf("expected pod security-context escape to be detected in %q: %#v", content, findings)
+		}
+	}
+}
+
+func TestOrdinaryPodSecurityContextIsSafe(t *testing.T) {
+	findings := analyzeBoundary(t, "pod.yaml", "runAsUser: 1000\nallowPrivilegeEscalation: false\n")
+	if hasRule(findings, "SKIL-BOUNDARY-CONTAINER-ESCAPE") {
+		t.Fatalf("a non-root, non-escalating security context should not fire: %#v", findings)
+	}
+}
+
+func TestWildcardIAMActionIsDetected(t *testing.T) {
+	findings := analyzeBoundary(t, "main.tf", `Action = "*"`+"\n")
+	if !hasRule(findings, "SKIL-IAC-WILDCARD-POLICY") {
+		t.Fatalf("expected a bare wildcard IAM action to be detected: %#v", findings)
+	}
+}
+
+func TestServiceScopedIAMWildcardIsSafe(t *testing.T) {
+	findings := analyzeBoundary(t, "main.tf", `Action = "s3:*"`+"\n")
+	if hasRule(findings, "SKIL-IAC-WILDCARD-POLICY") {
+		t.Fatalf("a service-scoped wildcard like s3:* should not fire the bare-wildcard rule: %#v", findings)
+	}
+}
+
+func TestOpenCIDRRangeIsDetected(t *testing.T) {
+	findings := analyzeBoundary(t, "main.tf", `cidr_blocks = ["0.0.0.0/0"]`+"\n")
+	if !hasRule(findings, "SKIL-IAC-OPEN-CIDR") {
+		t.Fatalf("expected an open 0.0.0.0/0 CIDR range to be detected: %#v", findings)
+	}
+}
+
+func TestScopedCIDRRangeIsSafe(t *testing.T) {
+	findings := analyzeBoundary(t, "main.tf", `cidr_blocks = ["10.0.0.0/16"]`+"\n")
+	if hasRule(findings, "SKIL-IAC-OPEN-CIDR") {
+		t.Fatalf("a scoped private CIDR range should not fire: %#v", findings)
+	}
+}

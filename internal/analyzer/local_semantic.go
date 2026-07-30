@@ -20,6 +20,7 @@ func NewLocalSemantic() *LocalSemantic { return &LocalSemantic{} }
 func (*LocalSemantic) Metadata() skil.AnalyzerMetadata {
 	return skil.AnalyzerMetadata{
 		ID: "builtin.local-semantic", Version: "1.0.0",
+		Domain: "behavioral", Subdomain: "hidden-triggers",
 		Categories:    []string{"intent-integrity", "semantic-composition"},
 		AnalysisTypes: []string{"semantic"}, SupportedTypes: []string{"text"},
 	}

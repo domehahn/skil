@@ -169,14 +169,17 @@ type ScanResult struct {
 type AnalyzerMetadata struct {
 	ID             string   `json:"id"`
 	Version        string   `json:"version"`
+	Domain         string   `json:"domain,omitempty"`
+	Subdomain      string   `json:"subdomain,omitempty"`
 	Categories     []string `json:"categories"`
 	AnalysisTypes  []string `json:"analysis_types"`
 	SupportedTypes []string `json:"supported_file_types"`
 }
 
 type AnalysisContext struct {
-	Artifact Artifact
-	Contract *SkillContract
+	Artifact     Artifact
+	Contract     *SkillContract
+	DomainFilter []string // empty = all domains; non-empty = only run analyzers matching these domains
 }
 
 type Analyzer interface {
@@ -207,6 +210,16 @@ type CapabilityObservation struct {
 // for any capability no ObservationAnalyzer reports on.
 type ObservationAnalyzer interface {
 	AnalyzeCapabilities(context.Context, AnalysisContext) ([]Finding, []CapabilityObservation, error)
+}
+
+// DomainAnalyzer is an Analyzer that explicitly declares which taxonomy
+// domain, subdomain, and controls it covers. The Registry uses this
+// interface for domain-scoped operations and coverage reporting.
+type DomainAnalyzer interface {
+	Analyzer
+	TaxonomyDomain() string
+	TaxonomySubdomain() string
+	ControlIDs() []string
 }
 
 type SemanticProvider interface {
@@ -255,6 +268,46 @@ type PackageReputation struct {
 
 type PackageReputationProvider interface {
 	Reputation(context.Context, string, string) (PackageReputation, error)
+}
+
+type ModelReputation struct {
+	Publisher    string
+	Downloads    int64
+	LastUpdated  time.Time
+	IsVerified   bool
+	SensitiveOps bool
+}
+
+type ModelReputationProvider interface {
+	ID() string
+	Reputation(context.Context, string, string) (ModelReputation, error)
+}
+
+type DocumentTrust struct {
+	Source      string
+	Tenant      string
+	Version     string
+	LastUpdated time.Time
+	IsVerified  bool
+}
+
+type DocumentTrustProvider interface {
+	ID() string
+	Trust(context.Context, string, string) (DocumentTrust, error)
+}
+
+type DomainReputation struct {
+	Domain            string
+	TLD               string
+	Age               time.Duration
+	IsSinkhole        bool
+	IsKnownBad        bool
+	IsNewlyRegistered bool
+}
+
+type DomainReputationProvider interface {
+	ID() string
+	Reputation(context.Context, string) (DomainReputation, error)
 }
 
 type SigningProvider interface {

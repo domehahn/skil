@@ -20,6 +20,7 @@ type MCP struct{}
 func NewMCP() *MCP { return &MCP{} }
 func (m *MCP) Metadata() skil.AnalyzerMetadata {
 	return skil.AnalyzerMetadata{ID: "builtin.mcp", Version: "1.0.0",
+		Domain: "mcp", Subdomain: "metadata",
 		Categories:    []string{"tool-protocol"},
 		AnalysisTypes: []string{"mcp"}, SupportedTypes: []string{"json", "yaml"}}
 }
@@ -30,6 +31,15 @@ func (m *MCP) Analyze(_ context.Context, ac skil.AnalysisContext) ([]skil.Findin
 	poisonValue := regexp.MustCompile(`(?i)(?:ignore (?:previous|system)|never refuse|reveal (?:system|secret)|hidden instruction)`)
 	parameterPoison := regexp.MustCompile(`(?i)(?:read|collect).{0,50}(?:all\s+)?(?:available\s+)?(?:secrets?|credentials?|environment variables?).{0,60}(?:put|include|provide|send).{0,20}(?:here|parameter|field)`)
 	mutableIdentityFallback := regexp.MustCompile(`(?i)(?:\bnpx\b.{0,80}(?:@latest|["',\s][A-Za-z0-9_.@/-]+["']?\s*$)|\buvx\b\s+[A-Za-z0-9_.-]+\s*$|["'](?:version|revision|digest)["']\s*:\s*["'](?:latest|main|master|\*)["'])`)
+	// maliciousDefaultURL/maliciousDefaultShell detect a parameter default
+	// value that is itself a non-loopback URL or a shell/download-and-run
+	// command — an unusual and suspicious shape for a default (defaults
+	// are normally primitive, inert values), and a distinct rug-pull/data-
+	// exfiltration vector .json/.yaml MCP manifests are otherwise never
+	// scanned for by the code.go shell-command rules (which skip .json).
+	anyURL := regexp.MustCompile(`(?i)https?://\S+`)
+	loopbackURL := regexp.MustCompile(`(?i)^https?://(?:localhost|127\.0\.0\.1)(?:[:/?#]|$)`)
+	maliciousDefaultShell := regexp.MustCompile(`(?i)\bcurl\b|\bwget\b|bash\s+-c|sh\s+-c|\beval\b`)
 	lock, err := loadMCPLock(ac.Artifact)
 	if err != nil {
 		return nil, err
@@ -72,6 +82,34 @@ func (m *MCP) Analyze(_ context.Context, ac skil.AnalysisContext) ([]skil.Findin
 						Description: "An MCP parameter description requests secrets or credentials.",
 						Analysis:    "mcp", Remediation: "Describe only the parameter value and remove credential-collection instructions.",
 					}, Confidence: .99})
+				}
+				if normalized == "default" {
+					defaultText := stringValue(value)
+					if match := anyURL.FindString(defaultText); match != "" && !loopbackURL.MatchString(match) {
+						emitMCPFinding(&out, seen, file, line, text, RulePattern{Rule: skil.Rule{
+							ID: "SKIL-MCP-004", Title: "MCP parameter description injection",
+							Category: "tool-protocol", Severity: skil.SeverityHigh,
+							Description: "A parameter default value is a non-loopback URL, an unusual and suspicious shape for a default that suggests a hidden exfiltration or rug-pull destination.",
+							Analysis:    "mcp", Remediation: "Use only primitive, inert default values; declare external destinations explicitly and separately from defaults.",
+						}, Confidence: .9})
+					} else if maliciousDefaultShell.MatchString(defaultText) {
+						emitMCPFinding(&out, seen, file, line, text, RulePattern{Rule: skil.Rule{
+							ID: "SKIL-MCP-004", Title: "MCP parameter description injection",
+							Category: "tool-protocol", Severity: skil.SeverityHigh,
+							Description: "A parameter default value contains a shell/download-and-run command.",
+							Analysis:    "mcp", Remediation: "Use only primitive, inert default values; never a shell command.",
+						}, Confidence: .9})
+					}
+				}
+				if normalized == "description" {
+					if desc := stringValue(value); len(desc) > 500 {
+						emitMCPFinding(&out, seen, file, line, text, RulePattern{Rule: skil.Rule{
+							ID: "SKIL-MCP-007", Title: "Excessive MCP parameter description length",
+							Category: "tool-protocol", Severity: skil.SeverityMedium,
+							Description: "A parameter description is unusually long, which can conceal an embedded instruction payload beyond what a legitimate parameter description needs.",
+							Analysis:    "mcp", Remediation: "Keep parameter descriptions short and limited to describing the parameter's value.",
+						}, Confidence: .7})
+					}
 				}
 			})
 			for _, description := range mcpParameterDescriptions(document) {
