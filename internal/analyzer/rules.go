@@ -69,6 +69,17 @@ func nativeSupplementalRules() []skil.Rule {
 		{ID: "SKIL-UNI-003", Title: "Unicode tag instruction smuggling", Category: "instruction-integrity", Severity: skil.SeverityHigh, Analysis: "pattern", Description: "Unicode tag characters conceal a security-sensitive instruction.", Remediation: "Remove tag characters and keep instructions visible."},
 		{ID: "SKIL-CAP-001", Title: "Undeclared capability", Category: "contract-conformance", Severity: skil.SeverityHigh, Analysis: "verification", Description: "Observed behavior is outside the declared contract.", Remediation: "Remove or explicitly constrain the capability."},
 		{ID: "SKIL-CAP-DECLARATION-MISSING", Title: "Capability declaration missing", Category: "contract-conformance", Severity: skil.SeverityMedium, Analysis: "verification", Description: "Security-sensitive behavior exists without a skill contract.", Remediation: "Add a narrowly scoped skill contract."},
+		{ID: "SKIL-TAINT-PRIVILEGED-CONTEXT", Title: "Privileged context reaches external sink", Category: "data-flow", Severity: skil.SeverityCritical, Analysis: "taint", Description: "System prompt, developer instructions, or privileged context flows to a network, file, tool, or log sink.", Remediation: "Constrain privileged context to local processing only."},
+		{ID: "SKIL-TAINT-OUTPUT-EXECUTION", Title: "LLM output reaches execution sink", Category: "data-flow", Severity: skil.SeverityCritical, Analysis: "taint", Description: "Model or tool output flows to an exec, eval, shell, SQL, or HTML-rendering sink without validation.", Remediation: "Validate and encode LLM output before any execution or rendering sink."},
+		{ID: "SKIL-TAINT-OUTPUT-CROSS-AGENT", Title: "LLM output reaches another agent", Category: "multi-agent", Severity: skil.SeverityHigh, Analysis: "taint", Description: "Model or tool output is forwarded to another agent without validation or trust boundary enforcement.", Remediation: "Validate, label, and constrain cross-agent output to prevent injection."},
+		{ID: "SKIL-PI-HIDDEN-COMMENT", Title: "Hidden instruction in render-suppressed region", Category: "instruction-integrity", Severity: skil.SeverityCritical, Analysis: "pattern", Description: "An HTML or Markdown comment contains security-sensitive instructions invisible when rendered.", Remediation: "Remove hidden instructions or make them visible for review."},
+		{ID: "SKIL-TRIGGER-LOCK-DIFF", Title: "Trigger surface changed from lock", Category: "activation-integrity", Severity: skil.SeverityHigh, Analysis: "trigger", Description: "The declared trigger set differs from the reviewed baseline or lock.", Remediation: "Re-review triggers and update the lock."},
+		{ID: "SKIL-RESOURCE-UNLIMITED", Title: "Unlimited resource allocation", Category: "resource-boundary", Severity: skil.SeverityMedium, Analysis: "resource-config", Description: "A resource limit is set to None, null, or infinity allowing unbounded consumption.", Remediation: "Set finite resource limits aligned with the operational budget."},
+		{ID: "SKIL-RESOURCE-TIMEOUT", Title: "Disabled timeout or retry bound", Category: "resource-boundary", Severity: skil.SeverityMedium, Analysis: "resource-config", Description: "A timeout or retry parameter is unset or unbounded risking resource starvation.", Remediation: "Set explicit finite timeouts and retry limits."},
+		{ID: "SKIL-RESOURCE-UNBOUNDED-LOOP", Title: "Unbounded loop or recursion risk", Category: "resource-boundary", Severity: skil.SeverityHigh, Analysis: "resource-config", Description: "Code or configuration allows unbounded retries polling or recursion without a termination condition.", Remediation: "Add max-iterations timeout or circuit-breaker to bound the loop."},
+		{ID: "SKIL-MEMORY-FALSE-RESET", Title: "Simulated memory reset", Category: "state-integrity", Severity: skil.SeverityHigh, Analysis: "pattern", Description: "Instructions ask the agent to simulate memory loss while retaining execution context enabling false-deniability.", Remediation: "Remove false-memory-reset framing; use explicit audited memory-clear if reset is required."},
+		{ID: "SKIL-MEMORY-FALSE-REPRESENTATION", Title: "False identity representation", Category: "state-integrity", Severity: skil.SeverityHigh, Analysis: "pattern", Description: "Instructions direct the agent to falsely represent its identity as a human or different entity.", Remediation: "Remove false-identity representation; disclose AI identity transparently."},
+		{ID: "SKIL-PI-SUSPICIOUS-COMMENT", Title: "Render-suppressed region with unusual length", Category: "instruction-integrity", Severity: skil.SeverityMedium, Analysis: "pattern", Description: "An unusually long HTML or Markdown comment may conceal instructions or data.", Remediation: "Review and remove unreasonably large comments."},
 	}
 }
 
@@ -114,41 +125,55 @@ func NativeControlImplementations() map[string]ControlImplementation {
 	for _, rule := range NewAsset().Rules() {
 		out[rule.ID] = ControlImplementation{Engine: "builtin.asset"}
 	}
+	for _, rule := range NewHiddenInstruction().Rules() {
+		out[rule.ID] = ControlImplementation{Engine: "builtin.hidden-instruction"}
+	}
+	for _, rule := range NewTrigger().Rules() {
+		out[rule.ID] = ControlImplementation{Engine: "builtin.trigger"}
+	}
+	for _, rule := range NewResourceConfig().Rules() {
+		out[rule.ID] = ControlImplementation{Engine: "builtin.resource-config"}
+	}
 	for _, id := range []string{"SKIL-PY-001", "SKIL-PY-002", "SKIL-PY-003", "SKIL-PY-004"} {
 		out[id] = ControlImplementation{Engine: "builtin.python-ast"}
 	}
 	engines := map[string]ControlImplementation{
-		"SKIL-TAINT-NETWORK":           {Engine: "builtin.taint"},
-		"SKIL-TAINT-EXECUTION":         {Engine: "builtin.taint"},
-		"SKIL-TAINT-FILESYSTEM-WRITE":  {Engine: "builtin.taint"},
-		"SKIL-TAINT-LOG":               {Engine: "builtin.taint"},
-		"SKIL-DEP-001":                 {Engine: "builtin.dependency"},
-		"SKIL-DEP-002":                 {Engine: "builtin.dependency"},
-		"SKIL-DEP-ABANDONED":           {Engine: "reputation-provider", ProviderBacked: true},
-		"SKIL-DEP-VULN":                {Engine: "vulnerability-provider", ProviderBacked: true},
-		"SKIL-DEP-MALICIOUS":           {Engine: "vulnerability-provider", ProviderBacked: true},
-		"SKIL-CONTAINER-TRUST":         {Engine: "builtin.structured-ast"},
-		"SKIL-MCP-001":                 {Engine: "builtin.mcp"},
-		"SKIL-MCP-002":                 {Engine: "builtin.mcp"},
-		"SKIL-MCP-003":                 {Engine: "builtin.mcp"},
-		"SKIL-MCP-004":                 {Engine: "builtin.mcp"},
-		"SKIL-MCP-005":                 {Engine: "builtin.mcp"},
-		"SKIL-MCP-006":                 {Engine: "builtin.mcp"},
-		"SKIL-MCP-007":                 {Engine: "builtin.mcp"},
-		"SKIL-UNI-001":                 {Engine: "builtin.unicode"},
-		"SKIL-OBF-001":                 {Engine: "builtin.unicode"},
-		"SKIL-INTENT-DESCRIPTION":      {Engine: "semantic-provider", ProviderBacked: true},
-		"SKIL-INTENT-CONTEXT":          {Engine: "semantic-provider", ProviderBacked: true},
-		"SKIL-INTENT-SCOPE":            {Engine: "semantic-provider", ProviderBacked: true},
-		"SKIL-INTENT-IMPLEMENTATION":   {Engine: "builtin.local-semantic"},
-		"SKIL-SEM-SECURITY":            {Engine: "semantic-provider", ProviderBacked: true},
-		"SKIL-SEM-QUALITY":             {Engine: "semantic-provider", ProviderBacked: true},
-		"SKIL-SEM-COMPOSITE":           {Engine: "semantic-provider", ProviderBacked: true},
-		"SKIL-YARA-*":                  {Engine: "builtin.native-malware/external-yara"},
-		"SKIL-UNI-002":                 {Engine: "builtin.obfuscation"},
-		"SKIL-UNI-003":                 {Engine: "builtin.obfuscation"},
-		"SKIL-CAP-001":                 {Engine: "contract-verification"},
-		"SKIL-CAP-DECLARATION-MISSING": {Engine: "registry.conformance"},
+		"SKIL-TAINT-NETWORK":              {Engine: "builtin.taint"},
+		"SKIL-TAINT-EXECUTION":            {Engine: "builtin.taint"},
+		"SKIL-TAINT-FILESYSTEM-WRITE":     {Engine: "builtin.taint"},
+		"SKIL-TAINT-LOG":                  {Engine: "builtin.taint"},
+		"SKIL-TAINT-PRIVILEGED-CONTEXT":   {Engine: "builtin.taint"},
+		"SKIL-TAINT-OUTPUT-EXECUTION":     {Engine: "builtin.taint"},
+		"SKIL-TAINT-OUTPUT-CROSS-AGENT":   {Engine: "builtin.taint"},
+		"SKIL-DEP-001":                    {Engine: "builtin.dependency"},
+		"SKIL-DEP-002":                    {Engine: "builtin.dependency"},
+		"SKIL-DEP-ABANDONED":              {Engine: "reputation-provider", ProviderBacked: true},
+		"SKIL-DEP-VULN":                   {Engine: "vulnerability-provider", ProviderBacked: true},
+		"SKIL-DEP-MALICIOUS":              {Engine: "vulnerability-provider", ProviderBacked: true},
+		"SKIL-CONTAINER-TRUST":            {Engine: "builtin.structured-ast"},
+		"SKIL-MCP-001":                    {Engine: "builtin.mcp"},
+		"SKIL-MCP-002":                    {Engine: "builtin.mcp"},
+		"SKIL-MCP-003":                    {Engine: "builtin.mcp"},
+		"SKIL-MCP-004":                    {Engine: "builtin.mcp"},
+		"SKIL-MCP-005":                    {Engine: "builtin.mcp"},
+		"SKIL-MCP-006":                    {Engine: "builtin.mcp"},
+		"SKIL-MCP-007":                    {Engine: "builtin.mcp"},
+		"SKIL-UNI-001":                    {Engine: "builtin.unicode"},
+		"SKIL-OBF-001":                    {Engine: "builtin.unicode"},
+		"SKIL-INTENT-DESCRIPTION":         {Engine: "semantic-provider", ProviderBacked: true},
+		"SKIL-INTENT-CONTEXT":             {Engine: "semantic-provider", ProviderBacked: true},
+		"SKIL-INTENT-SCOPE":               {Engine: "semantic-provider", ProviderBacked: true},
+		"SKIL-INTENT-IMPLEMENTATION":      {Engine: "builtin.local-semantic"},
+		"SKIL-SEM-SECURITY":               {Engine: "semantic-provider", ProviderBacked: true},
+		"SKIL-SEM-QUALITY":                {Engine: "semantic-provider", ProviderBacked: true},
+		"SKIL-SEM-COMPOSITE":              {Engine: "semantic-provider", ProviderBacked: true},
+		"SKIL-YARA-*":                     {Engine: "builtin.native-malware/external-yara"},
+		"SKIL-UNI-002":                    {Engine: "builtin.obfuscation"},
+		"SKIL-UNI-003":                    {Engine: "builtin.obfuscation"},
+		"SKIL-CAP-001":                    {Engine: "contract-verification"},
+		"SKIL-CAP-DECLARATION-MISSING":    {Engine: "registry.conformance"},
+		"SKIL-MEMORY-FALSE-RESET":         {Engine: "builtin.pattern"},
+		"SKIL-MEMORY-FALSE-REPRESENTATION": {Engine: "builtin.pattern"},
 	}
 	for id, implementation := range engines {
 		out[id] = implementation

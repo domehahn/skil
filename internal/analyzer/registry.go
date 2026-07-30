@@ -19,6 +19,7 @@ func DefaultRegistry(vuln skil.VulnerabilityProvider) *Registry {
 		NewPattern(), NewPythonAST(), NewStructuredAST(), NewTaint(), NewDependency(vuln), NewMCP(), NewBoundary(), NewUnicode(),
 		NewLocalSemantic(), NewModelArtifact(), NewSecret(), NewBuild(), NewIdentity(), NewLateral(), NewAsset(),
 		NewSkill(), NewToolCapability(), NewDataDataset(), NewRAGContext(), NewMultiAgent(), NewAuditEvidence(), NewPolicyEnforcement(),
+		NewHiddenInstruction(), NewTrigger(), NewResourceConfig(),
 	}
 	return &Registry{analyzers: items}
 }
@@ -93,12 +94,13 @@ func (r *Registry) Scan(ctx context.Context, ac skil.AnalysisContext) (skil.Scan
 		SchemaVersion: "1.0.0", Artifact: ac.Artifact, Findings: []skil.Finding{},
 		Coverage: map[string]skil.CoverageState{
 			"pattern": skil.CoverageNotRequested, "ast": skil.CoverageNotRequested,
-			"static-code": skil.CoverageNotRequested,
-			"taint":       skil.CoverageNotRequested, "dependency": skil.CoverageNotRequested,
-			"vulnerability": skil.CoverageNotRequested, "reputation": skil.CoverageNotRequested,
-			"mcp": skil.CoverageNotRequested, "malware": skil.CoverageNotRequested,
-			"semantic": skil.CoverageNotRequested, "semantic-provider": skil.CoverageNotRequested,
-			"behavioral": skil.CoverageNotRun,
+			"static-code":    skil.CoverageNotRequested,
+			"taint":          skil.CoverageNotRequested, "dependency": skil.CoverageNotRequested,
+			"vulnerability":  skil.CoverageNotRequested, "reputation": skil.CoverageNotRequested,
+			"mcp":            skil.CoverageNotRequested, "malware": skil.CoverageNotRequested,
+			"semantic":       skil.CoverageNotRequested, "semantic-provider": skil.CoverageNotRequested,
+			"behavioral":     skil.CoverageNotRun, "trigger": skil.CoverageNotRequested,
+			"resource-config": skil.CoverageNotRequested, "taint-output": skil.CoverageNotRequested,
 		},
 		Scanners: []string{"skil"},
 	}
@@ -247,15 +249,21 @@ func missingCapabilityDeclaration(findings []skil.Finding) (skil.Finding, bool) 
 
 func capabilityForRule(ruleID string) string {
 	switch ruleID {
-	case "SKIL-NET-001", "SKIL-INTENT-EXTERNAL-TRANSFER", "SKIL-TAINT-NETWORK":
+	case "SKIL-NET-001", "SKIL-INTENT-EXTERNAL-TRANSFER", "SKIL-TAINT-NETWORK", "SKIL-TAINT-PRIVILEGED-CONTEXT":
 		return "network.outbound"
 	case "SKIL-FS-001", "SKIL-TAINT-FILESYSTEM-WRITE":
 		return "filesystem.write"
 	case "SKIL-SEC-001":
 		return "secrets.read"
 	case "SKIL-PY-002", "SKIL-SH-001", "SKIL-SH-002", "SKIL-SH-003", "SKIL-SH-004",
-		"SKIL-JS-001", "SKIL-INTENT-COMMAND", "SKIL-TAINT-EXECUTION":
+		"SKIL-JS-001", "SKIL-INTENT-COMMAND", "SKIL-TAINT-EXECUTION", "SKIL-TAINT-OUTPUT-EXECUTION":
 		return "commands.execute"
+	case "SKIL-TAINT-OUTPUT-CROSS-AGENT", "SKIL-DEP-MALICIOUS":
+		return "multi-agent"
+	case "SKIL-PI-HIDDEN-COMMENT", "SKIL-MEMORY-FALSE-RESET", "SKIL-MEMORY-FALSE-REPRESENTATION":
+		return "instruction-integrity"
+	case "SKIL-RESOURCE-UNLIMITED", "SKIL-RESOURCE-TIMEOUT", "SKIL-RESOURCE-UNBOUNDED-LOOP":
+		return "resource-boundary"
 	default:
 		return ""
 	}

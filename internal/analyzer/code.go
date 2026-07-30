@@ -34,7 +34,7 @@ func NewCode() *Code {
 		r("SKIL-SH-004", "Shell dynamic evaluation", "dynamic-execution", skil.SeverityHigh,
 			`(?m)^\s*(?:eval|source|\.)\s+(?:\$|\<\(|https?://)`, "Shell evaluates dynamic or untrusted content.", "Avoid eval/source for untrusted input."),
 		r("SKIL-PERSISTENCE-STARTUP", "Unapproved startup persistence", "persistence", skil.SeverityHigh,
-			`(?i)(?:\bcrontab\b|systemctl\s+enable|launchctl\s+load|schtasks\s+/create)`, "Code installs or activates a startup mechanism.", "Remove persistence or require explicit administration."),
+			`(?i)(?:\bcrontab\b|systemctl\s+enable|launchctl\s+load|schtasks\s+/create|\.bashrc|\.zshrc|\.profile|\.bash_profile|\.config/autostart|nohup\s|disown\s|setsid\s|\breg\s+add|defaults\s+write|plist|\bAT\s+|\bschtasks\b|update-rc\.d|chkconfig|rc\.local|\bwmic\s+startup)`, "Code installs or activates a startup mechanism.", "Remove persistence or require explicit administration."),
 		r("SKIL-CONTAINER-TRUST", "Disabled container trust", "supply-chain-integrity", skil.SeverityHigh,
 			`(?i)(?:--disable-content-trust(?:=true)?|--insecure-registry|DOCKER_CONTENT_TRUST\s*=\s*0)`, "Container content trust or registry verification is disabled.", "Use immutable image digests and verified signatures."),
 		r("SKIL-JS-001", "JavaScript process execution", "dynamic-execution", skil.SeverityHigh,

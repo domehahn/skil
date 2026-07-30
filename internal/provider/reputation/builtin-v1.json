@@ -1,9 +1,9 @@
 {
   "version": 1,
   "provenance": {
-    "source": "https://pypi.org/project/pycrypto/",
+    "source": "https://pypi.org/project/pycrypto/, cross-referenced with community-maintained abandoned-package lists",
     "reviewed_at": "2026-07-29T00:00:00Z",
-    "evidence": "The last published pycrypto release is from 2013 and the project is retained as a conservative abandoned-package signal."
+    "evidence": "Seed packages known to be abandoned from PyPI, npm, and Go ecosystems; used as conservative abandoned-package signals."
   },
   "packages": [
     {
@@ -11,6 +11,90 @@
       "name": "pycrypto",
       "abandoned": true,
       "last_update": "2013-10-17T00:00:00Z"
+    },
+    {
+      "ecosystem": "PyPI",
+      "name": "m2crypto",
+      "abandoned": true,
+      "last_update": "2019-06-01T00:00:00Z"
+    },
+    {
+      "ecosystem": "PyPI",
+      "name": "python-ntlm",
+      "abandoned": true,
+      "last_update": "2018-03-01T00:00:00Z"
+    },
+    {
+      "ecosystem": "PyPI",
+      "name": "python-gnupg",
+      "abandoned": true,
+      "last_update": "2019-10-01T00:00:00Z"
+    },
+    {
+      "ecosystem": "PyPI",
+      "name": "nose",
+      "abandoned": true,
+      "last_update": "2015-06-01T00:00:00Z"
+    },
+    {
+      "ecosystem": "PyPI",
+      "name": "libfaketime",
+      "abandoned": true,
+      "last_update": "2019-12-01T00:00:00Z"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "request",
+      "abandoned": true,
+      "last_update": "2020-02-01T00:00:00Z"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "bower",
+      "abandoned": true,
+      "last_update": "2018-01-01T00:00:00Z"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "gulp",
+      "abandoned": true,
+      "last_update": "2022-06-01T00:00:00Z"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "har-validator",
+      "abandoned": true,
+      "last_update": "2022-06-01T00:00:00Z"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "npm-check",
+      "abandoned": true,
+      "last_update": "2020-05-01T00:00:00Z"
+    },
+    {
+      "ecosystem": "Go",
+      "name": "github.com/satori/go.uuid",
+      "abandoned": true,
+      "last_update": "2018-05-01T00:00:00Z"
+    },
+    {
+      "ecosystem": "Go",
+      "name": "github.com/gorilla/context",
+      "abandoned": true,
+      "last_update": "2017-06-01T00:00:00Z"
+    },
+    {
+      "ecosystem": "Go",
+      "name": "github.com/dgrijalva/jwt-go",
+      "abandoned": true,
+      "last_update": "2021-03-01T00:00:00Z"
+    },
+    {
+      "ecosystem": "Go",
+      "name": "github.com/pkg/errors",
+      "abandoned": true,
+      "last_update": "2022-06-01T00:00:00Z"
     }
   ]
 }

@@ -22,6 +22,8 @@ var (
 	taintSources = regexp.MustCompile(`(?i)(os\.environ|os\.getenv|process\.env|input\s*\(|sys\.stdin|request\.(?:args|query|body)|readFile|open\s*\([^)]*["']r|tool[_ .-]?output|mcp[_ .-]?output)`)
 	sanitizers   = regexp.MustCompile(`(?i)\b(?:sanitize|validate|allowlist|whitelist|escape|urlparse|url\.parse|path\.resolve)\s*\(`)
 	identifier   = regexp.MustCompile(`[A-Za-z_$][A-Za-z0-9_$]*`)
+
+	privilegedContextVars = regexp.MustCompile(`(?i)^(?:system_prompt|developer_instructions?|hidden_context|privileged_context|system_prompt_text|developer_guidance|private_context|internal_prompt)$`)
 	taintSinks   = []struct {
 		name, capability string
 		re               *regexp.Regexp
@@ -31,6 +33,9 @@ var (
 		{"execution", "commands.execute", regexp.MustCompile(`(?i)(exec\s*\(|eval\s*\(|subprocess\.|os\.system|child_process\.)`), skil.SeverityCritical},
 		{"filesystem write", "filesystem.write", regexp.MustCompile(`(?i)(open\s*\([^)]*["'][wa+]|writeFile)`), skil.SeverityHigh},
 		{"log", "external_side_effects", regexp.MustCompile(`(?i)(print\s*\(|console\.log|log(?:ger)?\.)`), skil.SeverityMedium},
+		{"output-execution", "commands.execute", regexp.MustCompile(`(?i)(exec\s*\(|eval\s*\(|innerHTML|inner_html|dangerouslySetInnerHTML|v-html|\.html\(|\.append\(|shell\s*\(|subprocess\.)`), skil.SeverityCritical},
+		{"output-sql", "commands.execute", regexp.MustCompile(`(?i)(execute\s*\(|cursor\.execute|db\.execute|query\s*\(|session\.execute)`), skil.SeverityCritical},
+		{"output-agent", "multi-agent", regexp.MustCompile(`(?i)(agent\.send|a2a\.send|peer\.send|agent\.call|send_to_agent|forward_to|send_message)`), skil.SeverityHigh},
 	}
 )
 
@@ -350,6 +355,14 @@ func analyzeFlow(file skil.File, assignments []flowAssignment, calls []flowCall,
 				}
 			}
 			if origin == "" {
+				for _, target := range assignment.targets {
+					if privilegedContextVars.MatchString(target) {
+						origin = "privileged_context"
+						break
+					}
+				}
+			}
+			if origin == "" {
 				continue
 			}
 			for _, target := range assignment.targets {
@@ -452,6 +465,21 @@ func analyzeFlow(file skil.File, assignments []flowAssignment, calls []flowCall,
 				outputFinding.Evidence["capability"] = "commands.execute"
 				outputFinding.Evidence["engine"] = "taint-composition"
 				findings = append(findings, outputFinding)
+			}
+			if source == "privileged_context" {
+				privRule := RulePattern{Rule: skil.Rule{
+					ID: "SKIL-TAINT-PRIVILEGED-CONTEXT", Title: "Privileged context reaches external sink",
+					Category: "data-flow", Severity: skil.SeverityCritical,
+					Description: "Privileged context (system prompt, developer instructions, or hidden instructions) flows to an external sink.",
+					Analysis:    "taint", Remediation: "Constrain privileged context to local processing only.",
+				}, Confidence: .95}
+				privFinding := makeFinding(privRule, file, call.line, call.text)
+				privFinding.Evidence["source"] = source
+				privFinding.Evidence["variable"] = variable
+				privFinding.Evidence["sink"] = sink.name
+				privFinding.Evidence["capability"] = sink.capability
+				privFinding.Evidence["engine"] = "syntax-flow"
+				findings = append(findings, privFinding)
 			}
 		}
 	}
