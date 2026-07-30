@@ -231,6 +231,11 @@ func buildIntentRules() []RulePattern {
 			`(?:test|example|scenario|roleplay|role-play|game|fictional|story|narrative|character|dialogue|simulation|training|exercise).{0,80}(?:pretend|imagine|act|simulate|claim|represent).{0,40}(?:human|person|someone\s+else)|(?:do\s+not|never)\s+(?:pretend|claim|represent)\s+(?:to\s+be|that\s+you\s+are)|disclose\s+(?:that\s+you\s+are)\s+(?:an?\s+)?\s*AI`,
 			"Instructions direct the agent to falsely represent its identity as a human or different entity.",
 			"Remove false-identity representation; disclose AI identity transparently."),
+		r("SKIL-INTENT-SCOPE-CREEP", "Scope creep or unbounded responsibility", "control-integrity", skil.SeverityMedium,
+			`(?:extend\s+(?:your\s+)?(?:scope|role|function|authority|capabilities)|beyond\s+(?:the\s+)?(?:stated\s+)?(?:scope|task|purpose|function|role|boundaries?)|general[-\s]purpose\s+(?:assistant|agent|system|tool|solution)|handle\s+(?:everything|all\s+(?:systems?|tasks?|requests?|queries?))|responsible\s+for\s+(?:all\s+(?:systems?|tasks?|requests?|aspects?)|everything)|act\s+(?:as\s+)?(?:an?\s+)?(?:omniscient|all-knowing|unrestricted\s+assistant)|no\s+(?:scope|task|function)\s+(?:is\s+)?(?:too\s+(?:small|big)|outside|beyond)|anything\s+(?:you|the\s+agent)\s+can\s+(?:do|handle|accomplish))`,
+			`(?:do\s+not|never|avoid|prevent|reject|detect)\s+(?:extend\s+(?:scope|role)|act\s+as|handle\s+everything|general[-\s]purpose)`,
+			"Instructions direct the agent to extend its scope beyond the stated task, act as a general-purpose assistant, or handle all requests without boundaries.",
+			"Scope the agent to a specific, bounded task; avoid general-purpose or unbounded-responsibility language."),
 	}
 }
 

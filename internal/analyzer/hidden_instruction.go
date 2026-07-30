@@ -18,6 +18,8 @@ func NewHiddenInstruction() *HiddenInstruction {
 	}
 	instructionPayload := regexp.MustCompile(`(?i)<!--[\s\S]{0,40}(?:ignore|override|never\s+refuse|you\s+must|always\s+comply|unrestricted|jailbreak|disregard|system\s+prompt|hidden|secret|do\s+not\s+(?:reveal|tell|warn|alert)|reveal\s+(?:your|system)\s+prompt)`)
 	longComment := regexp.MustCompile(`(?i)<!--.{200,}-->`)
+	mdHidden := regexp.MustCompile(`(?i)\[//\]:\s*#\s*\([^)]{0,40}(?:ignore|override|never\s+refuse|you\s+must|always\s+comply|unrestricted|jailbreak|disregard|system\s+prompt|hidden|secret|do\s+not\s+(?:reveal|tell|warn|alert)|reveal\s+(?:your|system)\s+prompt)`)
+	mdSuspicious := regexp.MustCompile(`(?i)\[//\]:\s*#\s*\(.{200,}\)`)
 	return &HiddenInstruction{rules: []RulePattern{
 		r("SKIL-PI-HIDDEN-COMMENT", "Hidden instruction in render-suppressed region", "instruction-integrity", skil.SeverityCritical,
 			instructionPayload, .95,
@@ -26,6 +28,14 @@ func NewHiddenInstruction() *HiddenInstruction {
 		r("SKIL-PI-SUSPICIOUS-COMMENT", "Render-suppressed region with unusual length", "instruction-integrity", skil.SeverityMedium,
 			longComment, .75,
 			"An unusually long HTML or Markdown comment may conceal instructions or data.",
+			"Review and remove unreasonably large comments."),
+		r("SKIL-PI-MD-HIDDEN-COMMENT", "Hidden instruction in Markdown comment reference", "instruction-integrity", skil.SeverityCritical,
+			mdHidden, .95,
+			"A Markdown comment reference (`[//]: #(...)`) contains security-sensitive instructions invisible when rendered.",
+			"Remove hidden instructions or make them visible for review."),
+		r("SKIL-PI-MD-SUSPICIOUS-COMMENT", "Markdown comment reference with unusual length", "instruction-integrity", skil.SeverityMedium,
+			mdSuspicious, .75,
+			"An unusually long Markdown comment reference may conceal instructions or data.",
 			"Review and remove unreasonably large comments."),
 	}}
 }

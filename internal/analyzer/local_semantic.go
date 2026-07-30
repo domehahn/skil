@@ -93,7 +93,7 @@ func collectSemanticClaims(artifact skil.Artifact) []semanticClaim {
 			rules:   map[string]bool{"SKIL-SEC-001": true}},
 		{name: "limited scope", capability: "scope.creep",
 			pattern: regexp.MustCompile(`(?i)\b(?:only|limited|sole|single|specific|bounded)\b.{0,40}\b(?:purpose|task|function|scope|domain|operation)\b`),
-			rules:   map[string]bool{"SKIL-CAP-001": true, "SKIL-CAP-DECLARATION-MISSING": true}},
+			rules:   map[string]bool{"SKIL-PL-001": true, "SKIL-EX-001": true, "SKIL-PERSISTENCE-STARTUP": true, "SKIL-BOUNDARY-AGENT-STATE": true, "SKIL-BOUNDARY-MCP-CONFIG": true, "SKIL-BOUNDARY-PEER-SKILL": true, "SKIL-AGENT-SELF-MODIFY": true}},
 		{name: "no memory", capability: "memory.persist",
 			pattern: regexp.MustCompile(`(?i)\b(?:does not|do not|never|must not|without)\b.{0,50}\b(?:store|save|persist|remember|retain|keep|record)\b.{0,30}\b(?:data|state|context|history|information|conversation)\b`),
 			rules:   map[string]bool{"SKIL-DS-001": true, "SKIL-BUILD-COMMAND": true, "SKIL-BUILD-STATE": true}},

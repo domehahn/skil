@@ -95,6 +95,72 @@
       "name": "github.com/pkg/errors",
       "abandoned": true,
       "last_update": "2022-06-01T00:00:00Z"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "event-stream",
+      "abandoned": true,
+      "last_update": "2019-01-01T00:00:00Z"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "flatmap-stream",
+      "abandoned": true,
+      "last_update": "2018-11-01T00:00:00Z"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "keypather",
+      "abandoned": true,
+      "last_update": "2020-06-01T00:00:00Z"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "sqlite3",
+      "abandoned": true,
+      "last_update": "2024-01-01T00:00:00Z"
+    },
+    {
+      "ecosystem": "PyPI",
+      "name": "django-picklefield",
+      "abandoned": true,
+      "last_update": "2021-06-01T00:00:00Z"
+    },
+    {
+      "ecosystem": "PyPI",
+      "name": "xmltodict",
+      "abandoned": true,
+      "last_update": "2022-06-01T00:00:00Z"
+    },
+    {
+      "ecosystem": "PyPI",
+      "name": "pathlib",
+      "abandoned": true,
+      "last_update": "2018-05-01T00:00:00Z"
+    },
+    {
+      "ecosystem": "PyPI",
+      "name": "mock",
+      "abandoned": true,
+      "last_update": "2022-06-01T00:00:00Z"
+    },
+    {
+      "ecosystem": "Go",
+      "name": "github.com/garyburd/redigo",
+      "abandoned": true,
+      "last_update": "2018-10-01T00:00:00Z"
+    },
+    {
+      "ecosystem": "Go",
+      "name": "github.com/go-sql-driver/mysql",
+      "abandoned": true,
+      "last_update": "2024-06-01T00:00:00Z"
+    },
+    {
+      "ecosystem": "Go",
+      "name": "github.com/boltdb/bolt",
+      "abandoned": true,
+      "last_update": "2019-10-01T00:00:00Z"
     }
   ]
 }

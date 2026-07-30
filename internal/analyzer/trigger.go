@@ -13,6 +13,36 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+var (
+	genericTriggerWords = map[string]bool{
+		"help": true, "code": true, "file": true, "task": true, "question": true,
+		"please": true, "run": true, "go": true, "start": true, "execute": true,
+		"analyze": true, "check": true, "test": true, "scan": true, "review": true,
+		"update": true, "fix": true, "the": true, "do": true, "data": true,
+		"info": true, "status": true, "list": true, "show": true, "get": true,
+		"set": true, "make": true, "build": true, "create": true, "read": true,
+		"write": true, "query": true, "search": true, "find": true, "sort": true,
+	}
+	shadowTriggerWords = map[string]bool{
+		"deploy": true, "rollback": true, "publish": true, "delete": true,
+		"remove": true, "admin": true, "sudo": true, "su": true, "reboot": true,
+		"shutdown": true, "docker": true, "kubectl": true, "install": true,
+		"commit": true, "push": true, "merge": true, "release": true,
+		"exec": true, "eval": true, "shell": true, "bash": true,
+	}
+	baitingTriggerWords = map[string]bool{
+		"code": true, "file": true, "data": true, "info": true, "query": true,
+		"run": true, "start": true, "do": true, "go": true, "help": true,
+		"test": true, "check": true, "list": true, "show": true, "get": true,
+		"set": true, "read": true, "write": true, "search": true, "find": true,
+	}
+)
+
+func isSingleWord(s string) bool {
+	s = strings.TrimSpace(s)
+	return s != "" && !strings.Contains(s, " ") && !strings.Contains(s, "-") && !strings.Contains(s, "_")
+}
+
 type Trigger struct {
 	rules []RulePattern
 	nilPatternRule skil.Rule
@@ -35,11 +65,16 @@ func NewTrigger() *Trigger {
 				`(?:do\s+not|avoid|prevent|example)`,
 				"A trigger phrase is a common word that increases unintended activation risk.",
 				"Use a narrow, domain-specific trigger phrase."),
-			r("SKIL-TRIGGER-SHADOW", "Trusted trigger shadowing", "activation-integrity", skil.SeverityHigh,
-				`(?:trigger|invoke|activate|run)\s+(?:on|for|when|with)?\s*[:\s]\s*(?:/?(?:deploy|rollback|publish|delete|remove|admin|sudo|su|reboot|shutdown|docker|kubectl))\b`,
-				`(?:do\s+not|never|avoid|prevent|example)`,
-				"A trigger shadows a built-in or commonly trusted command.",
-				"Use a unique explicit trigger that does not shadow existing commands."),
+		r("SKIL-TRIGGER-SHADOW", "Trusted trigger shadowing", "activation-integrity", skil.SeverityHigh,
+			`(?:trigger|invoke|activate|run)\s+(?:on|for|when|with)?\s*[:\s]\s*(?:/?(?:deploy|rollback|publish|delete|remove|admin|sudo|su|reboot|shutdown|docker|kubectl))\b`,
+			`(?:do\s+not|never|avoid|prevent|example)`,
+			"A trigger shadows a built-in or commonly trusted command.",
+			"Use a unique explicit trigger that does not shadow existing commands."),
+		r("SKIL-TRIGGER-BAITING", "Keyword baiting trigger", "activation-integrity", skil.SeverityMedium,
+			`(?:trigger|invoke|activate|run)\s+(?:on|for|when|with)?\s*[:\s]\s*(?:code|file|data|info|query|run|start|do|go|help|test|check|list|show|get|set|read|write|search|find)\b`,
+			`(?:do\s+not|never|avoid|prevent|example)`,
+			"A trigger uses a common code or data keyword that increases unintentional activation in automated contexts.",
+			"Use a narrow, domain-specific trigger phrase."),
 		},
 		nilPatternRule: skil.Rule{ID: "SKIL-TRIGGER-LOCK-DIFF", Title: "Trigger surface changed from lock", Category: "activation-integrity", Severity: skil.SeverityHigh,
 			Analysis: "trigger", AppliesTo: []string{"yaml", "yml", "lock"},
@@ -77,6 +112,24 @@ func (a *Trigger) Analyze(_ context.Context, ac skil.AnalysisContext) ([]skil.Fi
 		if ext == "yaml" || ext == "yml" {
 			triggers := extractTriggerPhrases(file.Data)
 			declaredTriggers = append(declaredTriggers, triggers...)
+
+			// Structural: check each extracted YAML trigger against
+			// generic, shadow, and baiting word sets.
+			for _, t := range triggers {
+				word := strings.TrimSpace(t)
+				if isSingleWord(word) && genericTriggerWords[word] {
+					ln := lineOf(file.Data, regexp.MustCompile(`(?i)\b`+regexp.QuoteMeta(word)+`\b`))
+					out = append(out, makeFinding(a.findRule("SKIL-TRIGGER-GENERIC"), file, ln, "trigger: "+word))
+				}
+				if isSingleWord(word) && shadowTriggerWords[word] {
+					ln := lineOf(file.Data, regexp.MustCompile(`(?i)\b`+regexp.QuoteMeta(word)+`\b`))
+					out = append(out, makeFinding(a.findRule("SKIL-TRIGGER-SHADOW"), file, ln, "trigger: "+word))
+				}
+				if isSingleWord(word) && baitingTriggerWords[word] {
+					ln := lineOf(file.Data, regexp.MustCompile(`(?i)\b`+regexp.QuoteMeta(word)+`\b`))
+					out = append(out, makeFinding(a.findRule("SKIL-TRIGGER-BAITING"), file, ln, "trigger: "+word))
+				}
+			}
 
 			for _, line := range lines(file.Data) {
 				for _, rule := range a.rules {
@@ -139,6 +192,15 @@ func (a *Trigger) Analyze(_ context.Context, ac skil.AnalysisContext) ([]skil.Fi
 	}
 
 	return out, nil
+}
+
+func (a *Trigger) findRule(id string) RulePattern {
+	for _, rule := range a.rules {
+		if rule.Rule.ID == id {
+			return rule
+		}
+	}
+	return RulePattern{}
 }
 
 func extractTriggerPhrases(data []byte) []string {
