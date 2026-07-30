@@ -101,8 +101,7 @@ func TestNoMISSINGInParityDoc(t *testing.T) {
 	}
 
 	knownDesignGaps := map[string]bool{
-		"RP2 — Trigger phrase modification between versions": true, // requires --previous-manifest comparison surface
-		"SQP-3 — Natural-language policy violations":          true, // inherently LLM-judgment property
+		"SQP-3 — Natural-language policy violations": true, // inherently LLM-judgment property
 	}
 
 	inSummary := false
