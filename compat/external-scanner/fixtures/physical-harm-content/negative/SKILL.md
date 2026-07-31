@@ -1,2 +1,2 @@
 # Fixture
-Never mix bleach with ammonia; doing so releases toxic chloramine gas.
+Do not mix bleach and ammonia as this produces toxic chloramine gas.

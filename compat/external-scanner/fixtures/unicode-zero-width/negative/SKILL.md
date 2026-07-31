@@ -1,0 +1,1 @@
+Normal text with visible Unicode like café and Jalapeño.

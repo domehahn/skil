@@ -249,18 +249,21 @@ Coverage states: `FULL` | `PARTIAL` | `MISSING` | `DIFFERENT_BY_DESIGN` | `NOT_A
 
 **Total distinct the reference scanner properties catalogued: ~90** (counting every rule ID across `P1-P8`, `AR1-3`, `E1-E5`, `EA1-4`, `OH1-3`, `PE1-5`, `MP1-3`, `RA1-2`, `SSRF1-3`, `SC1-7`, `TR1-3`, `TM1-4`, `AS1-3`, `AST1-9`, `TT1-5`, `LP1-4`, `RP1-3`, `TP1-4`, `SDI1-4`, `SQP1-3`, `SSD1-4`, plus the 4-category YARA rule family as one property group).
 
-**Coverage-state counts** (approximate — incorporates all changes through `d09f693`):
+**Coverage-state counts** (approximate — incorporates all changes through `dcc59c0` and the full 86-property `properties.yaml` migration):
 
-| State | Count at initial survey | After closing top-8 ranked gaps | After closing P2/EA3/TR1-3/P8/OH1/EA4/SC5 round |
-|---|---:|---:|---:|
-| FULL | ~34 | ~45 | ~50 |
-| PARTIAL | ~38 | ~35 | ~32 |
-| MISSING | ~14 | ~5 | ~1 |
-| DIFFERENT_BY_DESIGN | ~4 | ~4 | ~5 |
-| NOT_APPLICABLE | 0 | 0 | 0 |
-| skil-only (no the reference scanner equivalent) | ~6 | ~6 | ~6 |
+| State | Count at initial survey | After closing top-8 ranked gaps | After closing P2/EA3/TR1-3/P8/OH1/EA4/SC5 round | After full YAML migration (86 properties) |
+|---|--:|--:|--:|--:|
+| FULL | ~34 | ~45 | ~50 | 61 |
+| PARTIAL | ~38 | ~35 | ~32 | 19 |
+| MISSING | ~14 | ~5 | ~1 | 1 |
+| DIFFERENT_BY_DESIGN | ~4 | ~4 | ~5 | 4 |
+| PROVIDER_BACKED | — | — | — | 1 |
+| NOT_APPLICABLE | 0 | 0 | 0 | 0 |
+| skil-only (no the reference scanner equivalent) | ~6 | ~6 | ~6 | ~1 |
 
-All earlier ranked gaps are now closed. The remaining MISSING entry is SQP-3 (natural-language policy violations — inherently an LLM-judgment property requiring a semantic provider). RP2 was reclassified to DIFFERENT_BY_DESIGN: skil's `SKIL-TRIGGER-LOCK-DIFF` checks trigger surfaces against a reviewed lock file rather than comparing two arbitrary manifest snapshots — different mechanism, equivalent security property. PARTIAL rows now correspond almost entirely to provider-backed semantic properties (SDI-1/2/3, SSD-1/2/3/4, TP4) and the RP3 manifest-diff detector, plus the SC5 seed-count gap.
+The FULL count rose because several single reference-scanner properties (e.g. P2, AST1-9, TT1-5) are tracked at sub-property granularity in `properties.yaml` (P2 → P2-html + P2-md + P2-zw + P2-tag, etc.), inflating the count without changing the per-property conclusion.
+
+All earlier ranked gaps are now closed and tracked in `compat/external-scanner/properties.yaml` with a dual-scanner differential harness covering all 86 entries. The remaining MISSING entry is SQP-3 (natural-language policy violations — inherently an LLM-judgment property requiring a semantic provider). RP2 was reclassified to DIFFERENT_BY_DESIGN: skil's `SKIL-TRIGGER-LOCK-DIFF` checks trigger surfaces against a reviewed lock file rather than comparing two arbitrary manifest snapshots — different mechanism, equivalent security property. PARTIAL rows now correspond almost entirely to provider-backed semantic properties (SDI-1/2/3, SSD-1/2/3/4, TP4) and the RP3 manifest-diff detector, plus the SC5 seed-count gap.
 
 FULL is concentrated in the areas the existing `external-control-crosswalk.md` conformance suite already asserts: Python AST dynamic-execution (AST1-9), taint tracking (TT2-5), supply-chain regexes (SC1/2/3/6/7), core prompt-injection/anti-refusal/agency instruction patterns, credential-path access, and YARA. MISSING and DIFFERENT_BY_DESIGN entries are concentrated in two areas: (1) manifest-diff mechanisms where skil uses lock-file digests (`SKIL-TRIGGER-LOCK-DIFF`, `SKIL-MCP-005`) instead of caller-supplied prior manifests — equivalent property, different mechanism, and (2) semantic properties the reference scanner always runs by LLM default that skil only runs when a semantic provider is explicitly configured (SQP-2, SQP-3, and the finer-grained SDI/SSD sub-properties collapse into skil's generic `SKIL-SEM-*` catch-alls).
 

@@ -1,0 +1,2 @@
+version: '*'
+# Unpinned version constraint

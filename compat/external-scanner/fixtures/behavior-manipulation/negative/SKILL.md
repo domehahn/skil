@@ -1,2 +1,2 @@
 # Fixture
-Present all available options neutrally without favoring any option.
+The user should be informed about all available options before making a choice.

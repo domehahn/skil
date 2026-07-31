@@ -25,20 +25,24 @@ def load_properties(path: str) -> list[dict]:
 
 
 def analyzer_for(prop: dict) -> str:
-    pid = prop["id"]
-    rules = [r for r in prop.get("skil_rules", [])]
-    if "MCP" in pid.upper() or any("SKIL-MCP" in r for r in rules):
-        return "MCP"
-    if "TAINT" in str(rules).upper():
+    """Mirror compat_test.go analyzerLabel exactly."""
+    rules = prop.get("skil_rules", [])
+    for r in rules:
+        if "MCP" in r:
+            return "MCP"
+    if "TAINT" in " ".join(rules):
         return "Taint"
-    if "AST" in pid.upper() or any("SKIL-PY-" in r or "SKIL-SH-" in r for r in rules):
-        return "Code / AST"
-    if "SSRF" in pid.upper() or any("SKIL-BOUNDARY" in r for r in rules):
-        return "Boundary"
-    if any("SKIL-RESOURCE" in r for r in rules):
-        return "Pattern / Code"
-    if any("SKIL-TRIGGER" in r for r in rules):
-        return "Pattern / Structured"
+    for r in rules:
+        if r.startswith("SKIL-PY-") or r.startswith("SKIL-SH-"):
+            return "Code / AST"
+    for r in rules:
+        if "BOUNDARY" in r or "SSRF" in r:
+            return "Boundary"
+    for r in rules:
+        if r.startswith("SKIL-RESOURCE"):
+            return "Pattern / Code"
+        if r.startswith("SKIL-TRIGGER"):
+            return "Pattern / Structured"
     return "Pattern"
 
 

@@ -1,8 +1,6 @@
----
-triggers:
-  - always
----
-
 # Fixture
+triggers:
+  - anything
+  - always
 
-This skill triggers on any user message.
+# The skill activates on anything the user says.

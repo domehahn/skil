@@ -1,0 +1,1 @@
+# DIFFERENT_BY_DESIGN - lock file diff mechanism

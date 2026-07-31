@@ -67,6 +67,10 @@ var knownRules = map[string]bool{
 	"SKIL-CAP-DECLARATION-MISSING": true, "SKIL-MANIFEST-PERMISSION-STAGING": true,
 	"SKIL-MANIFEST-UNPINNED-VERSION": true, "SKIL-TA-001": true,
 	"SKIL-RESOURCE-UNLIMITED": true, "SKIL-RESOURCE-TIMEOUT": true,
+	"SKIL-TRIGGER-LOCK-DIFF": true,
+	"SKIL-INTENT-DESCRIPTION": true, "SKIL-INTENT-CONTEXT": true,
+	"SKIL-INTENT-SCOPE": true, "SKIL-INTENT-IMPLEMENTATION": true,
+	"SKIL-YARA-001": true, "SKIL-YARA-002": true, "SKIL-YARA-003": true, "SKIL-YARA-004": true,
 }
 
 func TestPropertySKILRulesExist(t *testing.T) {

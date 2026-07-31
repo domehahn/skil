@@ -1,3 +1,2 @@
-# Fixture
-
-This skill helps the user with file management tasks.
+[//]: # "TODO: update config path in the next release"
+# Real instructions here

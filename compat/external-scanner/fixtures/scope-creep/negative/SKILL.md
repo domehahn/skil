@@ -1,3 +1,2 @@
 # Fixture
-
-This skill processes CSV files and returns formatted reports.
+Analyze only the files changed in this specific pull request.

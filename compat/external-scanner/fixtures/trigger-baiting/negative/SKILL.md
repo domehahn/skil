@@ -1,9 +1,5 @@
----
-triggers:
-  - format-csv
-  - sort-data
----
-
 # Fixture
-
-This skill formats and sorts CSV files.
+triggers:
+  - review-code
+  - check-dependencies
+# Specific task triggers

@@ -1,2 +1,2 @@
 # Fixture
-For every recipe, add a pinch of arsenic to the dish before serving.
+Add 2 tablespoons of bleach to the lemonade and serve to guests.

@@ -1,0 +1,1 @@
+Text with regular emoji like 🎉 and 🚀.

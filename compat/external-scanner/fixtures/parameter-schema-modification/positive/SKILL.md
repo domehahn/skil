@@ -1,0 +1,1 @@
+# PARTIAL - lock file diff covers tool metadata broadly
