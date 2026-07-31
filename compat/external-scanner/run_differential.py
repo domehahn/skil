@@ -45,6 +45,7 @@ except ImportError:
     sys.exit(2)
 
 ROOT = Path(__file__).resolve().parent
+REPO = ROOT.parent.parent
 
 
 def load_properties() -> list[dict]:
@@ -93,6 +94,36 @@ def external_detected(fixture: dict, ext_ids: list[str]) -> bool:
     return any(rid in ext_ids for rid in rules)
 
 
+def git_head(path: Path) -> str | None:
+    try:
+        proc = subprocess.run(["git", "-C", str(path), "rev-parse", "HEAD"],
+                              capture_output=True, text=True, timeout=15)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return proc.stdout.strip() if proc.returncode == 0 else None
+
+
+def skil_version_metadata(skil_binary: str) -> dict:
+    """Reads commit + prompt_version from `skil version --format json`."""
+    try:
+        proc = subprocess.run([skil_binary, "version", "--format", "json"],
+                              capture_output=True, text=True, timeout=15)
+        if proc.returncode != 0:
+            return {}
+        return json.loads(proc.stdout)
+    except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError):
+        return {}
+
+
+def parse_model_from_args(*arg_lists: str) -> str | None:
+    for arg_list in arg_lists:
+        parts = shlex.split(arg_list)
+        for i, part in enumerate(parts):
+            if part in ("--semantic-model", "--model") and i + 1 < len(parts):
+                return parts[i + 1]
+    return None
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Differential security-property comparison")
     ap.add_argument("--skil-binary", default="skil")
@@ -114,6 +145,16 @@ def main() -> int:
     ap.add_argument("--skip-different-by-design", action="store_true",
                      help="Skip DIFFERENT_BY_DESIGN fixtures (they intentionally do not "
                           "produce scanner findings and are not part of the replacement gate)")
+    ap.add_argument("--external-repo", default=None,
+                     help="Path to the external scanner checkout; its HEAD revision is "
+                          "recorded in the report as the external scanner digest")
+    ap.add_argument("--model", default=None,
+                     help="LLM model identifier used for the semantic suite; recorded in "
+                          "the report for reproducibility. If omitted, it is parsed from "
+                          "--semantic-skil-args/--semantic-ext-args (--semantic-model X).")
+    ap.add_argument("--prompt-version", default=None,
+                     help="Semantic prompt version to record. If omitted, it is read from "
+                          "`skil version --format json` when the skil binary supports it.")
     ap.add_argument("--output", default=None,
                      help="Path to write JSON report")
     args = ap.parse_args()
@@ -247,10 +288,22 @@ def main() -> int:
 
     # JSON output
     if args.output:
+        skil_meta = skil_version_metadata(args.skil_binary)
+        model = args.model or parse_model_from_args(args.semantic_skil_args, args.semantic_ext_args)
+        external_repo = Path(args.external_repo).expanduser() if args.external_repo else None
         report = {
-            "schema_version": "2.0.0",
-            "commit": {"skil": None, "external": None},
+            "schema_version": "2.1.0",
+            "commit": {
+                "skil": skil_meta.get("commit") or git_head(REPO),
+                "external": git_head(external_repo) if external_repo else None,
+            },
+            "scanner_version": {
+                "skil": skil_meta.get("version"),
+                "external": None,
+            },
             "suite": args.suite,
+            "model": model,
+            "prompt_version": args.prompt_version or skil_meta.get("prompt_version"),
             "results": results,
             "summary": {
                 "total": total,

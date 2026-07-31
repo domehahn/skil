@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime/debug"
 	"sort"
 	"strings"
 	"sync"
@@ -135,8 +136,7 @@ func (a *App) Run(ctx context.Context, args []string) int {
 		a.help()
 		return ExitOK
 	case "version", "--version":
-		fmt.Fprintln(a.Out, skil.Version)
-		return ExitOK
+		return a.version(args[1:])
 	case "validate":
 		code = a.validate(args[1:])
 	case "lint":
@@ -193,6 +193,39 @@ func (a *App) Run(ctx context.Context, args []string) int {
 		return ExitInput
 	}
 	return code
+}
+
+func (a *App) version(args []string) int {
+	format := "plain"
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if strings.HasPrefix(arg, "--format=") {
+			format = strings.TrimPrefix(arg, "--format=")
+		} else if arg == "--format" && i+1 < len(args) {
+			format = args[i+1]
+		}
+	}
+	if format != "json" {
+		fmt.Fprintln(a.Out, skil.Version)
+		return ExitOK
+	}
+	value := map[string]any{"version": skil.Version, "prompt_version": semanticprovider.PromptVersion}
+	if info, ok := debug.ReadBuildInfo(); ok {
+		for _, setting := range info.Settings {
+			if setting.Key == "vcs.revision" {
+				value["commit"] = setting.Value
+			}
+			if setting.Key == "vcs.modified" {
+				value["dirty"] = setting.Value == "true"
+			}
+		}
+	}
+	data, err := json.Marshal(value)
+	if err != nil {
+		return ExitInput
+	}
+	fmt.Fprintln(a.Out, string(data))
+	return ExitOK
 }
 
 func (a *App) help() {
@@ -1798,7 +1831,7 @@ func (a *App) analysisRegistry(ctx context.Context, flags analysisFlags) (*analy
 			destination = "AWS Bedrock region " + *flags.semanticRegion
 		}
 		a.logMu.Lock()
-		fmt.Fprintf(a.Err, "semantic analysis: provider=%s model=%s destination=%s transmission=all text files up to 1 MiB tools=none passes=security,intent,quality,meta\n",
+		fmt.Fprintf(a.Err, "semantic analysis: provider=%s model=%s destination=%s transmission=all text files up to 1 MiB tools=none passes=security,intent,quality,policy,meta\n",
 			*flags.semanticProvider, *flags.semanticModel, destination)
 		a.logMu.Unlock()
 		var provider skil.SemanticProvider
