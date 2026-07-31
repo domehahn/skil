@@ -1,5 +1,13 @@
 # skil
 
+[![CI](https://github.com/domehahn/skil/actions/workflows/ci.yml/badge.svg)](https://github.com/domehahn/skil/actions/workflows/ci.yml)
+[![Release](https://github.com/domehahn/skil/actions/workflows/release.yml/badge.svg)](https://github.com/domehahn/skil/actions/workflows/release.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/domehahn/skil)](https://goreportcard.com/report/github.com/domehahn/skil)
+[![Go Reference](https://pkg.go.dev/badge/github.com/domehahn/skil.svg)](https://pkg.go.dev/github.com/domehahn/skil)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/domehahn/skil)](https://github.com/domehahn/skil/blob/main/go.mod)
+[![License](https://img.shields.io/github/license/domehahn/skil)](https://github.com/domehahn/skil/blob/main/LICENSE)
+[![Release](https://img.shields.io/github/v/release/domehahn/skil)](https://github.com/domehahn/skil/releases)
+
 `skil` (**Skill Inspector and Linter**) is an open, vendor-neutral security,
 verification, and assurance framework for AI agent skills.
 
@@ -159,15 +167,41 @@ and `.skilignore` itself remains part of the artifact manifest.
   agent runtimes, and external evidence importers
 - bounded parallel, deterministic multi-skill collection scanning and a
   confined MCP scanner service over stdio or bearer-authenticated loopback HTTP
+- a live differential test harness against an external AI-skill security
+  scanner: an 86-property corpus of positive/negative fixtures with CI gates,
+  an auto-generated control crosswalk, and a property-level feature-parity
+  document showing zero properties detected only by the external scanner
 
 A non-root multi-stage container image can be built with `make docker-build`;
 `make docker-smoke` verifies its CLI entrypoint.
 
-See [architecture](docs/architecture.md), [skill linting](docs/linting.md),
-[native security capabilities](docs/native-capabilities.md),
-[threat model](docs/threat-model.md), [known limitations](docs/security-scanning.md),
-the [external control crosswalk](docs/external-control-crosswalk.md), and the
-[release identity checklist](docs/release-identity-checklist.md).
+## Documentation
+
+| Document | Purpose |
+| --- | --- |
+| [Architecture](docs/architecture.md) | System design, pipeline, and extension interfaces |
+| [Skill contract](docs/skill-contract.md) | Versioned skill format and validation |
+| [Linting](docs/linting.md) | Authoring checks and profiles |
+| [Native security capabilities](docs/native-capabilities.md) | Built-in analyzers and rules |
+| [Security model](docs/security-model.md) | Threat assumptions and trust boundaries |
+| [Threat model](docs/threat-model.md) | Assets, attack surface, and countermeasures |
+| [Known limitations](docs/security-scanning.md) | Static-scanning scope and blind spots |
+| [Verification](docs/verification.md) | Declared-vs-observed capability checks |
+| [Policy](docs/policy.md) | Explainable install-time decisions |
+| [Attestations](docs/attestations.md) | Digest-bound evidence and signatures |
+| [Supply chain](docs/supply-chain.md) | SBOM, provenance, and dependency checks |
+| [Semantic analysis](docs/semantic-analysis.md) | Provider-backed model passes |
+| [External control crosswalk](docs/external-control-crosswalk.md) | Rule-ID mapping to external scanners |
+| [External scanner feature parity](docs/external-scanner-feature-parity.md) | Differential harness results and rationale |
+| [Release identity checklist](docs/release-identity-checklist.md) | Release hardening checklist |
+| [Glossary](docs/glossary.md) | Terminology |
+
+Additional deep-dive documents: [adversarial testing](docs/adversarial-testing.md),
+[behavioral testing](docs/behavioral-testing.md),
+[provider model](docs/provider-model.md),
+[capabilities](docs/capabilities.md),
+[extending analyzers](docs/extending-analyzers.md), and the
+[security control matrix](docs/security-control-matrix.md).
 
 ## CI gate
 
@@ -223,4 +257,11 @@ amd64, accompanied by checksums and binary-derived SPDX SBOMs, attested through
 GitHub OIDC, downloaded into the publication job, and verified again before
 release creation.
 
-Apache-2.0 licensed. Contributions and responsible security reports are welcome.
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow, and
+[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for community guidelines. Report
+security vulnerabilities privately per [SECURITY.md](SECURITY.md). Third-party
+attributions are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+Licensed under [Apache-2.0](LICENSE).
