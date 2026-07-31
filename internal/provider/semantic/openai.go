@@ -256,7 +256,9 @@ func semanticControlAllowed(focus, control string) bool {
 		return strings.HasPrefix(control, "description_") || control == "context_misuse" ||
 			control == "scope_expansion" || control == "implementation_divergence"
 	case "quality":
-		return control == "semantic_quality" || control == "semantic_policy"
+		return control == "semantic_quality"
+	case "policy":
+		return control == "semantic_policy"
 	case "meta":
 		return control == "semantic_composite"
 	default:

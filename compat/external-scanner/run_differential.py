@@ -137,7 +137,7 @@ def main() -> int:
     results = []
     for prop, fixture in fixtures:
         fixture_root = ROOT / "fixtures" / fixture["fixture"]
-        skii_extra = [args.semantic_skil_args] if fixture.get("suite") == "semantic" else []
+        skii_extra = (shlex.split(args.semantic_skil_args) if args.semantic_skil_args else []) if fixture.get("suite") == "semantic" else []
         if fixture.get("scan_args"):
             skii_extra += shlex.split(fixture["scan_args"])
         ext_extra = shlex.split(args.semantic_ext_args) if fixture.get("suite") == "semantic" else ["--no-llm"]

@@ -79,3 +79,46 @@ func TestNativeIntentControlsHaveDistinctRuleIDs(t *testing.T) {
 		}
 	}
 }
+
+func TestSemanticPolicyControlAllowed(t *testing.T) {
+	cases := []struct {
+		focus, control string
+		want           bool
+	}{
+		{"policy", "semantic_policy", true},
+		{"policy", "semantic_security", false},
+		{"policy", "semantic_quality", false},
+		{"security", "semantic_policy", false},
+		{"quality", "semantic_policy", false},
+		{"quality", "semantic_quality", true},
+		{"", "semantic_policy", true},
+		{"all", "semantic_policy", true},
+	}
+	for _, tc := range cases {
+		if got := semanticControlAllowed(tc.focus, tc.control); got != tc.want {
+			t.Errorf("semanticControlAllowed(%q, %q) = %v, want %v", tc.focus, tc.control, got, tc.want)
+		}
+	}
+}
+
+func TestSemanticPolicyFindingsNormalize(t *testing.T) {
+	items := []semanticFinding{{
+		Control: "semantic_policy", Severity: "MEDIUM", Confidence: .7,
+		Title: "Policy conflict", Message: "forced language", File: "SKILL.md", StartLine: 1, EndLine: 1,
+		Remediation: "align with policy",
+	}}
+	findings, err := normalizeFindings(items, skil.SemanticRequest{
+		ArtifactDigest: "abc", Files: map[string]string{"SKILL.md": "content"}, Focus: "policy",
+	}, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(findings) != 1 || findings[0].RuleID != "SKIL-SEM-POLICY" || findings[0].Category != "quality-policy" {
+		t.Fatalf("policy finding normalized to %#v", findings)
+	}
+	if _, err := normalizeFindings(items, skil.SemanticRequest{
+		ArtifactDigest: "abc", Files: map[string]string{"SKILL.md": "content"}, Focus: "security",
+	}, "test"); err == nil {
+		t.Fatal("semantic_policy outside focus=security must be rejected")
+	}
+}
