@@ -1,2 +1,2 @@
-cryptography==41.0.7
+cryptography==48.0.1
 pytest==8.0.0
