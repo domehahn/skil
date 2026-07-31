@@ -1,0 +1,1 @@
+# DIFFERENT_BY_DESIGN - no detection expected from either scanner

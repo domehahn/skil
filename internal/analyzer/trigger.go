@@ -45,7 +45,7 @@ func isSingleWord(s string) bool {
 }
 
 type Trigger struct {
-	rules []RulePattern
+	rules          []RulePattern
 	nilPatternRule skil.Rule
 }
 
@@ -66,16 +66,16 @@ func NewTrigger() *Trigger {
 				`(?:do\s+not|avoid|prevent|example)`,
 				"A trigger phrase is a common word that increases unintended activation risk.",
 				"Use a narrow, domain-specific trigger phrase."),
-		r("SKIL-TRIGGER-SHADOW", "Trusted trigger shadowing", "activation-integrity", skil.SeverityHigh,
-			`(?:trigger|invoke|activate|run)\s+(?:on|for|when|with)?\s*[:\s]\s*(?:/?(?:deploy|rollback|publish|delete|remove|admin|sudo|su|reboot|shutdown|docker|kubectl))\b`,
-			`(?:do\s+not|never|avoid|prevent|example)`,
-			"A trigger shadows a built-in or commonly trusted command.",
-			"Use a unique explicit trigger that does not shadow existing commands."),
-		r("SKIL-TRIGGER-BAITING", "Keyword baiting trigger", "activation-integrity", skil.SeverityMedium,
-			`(?:trigger|invoke|activate|run)\s+(?:on|for|when|with)?\s*[:\s]\s*(?:code|file|data|info|query|run|start|do|go|help|test|check|list|show|get|set|read|write|search|find)\b`,
-			`(?:do\s+not|never|avoid|prevent|example)`,
-			"A trigger uses a common code or data keyword that increases unintentional activation in automated contexts.",
-			"Use a narrow, domain-specific trigger phrase."),
+			r("SKIL-TRIGGER-SHADOW", "Trusted trigger shadowing", "activation-integrity", skil.SeverityHigh,
+				`(?:trigger|invoke|activate|run)\s+(?:on|for|when|with)?\s*[:\s]\s*(?:/?(?:deploy|rollback|publish|delete|remove|admin|sudo|su|reboot|shutdown|docker|kubectl))\b`,
+				`(?:do\s+not|never|avoid|prevent|example)`,
+				"A trigger shadows a built-in or commonly trusted command.",
+				"Use a unique explicit trigger that does not shadow existing commands."),
+			r("SKIL-TRIGGER-BAITING", "Keyword baiting trigger", "activation-integrity", skil.SeverityMedium,
+				`(?:trigger|invoke|activate|run)\s+(?:on|for|when|with)?\s*[:\s]\s*(?:code|file|data|info|query|run|start|do|go|help|test|check|list|show|get|set|read|write|search|find)\b`,
+				`(?:do\s+not|never|avoid|prevent|example)`,
+				"A trigger uses a common code or data keyword that increases unintentional activation in automated contexts.",
+				"Use a narrow, domain-specific trigger phrase."),
 		},
 		nilPatternRule: skil.Rule{ID: "SKIL-TRIGGER-LOCK-DIFF", Title: "Trigger surface changed from lock", Category: "activation-integrity", Severity: skil.SeverityHigh,
 			Analysis: "trigger", AppliesTo: []string{"yaml", "yml", "lock"},

@@ -164,9 +164,11 @@ semantic_security (security weakness requiring contextual reasoning),
 description_mismatch (stated purpose conflicts with behavior), context_misuse (a capability is unsafe for
 the stated context), scope_expansion (behavior exceeds declared capabilities), or implementation_divergence
 (implementation contradicts an explicit statement), or semantic_quality (ambiguity, contradiction, missing
-precondition, or non-security quality defect), or semantic_composite (a material risk supported by two or more
-prior findings). For focus=security only use semantic_security; for focus=intent
-only use the four intent controls; for focus=quality only use semantic_quality. Assess excessive agency,
+precondition, or non-security quality defect), or semantic_policy (behavior that conflicts with an organization's
+content or operational policy, e.g. forced language or prohibited subject matter), or semantic_composite (a material
+risk supported by two or more prior findings). For focus=security only use semantic_security; for focus=intent
+only use the four intent controls; for focus=quality only use semantic_quality; for focus=policy only use
+semantic_policy. Assess excessive agency,
 ambiguous activation, missing safeguards, and tool-description mismatch when relevant. For focus=meta, consider
 prior_findings, use only semantic_composite, and do not restate a single-pass observation. Return only the required JSON schema.
 Do not invent files or line numbers. Return an empty findings array when evidence is insufficient.`
@@ -175,7 +177,7 @@ func semanticResponseFormat() map[string]any {
 	finding := map[string]any{"type": "object", "additionalProperties": false,
 		"required": []string{"control", "severity", "confidence", "title", "message", "file", "start_line", "end_line", "remediation"},
 		"properties": map[string]any{
-			"control":    map[string]any{"type": "string", "enum": []string{"semantic_security", "description_mismatch", "context_misuse", "scope_expansion", "implementation_divergence", "semantic_quality", "semantic_composite"}},
+			"control":    map[string]any{"type": "string", "enum": []string{"semantic_security", "description_mismatch", "context_misuse", "scope_expansion", "implementation_divergence", "semantic_quality", "semantic_policy", "semantic_composite"}},
 			"severity":   map[string]any{"type": "string", "enum": []string{"INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL"}},
 			"confidence": map[string]any{"type": "number", "minimum": 0, "maximum": 1},
 			"title":      map[string]any{"type": "string"}, "message": map[string]any{"type": "string"},
@@ -219,6 +221,8 @@ func normalizeFindings(items []semanticFinding, request skil.SemanticRequest, pr
 			category = "semantic-security"
 		} else if item.Control == "semantic_quality" {
 			category = "quality-policy"
+		} else if item.Control == "semantic_policy" {
+			category = "quality-policy"
 		} else if item.Control == "semantic_composite" {
 			category = "semantic-composition"
 		}
@@ -238,6 +242,7 @@ var semanticControlIDs = map[string]string{
 	"scope_expansion":           "SKIL-INTENT-SCOPE",
 	"implementation_divergence": "SKIL-INTENT-IMPLEMENTATION",
 	"semantic_quality":          "SKIL-SEM-QUALITY",
+	"semantic_policy":           "SKIL-SEM-POLICY",
 	"semantic_composite":        "SKIL-SEM-COMPOSITE",
 }
 
@@ -251,7 +256,7 @@ func semanticControlAllowed(focus, control string) bool {
 		return strings.HasPrefix(control, "description_") || control == "context_misuse" ||
 			control == "scope_expansion" || control == "implementation_divergence"
 	case "quality":
-		return control == "semantic_quality"
+		return control == "semantic_quality" || control == "semantic_policy"
 	case "meta":
 		return control == "semantic_composite"
 	default:

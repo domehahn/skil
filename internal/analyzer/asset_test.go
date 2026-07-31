@@ -119,21 +119,21 @@ func buildWasmWithImport() []byte {
 	// Type section (ID 1) needed so the import can reference a type index.
 	typeContent := []byte{0x01, 0x60, 0x02, 0x7f, 0x7f, 0x01, 0x7f} // func(i32,i32)->i32
 	typeSize := uint64(len(typeContent))
-	b = append(b, 0x01)          // section 1
+	b = append(b, 0x01) // section 1
 	b = append(b, encodeULEB128(typeSize)...)
 	b = append(b, typeContent...)
 	// Import section (ID 2): one import of kind "func".
 	mod := "wasi_snapshot_preview1"
 	name := "fd_write"
 	importContent := []byte{}
-	importContent = append(importContent, encodeULEB128(1)...)              // 1 import
-	importContent = append(importContent, encodeULEB128(uint64(len(mod)))...) // module length
-	importContent = append(importContent, mod...)                            // module
+	importContent = append(importContent, encodeULEB128(1)...)                 // 1 import
+	importContent = append(importContent, encodeULEB128(uint64(len(mod)))...)  // module length
+	importContent = append(importContent, mod...)                              // module
 	importContent = append(importContent, encodeULEB128(uint64(len(name)))...) // name length
-	importContent = append(importContent, name...)                            // name
-	importContent = append(importContent, 0x00)                               // func kind
-	importContent = append(importContent, encodeULEB128(0)...)                // type index 0
-	b = append(b, 0x02)           // section 2
+	importContent = append(importContent, name...)                             // name
+	importContent = append(importContent, 0x00)                                // func kind
+	importContent = append(importContent, encodeULEB128(0)...)                 // type index 0
+	b = append(b, 0x02)                                                        // section 2
 	b = append(b, encodeULEB128(uint64(len(importContent)))...)
 	b = append(b, importContent...)
 	return b

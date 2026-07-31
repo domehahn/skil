@@ -1,5 +1,2 @@
-# requirements.txt
-flask==3.0.0
-requests==2.31.0
-numpy==1.26.0
-# Exact pinned versions
+# Fixture
+Python project that pins every dependency exactly.

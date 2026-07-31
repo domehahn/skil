@@ -56,7 +56,7 @@ func TestSemanticSuiteRunsIndependentPasses(t *testing.T) {
 	if _, err := suite.Analyze(context.Background(), skil.AnalysisContext{Artifact: artifactWith("SKILL.md", "# test")}); err != nil {
 		t.Fatal(err)
 	}
-	if strings.Join(provider.focuses, ",") != "security,intent,quality,meta" {
+	if strings.Join(provider.focuses, ",") != "security,intent,quality,policy,meta" {
 		t.Fatalf("unexpected semantic passes: %#v", provider.focuses)
 	}
 }

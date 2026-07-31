@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
@@ -11,13 +12,18 @@ import (
 )
 
 type Property struct {
-	ID           string   `yaml:"id"`
-	Description  string   `yaml:"description"`
-	Fixture      string   `yaml:"fixture"`
-	SKILRules    []string `yaml:"skil_rules"`
-	ExternalRule string   `yaml:"external_rule"`
-	Status       string   `yaml:"status"`
-	Notes        string   `yaml:"notes"`
+	ID              string   `yaml:"id"`
+	Description     string   `yaml:"description"`
+	Fixture         string   `yaml:"fixture"`
+	SKILRules       []string `yaml:"skil_rules"`
+	ExternalRule    string   `yaml:"external_rule"`
+	ExternalRules   []string `yaml:"external_rules"`
+	ExternalVariant string   `yaml:"external_variant"`
+	Suite           string   `yaml:"suite"`
+	ScanArgs        string   `yaml:"scan_args"`
+	Status          string   `yaml:"status"`
+	StatusNote      string   `yaml:"status_note"`
+	Notes           string   `yaml:"notes"`
 }
 
 type Manifest struct {
@@ -70,7 +76,66 @@ var knownRules = map[string]bool{
 	"SKIL-TRIGGER-LOCK-DIFF": true,
 	"SKIL-INTENT-DESCRIPTION": true, "SKIL-INTENT-CONTEXT": true,
 	"SKIL-INTENT-SCOPE": true, "SKIL-INTENT-IMPLEMENTATION": true,
+	"SKIL-SEM-POLICY": true,
 	"SKIL-YARA-001": true, "SKIL-YARA-002": true, "SKIL-YARA-003": true, "SKIL-YARA-004": true,
+}
+
+// knownExternalRules are rule IDs the reference scanner actually emits.
+var knownExternalRules = map[string]bool{}
+
+// knownHyphenatedExternal are scanner-native rule IDs that legitimately
+// contain a hyphen (SDI-1..4, SQP-1..3, SSD-1..4). Synthetic sub-IDs and
+// aggregates (P2-html, AST1-9) must never be used as matching IDs.
+var knownHyphenatedExternal = map[string]bool{
+	"SDI-1": true, "SDI-2": true, "SDI-3": true, "SDI-4": true,
+	"SQP-1": true, "SQP-2": true, "SQP-3": true,
+	"SSD-1": true, "SSD-2": true, "SSD-3": true, "SSD-4": true,
+}
+
+func TestPropertyModel(t *testing.T) {
+	m := readProperties(t)
+	for _, p := range m.Properties {
+		if len(p.ExternalRules) == 0 {
+			t.Errorf("property %q must declare external_rules (list of scanner-emitted rule IDs)", p.ID)
+		}
+		if p.ExternalRule == "" {
+			t.Errorf("property %q must declare external_rule (canonical crosswalk key)", p.ID)
+		}
+		if p.Suite != "static" && p.Suite != "semantic" && p.Suite != "provider" {
+			t.Errorf("property %q has invalid suite %q (want static, semantic, or provider)", p.ID, p.Suite)
+		}
+		if p.Suite == "provider" && p.Status != "PROVIDER_BACKED" {
+			t.Errorf("property %q has suite %q but status %q (provider suite requires PROVIDER_BACKED)", p.ID, p.Suite, p.Status)
+		}
+	}
+}
+
+func TestNoSyntheticExternalIDs(t *testing.T) {
+	// The reference scanner emits its native rule IDs (e.g. P2, AST1..AST9,
+	// SDI-1..SDI-4). Synthetic sub-IDs such as "P2-html" or aggregates such as
+	// "AST1-9" must never be used as matching IDs in the differential harness.
+	m := readProperties(t)
+	for _, p := range m.Properties {
+		for _, r := range p.ExternalRules {
+			if strings.Contains(r, "-") && !knownHyphenatedExternal[r] {
+				t.Errorf("property %q declares external rule %q with a synthetic suffix; the scanner emits the base ID only", p.ID, r)
+			}
+		}
+	}
+}
+
+func TestNoUnresolvedPARTIALOrMISSING(t *testing.T) {
+	// Replacement gate: every property must be FULL, DIFFERENT_BY_DESIGN, or
+	// PROVIDER_BACKED. PARTIAL and MISSING are not permitted in the final gate.
+	m := readProperties(t)
+	for _, p := range m.Properties {
+		if p.Status == "PARTIAL" {
+			t.Errorf("property %q is PARTIAL — resolve to FULL, DIFFERENT_BY_DESIGN, or PROVIDER_BACKED", p.ID)
+		}
+		if p.Status == "MISSING" {
+			t.Errorf("property %q is MISSING — implement the control or classify explicitly", p.ID)
+		}
+	}
 }
 
 func TestPropertySKILRulesExist(t *testing.T) {
@@ -104,10 +169,6 @@ func TestNoMISSINGInParityDoc(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	knownDesignGaps := map[string]bool{
-		"SQP-3 — Natural-language policy violations": true, // inherently LLM-judgment property
-	}
-
 	inSummary := false
 	for _, line := range strings.Split(string(data), "\n") {
 		trimmed := strings.TrimSpace(line)
@@ -120,16 +181,7 @@ func TestNoMISSINGInParityDoc(t *testing.T) {
 		if inSummary {
 			continue
 		}
-		allowed := false
-		for gap := range knownDesignGaps {
-			if strings.Contains(line, gap) {
-				allowed = true
-				break
-			}
-		}
-		if !allowed {
-			t.Errorf("unexpected MISSING entry in property table: %s", trimmed)
-		}
+		t.Errorf("unexpected MISSING entry in property table: %s", trimmed)
 	}
 }
 
@@ -154,12 +206,25 @@ func TestAutoCrosswalkSectionIsUpToDate(t *testing.T) {
 	}
 }
 
+func externalLabel(p Property) string {
+	ext := p.ExternalRule
+	if p.ExternalVariant != "" {
+		ext = p.ExternalRule + " · " + p.ExternalVariant
+	}
+	if p.Suite == "semantic" {
+		ext += " (semantic)"
+	} else if p.Suite == "provider" {
+		ext += " (provider)"
+	}
+	return ext
+}
+
 func generateCrosswalkTable(properties []Property) string {
-	// Sort by external_rule for deterministic output
-	type entry struct{ ext, behavior, natives, status, analyzer, notes string }
+	// Stable sort by canonical external_rule (ties keep properties.yaml order),
+	// mirroring generate_crosswalk.py.
+	type entry struct{ ext, base, behavior, natives, status, analyzer, notes string }
 	var entries []entry
 	for _, p := range properties {
-		ext := p.ExternalRule
 		behavior := p.Description
 		natives := ""
 		for i, r := range p.SKILRules {
@@ -168,18 +233,16 @@ func generateCrosswalkTable(properties []Property) string {
 			}
 			natives += r
 		}
-		status := p.Status
-		a := analyzerLabel(p)
-		entries = append(entries, entry{ext, behavior, "`" + natives + "`", status, a, p.Notes})
-	}
-	// Sort by external_rule
-	for i := 0; i < len(entries); i++ {
-		for j := i + 1; j < len(entries); j++ {
-			if entries[i].ext > entries[j].ext {
-				entries[i], entries[j] = entries[j], entries[i]
+		note := p.Notes
+		if p.StatusNote != "" {
+			if note != "" {
+				note += " "
 			}
+			note += p.StatusNote
 		}
+		entries = append(entries, entry{externalLabel(p), p.ExternalRule, behavior, "`" + natives + "`", p.Status, analyzerLabel(p), note})
 	}
+	sort.SliceStable(entries, func(i, j int) bool { return entries[i].base < entries[j].base })
 	var b strings.Builder
 	b.WriteString("## Auto-generated (properties.yaml)\n\n")
 	b.WriteString("| External ID | Reference behavior | Native equivalent | Coverage | Analyzer | Notes |\n")

@@ -1,0 +1,21 @@
+version: 1
+skill: {name: noperms, version: 1.0.0, description: Runs a shell command}
+owner: platform-security
+entrypoint: SKILL.md
+compatibility: {agents: [codex], platforms: [linux]}
+security:
+  requires_network: false
+  requires_secrets: false
+  writes_files: false
+  runs_commands: true
+capabilities:
+  filesystem: {read: [], write: [], delete: []}
+  network: {inbound: false, outbound: false, hosts: []}
+  commands: {execute: true, allow: ['ls']}
+  secrets: {read: [], expose: false}
+  environment: {read: []}
+  tools: {allow: [], deny: []}
+  mcp: {servers: [], tools: []}
+  persistence: false
+  agent: {autonomous_actions: false, external_side_effects: false, confirm_destructive: true, confirm_external: true}
+  resources: {max_runtime_seconds: 30}

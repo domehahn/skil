@@ -1,2 +1,2 @@
 # Fixture
-Read the PATH and HOME environment variables for configuration.
+Reads non-secret configuration.

@@ -6,10 +6,27 @@ positive and negative fixture, normalizes findings to the shared property
 ID, and reports the critical metric: how many properties does the external
 scanner detect that skil does not.
 
+Three suites are supported:
+- static (default): skil offline scan vs external scanner with --no-llm
+- semantic:        skil --semantic vs external scanner with LLM enabled
+- provider:        skil scans that require a runtime provider (OSV query,
+                   YARA binary) and are excluded from the offline CI gate
+
+Per-property `scan_args` (e.g. `--osv`, `--yara-builtin`) are appended to the
+skil command line only for that property.
+
+External rule normalization: properties declare `external_rules` as the list
+of rule IDs the reference scanner actually emits (it may collapse several skil
+sub-variants into one rule ID, e.g. P2 for HTML/Markdown/zero-width hidden
+instructions). A property is detected on the external side if ANY declared
+external rule ID appears in the scanner output.
+
 Usage:
     python3 run_differential.py \\
         --skil-binary /path/to/skil \\
         [--external-cmd "uv run --project /path/to/reference/clone <entry-point>"]
+        [--suite static|semantic|provider|all]
+        [--semantic-skil-args ...] [--semantic-ext-args ...]
         [--output /path/to/report.json]
 """
 from __future__ import annotations
@@ -35,13 +52,11 @@ def load_properties() -> list[dict]:
         return yaml.safe_load(f)["properties"]
 
 
-def run_skil(binary: str, fixture_dir: Path) -> tuple[bool, list[str], str]:
+def run_skil(binary: str, fixture_dir: Path, extra_args: list[str]) -> tuple[bool, list[str], str]:
     """Returns (ran_ok, observed_rule_ids, raw_stderr_on_failure)."""
+    cmd = [binary, "scan", str(fixture_dir), "--format", "json", *extra_args]
     try:
-        proc = subprocess.run(
-            [binary, "scan", str(fixture_dir), "--format", "json"],
-            capture_output=True, text=True, timeout=60,
-        )
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
     except (OSError, subprocess.TimeoutExpired) as exc:
         return False, [], str(exc)
     if proc.returncode not in (0, 1):
@@ -54,11 +69,11 @@ def run_skil(binary: str, fixture_dir: Path) -> tuple[bool, list[str], str]:
     return True, ids, ""
 
 
-def run_external(cmd_prefix: list[str], fixture_dir: Path) -> tuple[bool, list[str], str]:
+def run_external(cmd_prefix: list[str], fixture_dir: Path, extra_args: list[str]) -> tuple[bool, list[str], str]:
     """Returns (ran_ok, observed_rule_ids, raw_stderr_on_failure)."""
     try:
         proc = subprocess.run(
-            [*cmd_prefix, "scan", str(fixture_dir), "--no-llm", "--format", "json"],
+            [*cmd_prefix, "scan", str(fixture_dir), *extra_args, "--format", "json"],
             capture_output=True, text=True, timeout=120,
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
@@ -73,6 +88,11 @@ def run_external(cmd_prefix: list[str], fixture_dir: Path) -> tuple[bool, list[s
     return True, ids, ""
 
 
+def external_detected(prop: dict, ext_ids: list[str]) -> bool:
+    rules = prop.get("external_rules") or [prop.get("external_rule", "")]
+    return any(rid in ext_ids for rid in rules)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Differential security-property comparison")
     ap.add_argument("--skil-binary", default="skil")
@@ -82,6 +102,18 @@ def main() -> int:
                           "If omitted, only skil is exercised.")
     ap.add_argument("--filter", default="",
                      help="Comma-separated property id substrings")
+    ap.add_argument("--suite", choices=["static", "semantic", "provider", "all"], default="all",
+                     help="Which suite to exercise. Semantic requires a configured LLM "
+                          "provider on both sides and is excluded from the CI gate; "
+                          "provider exercises scans that need a runtime provider.")
+    ap.add_argument("--semantic-skil-args", default="--semantic",
+                     help="Extra args passed to skil scan in the semantic suite")
+    ap.add_argument("--semantic-ext-args", default="",
+                     help="Extra args passed to the external scanner in the semantic suite "
+                          "(omit --no-llm and pass provider/model flags)")
+    ap.add_argument("--skip-different-by-design", action="store_true",
+                     help="Skip DIFFERENT_BY_DESIGN properties (they intentionally do not "
+                          "produce scanner findings and are not part of the replacement gate)")
     ap.add_argument("--output", default=None,
                      help="Path to write JSON report")
     args = ap.parse_args()
@@ -91,15 +123,25 @@ def main() -> int:
     if args.filter:
         wanted = [w.strip() for w in args.filter.split(",") if w.strip()]
         properties = [p for p in properties if any(w in p["id"] for w in wanted)]
+    if args.suite != "all":
+        properties = [p for p in properties if p.get("suite") == args.suite]
+    if args.skip_different_by_design:
+        properties = [p for p in properties if p.get("status") != "DIFFERENT_BY_DESIGN"]
+
 
     results = []
     for prop in properties:
         fixture_root = ROOT / "fixtures" / prop["fixture"]
+        skii_extra = [args.semantic_skil_args] if prop.get("suite") == "semantic" else []
+        if prop.get("scan_args"):
+            skii_extra += shlex.split(prop["scan_args"])
+        ext_extra = shlex.split(args.semantic_ext_args) if prop.get("suite") == "semantic" else ["--no-llm"]
         entry = {
             "property": prop["id"],
             "fixture": prop["fixture"],
+            "suite": prop.get("suite", "static"),
             "skil_rules": prop["skil_rules"],
-            "external_rule": prop["external_rule"],
+            "external_rules": prop.get("external_rules", [prop.get("external_rule", "")]),
             "positive": {"skil": {}, "external": {}},
             "negative": {"skil": {}, "external": {}},
         }
@@ -109,7 +151,7 @@ def main() -> int:
                 continue
 
             # skil
-            skil_ok, skil_ids, skil_err = run_skil(args.skil_binary, fixture_dir)
+            skil_ok, skil_ids, skil_err = run_skil(args.skil_binary, fixture_dir, skii_extra)
             skil_detected = any(rid in skil_ids for rid in prop["skil_rules"])
             entry[polarity]["skil"] = {
                 "ok": skil_ok,
@@ -120,8 +162,8 @@ def main() -> int:
 
             # external
             if external_cmd:
-                ext_ok, ext_ids, ext_err = run_external(external_cmd, fixture_dir)
-                ext_detected = prop["external_rule"] in ext_ids
+                ext_ok, ext_ids, ext_err = run_external(external_cmd, fixture_dir, ext_extra)
+                ext_detected = external_detected(prop, ext_ids)
                 entry[polarity]["external"] = {
                     "ok": ext_ok,
                     "detected": ext_detected,
@@ -201,8 +243,9 @@ def main() -> int:
     # JSON output
     if args.output:
         report = {
-            "schema_version": "1.0.0",
+            "schema_version": "1.1.0",
             "commit": {"skil": None, "external": None},
+            "suite": args.suite,
             "results": results,
             "summary": {
                 "total": total,

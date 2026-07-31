@@ -1,3 +1,2 @@
 # Fixture
-npx @modelcontextprotocol/server-everything
-# Unpinned npx ref
+Runs an MCP server via npx.

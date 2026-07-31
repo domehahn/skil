@@ -1,4 +1,2 @@
-# requirements.txt
-requests==2.31.0
-numpy==1.26.0
-# Correct names
+# Fixture
+Python project that depends on well-known package names.

@@ -1,4 +1,2 @@
-# requirements.txt
-requesrs==2.31.0
-numpyy==1.26.0
-# Typosquatted names
+# Fixture
+Python project that depends on typo-squatted package names.

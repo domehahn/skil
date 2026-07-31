@@ -24,7 +24,7 @@ var (
 	identifier   = regexp.MustCompile(`[A-Za-z_$][A-Za-z0-9_$]*`)
 
 	privilegedContextVars = regexp.MustCompile(`(?i)^(?:system_prompt|developer_instructions?|hidden_context|privileged_context|system_prompt_text|developer_guidance|private_context|internal_prompt)$`)
-	taintSinks   = []struct {
+	taintSinks            = []struct {
 		name, capability string
 		re               *regexp.Regexp
 		severity         skil.Severity

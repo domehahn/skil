@@ -46,18 +46,34 @@ def analyzer_for(prop: dict) -> str:
     return "Pattern"
 
 
+def external_label(prop: dict) -> str:
+    ext = prop.get("external_rule", "")
+    variant = prop.get("external_variant", "")
+    suite = prop.get("suite", "static")
+    label = ext
+    if variant:
+        label = f"{ext} · {variant}"
+    if suite == "semantic":
+        label += " (semantic)"
+    elif suite == "provider":
+        label += " (provider)"
+    return label
+
+
 def generate_table(properties: list[dict]) -> str:
     lines = [
         "| External ID | Reference behavior | Native equivalent | Coverage | Analyzer | Notes |",
         "|---|---|---|---|---|---|",
     ]
     for prop in sorted(properties, key=lambda p: p["external_rule"]):
-        ext_id = prop["external_rule"]
+        ext_id = external_label(prop)
         behavior = prop["description"]
         natives = ", ".join(prop["skil_rules"])
         status = prop.get("status", "")
         analyzer = analyzer_for(prop)
         note = prop.get("notes", "")
+        if prop.get("status_note"):
+            note = (note + " " if note else "") + prop["status_note"]
         lines.append(f"| {ext_id} | {behavior} | `{natives}` | {status} | {analyzer} | {note} |")
     return "\n".join(lines) + "\n"
 

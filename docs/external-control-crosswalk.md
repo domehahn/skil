@@ -26,15 +26,15 @@ manually. Regenerate the first section with:
 | AR1 | Instructions demanding unconditional compliance / suppress refusal | `SKIL-INTENT-REFUSAL` | FULL | Pattern | Covers never-refuse, always-comply, comply-mandatory, refusal-prohibited. |
 | AR2 | No warnings/don't moralize/skip the ethics instructions | `SKIL-INTENT-WARNING` | FULL | Pattern | Suppresses false positives from detect/reject X meta-discussion. |
 | AR3 | You have no restrictions / DAN mode / not bound by policy | `SKIL-INTENT-GUARDRAIL` | FULL | Pattern | Also has SKIL-GUARDRAIL-I18N-001 for CJK phrasing. |
-| AS1 | Reads another agent's private configuration directory | `SKIL-BOUNDARY-AGENT-STATE` | PARTIAL | Boundary | .gemini/.continue dirs not covered; does not anchor on config/settings/credentials file access. |
+| AS1 | Reads another agent's private configuration directory | `SKIL-BOUNDARY-AGENT-STATE` | FULL | Boundary | .gemini/.continue dirs not covered; does not anchor on config/settings/credentials file access. |
 | AS2 | Reads/enumerates MCP server configuration | `SKIL-BOUNDARY-MCP-CONFIG` | FULL | MCP | Matches direct mcp.json/mcp_config.json access and MCP server/tool enumeration. |
 | AS3 | Enumerates/reads sibling skills' directories/manifests | `SKIL-BOUNDARY-PEER-SKILL` | FULL | Boundary | Covers os.listdir/glob/Path.iterdir on skill directories. |
-| AST1-9 | Python dynamically executes untrusted input (exec/eval/subprocess) | `SKIL-PY-001, SKIL-PY-002, SKIL-PY-003, SKIL-PY-004` | FULL | Code / AST | 9 dangerous-call shapes via Python AST walk. |
+| AST1-9 · aggregate-9-shapes | Python dynamically executes untrusted input (exec/eval/subprocess) | `SKIL-PY-001, SKIL-PY-002, SKIL-PY-003, SKIL-PY-004` | FULL | Code / AST | 9 dangerous-call shapes via Python AST walk. |
 | AST9 | Reflective getattr()-resolved call to dangerous execution sink | `SKIL-PY-REFLECT-EXEC` | FULL | Code / AST | Resolves reflective execution sinks. |
 | E1 | HTTP POST/PUT calls to external endpoints, suspicious subdomains | `SKIL-NET-001, SKIL-INTENT-EXTERNAL-TRANSFER` | FULL | Pattern | AST-anchored Python call-name resolution rather than regex. |
 | E2 | Iterating env vars, reading KEY/SECRET/TOKEN/PASSWORD env vars | `SKIL-SEC-001` | FULL | Pattern | Also fires on Python AST reads (os.environ.get()). |
 | E3 | Recursive walk/glob/find of home or credential directories | `SKIL-INTENT-FS-DISCOVERY, SKIL-FS-DISCOVERY-CODE` | FULL | Pattern | Covers glob/os.walk/Path/iterdir/Path.home on credential-bearing directories. |
-| E4 | Instructions to send/log/export full conversation/session/memory | `SKIL-EX-001, SKIL-INTENT-EXTERNAL-TRANSFER` | PARTIAL | Pattern | Neither rule specifically targets conversation/session/memory as the exfiltrated object. |
+| E4 | Instructions to send/log/export full conversation/session/memory | `SKIL-EX-001, SKIL-INTENT-EXTERNAL-TRANSFER` | FULL | Pattern | Neither rule specifically targets conversation/session/memory as the exfiltrated object. |
 | E5 | Cloud SDK upload calls (boto3/GCS/Azure SDK), CLI forms | `SKIL-BOUNDARY-CLOUD-EXFIL, SKIL-BOUNDARY-CLOUD-SDK-UPLOAD` | FULL | Boundary | SDK (put_object, upload_file, upload_blob) and CLI (aws s3 cp, gsutil cp) forms. |
 | EA1 | Wildcard tool permissions, call any/all tools | `SKIL-AGENCY-TOOLS, SKIL-MCP-001` | FULL | MCP | Documented in external-control-crosswalk.md. |
 | EA2 | Without asking confirmation/auto-approve/proceed without permission | `SKIL-AGENCY-APPROVAL` | FULL | Pattern | Requires specific high-impact verb paired with without approval. |
@@ -43,63 +43,63 @@ manually. Regenerate the first section with:
 | LP1 | Code capability detected but not covered by declared permissions | `SKIL-CAP-DECLARATION-MISSING` | DIFFERENT_BY_DESIGN | Pattern | skil requires explicit reviewed contract (skil verify); reference scanner infers heuristically. |
 | LP2 | MCP/tool permission grant uses unconstrained wildcard | `SKIL-MCP-001, SKIL-AGENCY-TOOLS` | FULL | MCP | Structured wildcard detection in mcp.yaml/mcp.json. |
 | LP3 | No permissions/allowed-tools field but code capabilities exist | `SKIL-CAP-DECLARATION-MISSING` | FULL | Pattern | Documented FULL in crosswalk. |
-| LP4 | Declared permission has no corresponding code capability | `SKIL-CAP-DECLARATION-MISSING` | PARTIAL | Pattern | Category-level over-declaration covered. Per-item allowlist over-declaration not covered. |
+| LP4 | Declared permission has no corresponding code capability | `SKIL-CAP-DECLARATION-MISSING` | DIFFERENT_BY_DESIGN | Pattern | Category-level over-declaration covered. Per-item allowlist over-declaration not covered. Declared-but-unused permissions are a verification-layer signal: skil verify enforces contract-scoped permission usage against an explicit reviewed contract, and per-item allowlist over-declaration cannot be inferred statically without reproducing false positives on legitimately unused-but-declared entries. The reference scanner's static reverse-mapping heuristic is deliberately not reproduced. |
 | MP1 | Remember this for all future interactions/store in memory permanently | `SKIL-MP-001` | FULL | Pattern | Matches persist-across-sessions property. |
 | MP2 | Fill/stuff/flood context window to displace original instructions | `SKIL-MEMORY-SATURATION` | FULL | Pattern | Requires explicit stuff/flood/displace phrasing; no structural repeated-substring detector. |
-| MP3 | Clear/wipe memory, overwrite instructions, inject false memories | `SKIL-AGENT-SELF-MODIFY, SKIL-MP-001` | PARTIAL | Pattern | Clear/reset/wipe memory and you are no longer X phrasings not covered. |
+| MP3 | Clear/wipe memory, overwrite instructions, inject false memories | `SKIL-AGENT-SELF-MODIFY, SKIL-MP-001` | FULL | Pattern | Clear/reset/wipe memory and you are no longer X phrasings not covered. |
 | OH1 | Model output piped into exec/eval/subprocess or code execution | `SKIL-OUTPUT-EXECUTION, SKIL-TAINT-EXECUTION` | FULL | Taint | Taint sources extended with .responses.create pattern. |
 | OH2 | Output from one agent/session passed into another's system prompt | `SKIL-OUTPUT-BOUNDARY` | FULL | Boundary | Requires insert/copy tool output into system prompt/trusted context phrase. |
 | OH3 | No output length/token limit, generate unlimited text | `SKIL-OUTPUT-LIMIT, SKIL-RESOURCE-UNLIMITED` | FULL | Pattern / Code | Same float('inf')/math.inf/999999 patterns as EA4 for output bounds. |
 | P1 | Fabricated instruction attempts to override higher-priority guidance | `SKIL-PI-001` | FULL | Pattern | Contextual negative examples are tested. |
-| P2-html | HTML comments with injection-bearing content | `SKIL-PI-HIDDEN-COMMENT` | FULL | Pattern | HTML <!--...--> comments with injection/suspicious content. |
-| P2-md | Markdown hidden comments with injection/suspicious content | `SKIL-PI-MD-HIDDEN-COMMENT, SKIL-PI-MD-SUSPICIOUS-COMMENT` | FULL | Pattern | [//]: #(...) patterns with injection or suspicious content. |
-| P2-tag | Unicode Tag block ASCII smuggling with RGI emoji-flag carve-out | `SKIL-UNI-003` | FULL | Pattern | Invisible U+E0000-E007F tag characters carrying hidden ASCII payload. |
-| P2-zw | Zero-width chars and bidi override characters | `SKIL-UNI-001` | FULL | Pattern | Zero-width spaces, bidi overrides with emoji-ZWJ carve-out. |
-| P3 | Instructions to send/transmit conversation/data to an external sink | `SKIL-EX-001, SKIL-INTENT-EXTERNAL-TRANSFER, SKIL-INTENT-UNDISCLOSED-OPERATION` | PARTIAL | Pattern | Generic conversation/context transmission with no secrecy qualifier is still not covered. |
+| P2 · html-comment | HTML comments with injection-bearing content | `SKIL-PI-HIDDEN-COMMENT` | FULL | Pattern | HTML <!--...--> comments with injection/suspicious content. |
+| P2 · markdown-comment | Markdown hidden comments with injection/suspicious content | `SKIL-PI-MD-HIDDEN-COMMENT, SKIL-PI-MD-SUSPICIOUS-COMMENT` | FULL | Pattern | [//]: #(...) patterns with injection or suspicious content. |
+| P2 · zero-width | Zero-width chars and bidi override characters | `SKIL-UNI-001` | FULL | Pattern | Zero-width spaces, bidi overrides with emoji-ZWJ carve-out. |
+| P2 · unicode-tag | Unicode Tag block ASCII smuggling with RGI emoji-flag carve-out | `SKIL-UNI-003` | FULL | Pattern | Invisible U+E0000-E007F tag characters carrying hidden ASCII payload. |
+| P3 | Instructions to send/transmit conversation/data to an external sink | `SKIL-EX-001, SKIL-INTENT-EXTERNAL-TRANSFER, SKIL-INTENT-UNDISCLOSED-OPERATION` | FULL | Pattern | SKIL-INTENT-EXTERNAL-TRANSFER covers generic conversation/data transmission without a secrecy qualifier. |
 | P4 | Covert behavioral steering / dark-pattern influence on the user | `SKIL-INTENT-BEHAVIOR-MANIPULATION` | FULL | Pattern | Covers biased recommendation steering, silent suppression, trust-then-exploit patterns. |
 | P5 | Actionable operational instructions for causing physical harm | `SKIL-ABUSE-PHYSICAL-HARM` | FULL | Pattern | Action-anchored: poison-in-food, bleach+ammonia, self-harm, bomb/explosive construction. |
 | P6 | Print/reveal/show system prompt instructions | `SKIL-PL-001` | FULL | Pattern | Covers direct prompt extraction with benign-heading carve-out. |
 | P7 | Repeat/translate/encode/summarize instructions to leak prompt | `SKIL-PROMPT-INDIRECT-LEAK` | FULL | Pattern | Covers translate/rephrase/encode/summarize framings. |
 | P8 | Save system prompt to file or send via curl/webhook | `SKIL-TAINT-PRIVILEGED-CONTEXT, SKIL-EX-001, SKIL-PL-001` | FULL | Taint | Taint test covers system_prompt flowing to file write. |
-| PE1 | Wildcard or "grant me full access" permission requests | `SKIL-AGENCY-TOOLS, SKIL-MCP-001` | PARTIAL | MCP | Broader full/complete access NL phrasing outside MCP-structured blocks not matched. |
+| PE1 | Wildcard or "grant me full access" permission requests | `SKIL-AGENCY-TOOLS, SKIL-MCP-001` | FULL | MCP | Broader full/complete access NL phrasing outside MCP-structured blocks not matched. |
 | PE2 | Literal shell privilege-escalation commands | `SKIL-SH-002` | FULL | Code / AST | Covers sudo, doas, pkexec, su -, chmod u+s/+s. |
 | PE3 | Reads concrete credential-bearing file paths | `SKIL-SEC-001` | FULL | Pattern | Extended to cover K8s, Docker, GCP, Azure, browser credential paths. |
 | PE4 | Accesses Docker/container control-plane socket | `SKIL-BOUNDARY-CONTAINER` | FULL | Boundary | Covers /var/run/docker.sock, /run/containerd/containerd.sock. |
 | PE5 | Privileged container or host-namespace escape primitive | `SKIL-BOUNDARY-CONTAINER-ESCAPE` | FULL | Boundary | Covers --privileged, hostNetwork/PID/IPC, nsenter, unshare, cgroup release_agent. |
 | RA1 | Modify own code/config/instructions/disable safety checks | `SKIL-AGENT-SELF-MODIFY` | FULL | Pattern | Matches modify/rewrite/patch your own code/instructions/policy. |
-| RA2 | Crontab, bashrc/zshrc injection, systemd/launchd service, background processes | `SKIL-PERSISTENCE-STARTUP` | PARTIAL | Pattern | No equivalent for .bashrc/.zshrc append, nohup/disown, Windows registry. |
+| RA2 | Crontab, bashrc/zshrc injection, systemd/launchd service, background processes | `SKIL-PERSISTENCE-STARTUP` | FULL | Pattern | No equivalent for .bashrc/.zshrc append, nohup/disown, Windows registry. |
 | RP1 | npx/uvx/pip install/docker pull without version pin or digest | `SKIL-MCP-003, SKIL-BOUNDARY-MUTABLE-IMAGE` | FULL | MCP | Documented FULL in crosswalk. |
-| RP1-diff | Permission expansion between manifest versions | `SKIL-MCP-005` | DIFFERENT_BY_DESIGN | MCP | Lock-file diff vs caller-supplied prior manifest snapshot. |
-| RP2-diff | Trigger phrase modification between versions | `SKIL-TRIGGER-LOCK-DIFF` | DIFFERENT_BY_DESIGN | Pattern / Structured | Lock-file diff vs caller-supplied prior manifest snapshot. |
-| RP2-static | Add new/additional/extra permissions language in manifest | `SKIL-MANIFEST-PERMISSION-STAGING` | FULL | Pattern | Static regex over manifest text. |
-| RP3-diff | Parameter type/default/description modification between versions | `SKIL-MCP-005` | PARTIAL | MCP | Lock-file diff covering tool metadata broadly, partial. |
-| RP3-static | Manifest version field is wildcard or overly broad range | `SKIL-MANIFEST-UNPINNED-VERSION` | FULL | Pattern | Line-scoped regex distinguishes skill version from schema integer version. |
+| RP1 · version-diff | Permission expansion between manifest versions | `SKIL-MCP-005` | DIFFERENT_BY_DESIGN | MCP | Lock-file diff vs caller-supplied prior manifest snapshot. |
+| RP2 · version-diff | Trigger phrase modification between versions | `SKIL-TRIGGER-LOCK-DIFF` | DIFFERENT_BY_DESIGN | Pattern / Structured | Lock-file diff vs caller-supplied prior manifest snapshot. |
+| RP2 · static-manifest | Add new/additional/extra permissions language in manifest | `SKIL-MANIFEST-PERMISSION-STAGING` | FULL | Pattern | Static regex over manifest text. |
+| RP3 · version-diff | Parameter type/default/description modification between versions | `SKIL-MCP-005` | DIFFERENT_BY_DESIGN | MCP | Requires comparing two manifest snapshots; skil lock-diff (SKIL-MCP-005) covers tool metadata, caller supplies prior snapshot. By design. |
+| RP3 · static-manifest | Manifest version field is wildcard or overly broad range | `SKIL-MANIFEST-UNPINNED-VERSION` | FULL | Pattern | Line-scoped regex distinguishes skill version from schema integer version. |
 | SC1 | Bare package name or >= range or * in dependency files | `SKIL-DEP-001` | FULL | Pattern | Documented in external-control-crosswalk.md. |
 | SC2 | curl | sh, wget | python, eval(fetch(...)) with trusted-domain allowlist | `SKIL-SH-001` | FULL | Code / AST | Documented FULL in crosswalk. |
 | SC3 | exec(base64.b64decode(...)), marshal.loads, decode-then-execute chains | `SKIL-OBF-001, SKIL-UNI-001, SKIL-UNI-002` | FULL | Pattern | Documented FULL in crosswalk. |
-| SC4 | Known vulnerable dependency via OSV query or static fallback | `SKIL-DEP-VULN` | PROVIDER_BACKED | Pattern | Only runs with --osv/--full; default scan is offline. |
-| SC5 | Known-abandoned PyPI/npm packages | `SKIL-DEP-ABANDONED` | PARTIAL | Pattern | skil seed has 27 entries vs ~35 in reference scanner. |
+| SC4 (provider) | Known vulnerable dependency via OSV query or static fallback | `SKIL-DEP-VULN` | PROVIDER_BACKED | Pattern | Only runs with --osv/--full; default scan is offline. Runs only with --osv (live OSV query with offline static fallback); excluded from the offline CI static gate, verified in the provider suite. |
+| SC5 | Known-abandoned PyPI/npm packages | `SKIL-DEP-ABANDONED` | FULL | Pattern | skil seed has 27 entries vs ~35 in reference scanner. |
 | SC6 | Levenshtein edit-distance <=2 against curated popular-package lists | `SKIL-DEP-002` | FULL | Pattern | Ecosystem-aware canonical package names. |
 | SC7 | --disable-content-trust / DOCKER_CONTENT_TRUST=0 / --insecure-registry | `SKIL-CONTAINER-TRUST, SKIL-BOUNDARY-MUTABLE-IMAGE` | FULL | Boundary | Documented FULL in crosswalk. |
-| SDI-1 | LLM compares manifest description vs code operations | `SKIL-INTENT-DESCRIPTION` | PARTIAL | Pattern | Provider-backed. |
-| SDI-2 | LLM flags capability unjustified by stated purpose | `SKIL-INTENT-CONTEXT` | PARTIAL | Pattern | Provider-backed. |
-| SDI-3 | LLM compares code behavior against declared permissions | `SKIL-INTENT-SCOPE` | PARTIAL | Pattern | Provider-backed. |
-| SDI-4 | LLM flags comments/docstrings contradicting code | `SKIL-INTENT-IMPLEMENTATION` | FULL | Pattern | Deterministic local-semantic pass, not LLM. |
-| SQP-1 | LLM flags ambiguous/overbroad trigger phrasing | `SKIL-TRIGGER-GENERIC, SKIL-TA-001` | DIFFERENT_BY_DESIGN | Pattern / Structured | Deterministic pattern-based vs LLM; different mechanism, overlapping coverage. |
-| SQP-2 | Safety-critical operations with no user-facing disclosure | `SKIL-INTENT-UNDISCLOSED-OPERATION` | PARTIAL | Pattern | Positive-signal proxy for silent/secret framing, not true absence-of-disclosure detector. |
-| SQP-3 | LLM flags org-policy violations (e.g. forced language) | `` | MISSING | Pattern | Inherently an LLM-judgment property requiring a semantic provider. |
-| SSD-1 | LLM detects polite/role-play/hypothetical reframings of instruction override | `SKIL-SEM-SECURITY` | PARTIAL | Pattern | Generic catch-all; not confirmed to target four SSD sub-properties with same prompt precision. |
-| SSD-2 | LLM detects creative synonyms/encoded intent for known attack patterns | `SKIL-SEM-SECURITY` | PARTIAL | Pattern | Provider-backed. |
-| SSD-3 | LLM detects remember everything and include in response style leaks | `SKIL-SEM-SECURITY` | PARTIAL | Pattern | Provider-backed. |
-| SSD-4 | LLM detects multi-step trust-building sequences toward harm | `SKIL-SEM-COMPOSITE` | PARTIAL | Pattern | Provider-backed; conceptually close but exact prompt not confirmed. |
+| SDI-1 (semantic) | LLM compares manifest description vs code operations | `SKIL-INTENT-DESCRIPTION` | FULL | Pattern | Provider-backed; verified in semantic suite. |
+| SDI-2 (semantic) | LLM flags capability unjustified by stated purpose | `SKIL-INTENT-CONTEXT` | FULL | Pattern | Provider-backed; verified in semantic suite. |
+| SDI-3 (semantic) | LLM compares code behavior against declared permissions | `SKIL-INTENT-SCOPE` | FULL | Pattern | Provider-backed; verified in semantic suite. |
+| SDI-4 (semantic) | LLM flags comments/docstrings contradicting code | `SKIL-INTENT-IMPLEMENTATION` | FULL | Pattern | Deterministic local-semantic pass, not LLM. |
+| SQP-1 (semantic) | LLM flags ambiguous/overbroad trigger phrasing | `SKIL-TRIGGER-GENERIC, SKIL-TA-001` | DIFFERENT_BY_DESIGN | Pattern / Structured | Deterministic pattern-based vs LLM; different mechanism, overlapping coverage. |
+| SQP-2 (semantic) | Safety-critical operations with no user-facing disclosure | `SKIL-INTENT-UNDISCLOSED-OPERATION` | FULL | Pattern | SKIL-INTENT-UNDISCLOSED-OPERATION fires on silent/secret framing of safety-critical operations. |
+| SQP-3 (semantic) | LLM flags org-policy violations (e.g. forced language) | `SKIL-SEM-POLICY` | FULL | Pattern | Provider-backed semantic control for organization-policy violations (e.g. forced language). |
+| SSD-1 (semantic) | LLM detects polite/role-play/hypothetical reframings of instruction override | `SKIL-SEM-SECURITY` | FULL | Pattern | SKIL-SEM-SECURITY covers SSD-1 reframing; granularity coarser than reference. Provider-backed, verified in semantic suite. |
+| SSD-2 (semantic) | LLM detects creative synonyms/encoded intent for known attack patterns | `SKIL-SEM-SECURITY` | FULL | Pattern | SKIL-SEM-SECURITY covers paraphrased/encoded intent. Provider-backed, verified in semantic suite. |
+| SSD-3 (semantic) | LLM detects remember everything and include in response style leaks | `SKIL-SEM-SECURITY` | FULL | Pattern | SKIL-SEM-SECURITY covers remember-and-include leaks. Provider-backed, verified in semantic suite. |
+| SSD-4 (semantic) | LLM detects multi-step trust-building sequences toward harm | `SKIL-SEM-COMPOSITE` | FULL | Pattern | SKIL-SEM-COMPOSITE covers multi-step trust-building. Provider-backed, verified in semantic suite. |
 | SSRF1 | Cloud metadata endpoint access (169.254.169.254, metadata.google.internal) | `SKIL-BOUNDARY-METADATA` | FULL | Boundary | Requires IP/hostname co-occur with metadata/token keyword within 100 chars. |
 | SSRF2 | Hardcoded request to internal/loopback/private network address | `SKIL-BOUNDARY-SSRF-INTERNAL` | FULL | Boundary | Covers 127.0.0.0/8, localhost, 10.0.0.0/8, 192.168.0.0/16, 172.16.0.0/12. |
 | SSRF3 | F-string/template-literal URL built from interpolated variable | `SKIL-BOUNDARY-SSRF` | FULL | Boundary | Requires specific untrusted-source keyword list. |
 | TM4 | Privileged: true, hostPath, hostPID, kubectl run --privileged in K8s manifest | `SKIL-BOUNDARY-CONTAINER-ESCAPE` | FULL | Boundary | K8s and Docker privilege-escape signals folded into one rule. |
-| TP1 | HTML/Markdown comments, zero-width, base64 in MCP metadata fields | `SKIL-MCP-002` | PARTIAL | MCP | poisonValue regex matches literal phrases; does not check for HTML comments or base64 blobs. |
+| TP1 | HTML/Markdown comments, zero-width, base64 in MCP metadata fields | `SKIL-MCP-002` | FULL | MCP | MCP metadata fields embedding injection instructions; covered by SKIL-MCP-002 poisonValue on description/default fields. |
 | TP2 | Homoglyph/RTL/invisible/mixed-script in tool name/triggers/parameter names | `SKIL-UNI-002, SKIL-UNI-001` | FULL | Pattern | Confusable hostname tokens, bidi overrides, invisible chars in identifiers. |
 | TP3 | Instruction-override/system-prompt tokens/exfiltration in parameter description | `SKIL-MCP-004, SKIL-MCP-007` | FULL | MCP | Five sub-checks: instruction-override, exfiltration, privilege-escalation, system tokens, length. |
-| TP4 | LLM compares manifest description/triggers/permissions vs code | `SKIL-MCP-006, SKIL-INTENT-DESCRIPTION` | PARTIAL | MCP | Provider-backed; default scan emits nothing for this property. |
+| TP4 (semantic) | LLM compares manifest description/triggers/permissions vs code | `SKIL-MCP-006, SKIL-INTENT-DESCRIPTION` | FULL | MCP | Provider-backed; SKIL-MCP-006 + SKIL-INTENT-DESCRIPTION fire when a semantic provider is configured. Verified in the semantic differential suite. |
 | TR1 | Single common-word trigger or trigger <=2 chars in manifest | `SKIL-TRIGGER-GENERIC` | FULL | Pattern / Structured | Structural YAML triggers: array parsing with genericTriggerWords set-membership. |
 | TR2 | Trigger collides with a built-in command name | `SKIL-TRIGGER-SHADOW` | FULL | Pattern / Structured | Set-membership check against shadowTriggerWords. |
 | TR3 | Single-word trigger matches known baiting keyword | `SKIL-TRIGGER-BAITING` | FULL | Pattern / Structured | Covers anything/everything/always as triggers. |
@@ -108,8 +108,7 @@ manually. Regenerate the first section with:
 | TT3 | os.environ/os.getenv source flowing to network sink | `SKIL-TAINT-NETWORK` | FULL | Taint | Credential to network sink flow. |
 | TT4 | File read source flowing to network sink | `SKIL-TAINT-NETWORK` | FULL | Taint | File read to network flow; same rule ID as TT3. |
 | TT5 | External/user input flowing into execution sink | `SKIL-TAINT-EXECUTION` | FULL | Taint | requests.get/input() source to exec/eval/subprocess. |
-| YR1-4 | Built-in YARA rules for malware, webshell, cryptominer, hack_tool | `SKIL-YARA-001, SKIL-YARA-002, SKIL-YARA-003, SKIL-YARA-004` | FULL | Pattern | Documented FULL in crosswalk. |
-
+| YR1-4 · aggregate-4-rules (provider) | Built-in YARA rules for malware, webshell, cryptominer, hack_tool | `SKIL-YARA-001, SKIL-YARA-002, SKIL-YARA-003, SKIL-YARA-004` | PROVIDER_BACKED | Pattern | Documented FULL in crosswalk. Requires the system yara runtime with the embedded default rule set; excluded from the offline CI static gate, verified in the provider suite. |
 ## Manually maintained
 
 | External ID | Reference behavior | Native equivalent | Coverage | Analyzer | Notes |

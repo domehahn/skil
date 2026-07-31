@@ -598,5 +598,3 @@ func TestCrosswalkCompleteness(t *testing.T) {
 		}
 	}
 }
-
-

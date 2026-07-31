@@ -9,37 +9,37 @@ import (
 type DomainID string
 
 const (
-	InstructionSecurity       DomainID = "instruction"
-	SkillSecurity             DomainID = "skill"
-	ToolCapabilitySecurity    DomainID = "tool-capability"
-	MCPSecurity               DomainID = "mcp"
-	CodeSecurity              DomainID = "code"
-	ModelSecurity             DomainID = "model"
-	DataDatasetSecurity       DomainID = "data-dataset"
-	RAGContextSecurity        DomainID = "rag-context"
-	SupplyChainSecurity       DomainID = "supply-chain"
-	IdentityAuthorization     DomainID = "identity-auth"
-	MultiAgentSecurity        DomainID = "multi-agent"
-	RuntimeInfrastructure     DomainID = "runtime-infra"
-	NetworkLateralMovement    DomainID = "network-lateral"
-	AssetBinaryMalware        DomainID = "asset-malware"
-	BehavioralSecurity        DomainID = "behavioral"
-	AuditEvidenceSecurity     DomainID = "audit-evidence"
-	PolicyEnforcement         DomainID = "policy-enforcement"
+	InstructionSecurity    DomainID = "instruction"
+	SkillSecurity          DomainID = "skill"
+	ToolCapabilitySecurity DomainID = "tool-capability"
+	MCPSecurity            DomainID = "mcp"
+	CodeSecurity           DomainID = "code"
+	ModelSecurity          DomainID = "model"
+	DataDatasetSecurity    DomainID = "data-dataset"
+	RAGContextSecurity     DomainID = "rag-context"
+	SupplyChainSecurity    DomainID = "supply-chain"
+	IdentityAuthorization  DomainID = "identity-auth"
+	MultiAgentSecurity     DomainID = "multi-agent"
+	RuntimeInfrastructure  DomainID = "runtime-infra"
+	NetworkLateralMovement DomainID = "network-lateral"
+	AssetBinaryMalware     DomainID = "asset-malware"
+	BehavioralSecurity     DomainID = "behavioral"
+	AuditEvidenceSecurity  DomainID = "audit-evidence"
+	PolicyEnforcement      DomainID = "policy-enforcement"
 )
 
 type Domain struct {
-	ID          DomainID       `json:"id"`
-	Title       string         `json:"title"`
-	Description string         `json:"description"`
-	Subdomains  []Subdomain    `json:"subdomains"`
-	Controls    []Control      `json:"controls"`
+	ID          DomainID    `json:"id"`
+	Title       string      `json:"title"`
+	Description string      `json:"description"`
+	Subdomains  []Subdomain `json:"subdomains"`
+	Controls    []Control   `json:"controls"`
 }
 
 type Subdomain struct {
-	ID          string   `json:"id"`
-	Title       string   `json:"title"`
-	ControlIDs  []string `json:"control_ids"`
+	ID         string   `json:"id"`
+	Title      string   `json:"title"`
+	ControlIDs []string `json:"control_ids"`
 }
 
 type ControlID string

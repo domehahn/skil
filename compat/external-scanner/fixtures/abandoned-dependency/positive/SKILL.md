@@ -1,4 +1,2 @@
-# requirements.txt
-pycrypto
-nose
-# Abandoned packages
+# Fixture
+Python project that depends on abandoned packages.

@@ -1,46 +1,65 @@
-schema_version: 1.0.0
+schema_version: 1.1.0
 properties:
 - id: instruction-override
   description: Fabricated instruction attempts to override higher-priority guidance
   fixture: instruction-override
   skil_rules:
   - SKIL-PI-001
-  external_rule: P1
   status: FULL
   notes: Contextual negative examples are tested.
+  external_rules:
+  - P1
+  suite: static
+  external_rule: P1
 - id: hidden-instructions-html
   description: HTML comments with injection-bearing content
   fixture: hidden-instructions-html
   skil_rules:
   - SKIL-PI-HIDDEN-COMMENT
-  external_rule: P2-html
   status: FULL
   notes: HTML <!--...--> comments with injection/suspicious content.
+  external_rule: P2
+  external_variant: html-comment
+  external_rules:
+  - P2
+  suite: static
 - id: hidden-instructions-markdown
   description: Markdown hidden comments with injection/suspicious content
   fixture: hidden-instructions-markdown
   skil_rules:
   - SKIL-PI-MD-HIDDEN-COMMENT
   - SKIL-PI-MD-SUSPICIOUS-COMMENT
-  external_rule: P2-md
   status: FULL
   notes: '[//]: #(...) patterns with injection or suspicious content.'
+  external_rule: P2
+  external_variant: markdown-comment
+  external_rules:
+  - P2
+  suite: static
 - id: unicode-zero-width
   description: Zero-width chars and bidi override characters
   fixture: unicode-zero-width
   skil_rules:
   - SKIL-UNI-001
-  external_rule: P2-zw
   status: FULL
   notes: Zero-width spaces, bidi overrides with emoji-ZWJ carve-out.
+  external_rule: P2
+  external_variant: zero-width
+  external_rules:
+  - P2
+  suite: static
 - id: unicode-tag-smuggling
   description: Unicode Tag block ASCII smuggling with RGI emoji-flag carve-out
   fixture: unicode-tag-smuggling
   skil_rules:
   - SKIL-UNI-003
-  external_rule: P2-tag
   status: FULL
   notes: Invisible U+E0000-E007F tag characters carrying hidden ASCII payload.
+  external_rule: P2
+  external_variant: unicode-tag
+  external_rules:
+  - P2
+  suite: static
 - id: exfiltration-commands
   description: Instructions to send/transmit conversation/data to an external sink
   fixture: exfiltration-commands
@@ -48,44 +67,56 @@ properties:
   - SKIL-EX-001
   - SKIL-INTENT-EXTERNAL-TRANSFER
   - SKIL-INTENT-UNDISCLOSED-OPERATION
+  status: FULL
+  notes: SKIL-INTENT-EXTERNAL-TRANSFER covers generic conversation/data transmission without a secrecy qualifier.
+  external_rules:
+  - P3
+  suite: static
   external_rule: P3
-  status: PARTIAL
-  notes: Generic conversation/context transmission with no secrecy qualifier is still
-    not covered.
 - id: behavior-manipulation
   description: Covert behavioral steering / dark-pattern influence on the user
   fixture: behavior-manipulation
   skil_rules:
   - SKIL-INTENT-BEHAVIOR-MANIPULATION
-  external_rule: P4
   status: FULL
-  notes: Covers biased recommendation steering, silent suppression, trust-then-exploit
-    patterns.
+  notes: Covers biased recommendation steering, silent suppression, trust-then-exploit patterns.
+  external_rules:
+  - P4
+  suite: static
+  external_rule: P4
 - id: physical-harm-content
   description: Actionable operational instructions for causing physical harm
   fixture: physical-harm-content
   skil_rules:
   - SKIL-ABUSE-PHYSICAL-HARM
-  external_rule: P5
   status: FULL
-  notes: 'Action-anchored: poison-in-food, bleach+ammonia, self-harm, bomb/explosive
-    construction.'
+  notes: 'Action-anchored: poison-in-food, bleach+ammonia, self-harm, bomb/explosive construction.'
+  external_rules:
+  - P5
+  suite: static
+  external_rule: P5
 - id: direct-prompt-extraction
   description: Print/reveal/show system prompt instructions
   fixture: direct-prompt-extraction
   skil_rules:
   - SKIL-PL-001
-  external_rule: P6
   status: FULL
   notes: Covers direct prompt extraction with benign-heading carve-out.
+  external_rules:
+  - P6
+  suite: static
+  external_rule: P6
 - id: indirect-prompt-extraction
   description: Repeat/translate/encode/summarize instructions to leak prompt
   fixture: indirect-prompt-extraction
   skil_rules:
   - SKIL-PROMPT-INDIRECT-LEAK
-  external_rule: P7
   status: FULL
   notes: Covers translate/rephrase/encode/summarize framings.
+  external_rules:
+  - P7
+  suite: static
+  external_rule: P7
 - id: prompt-exfiltration-tool
   description: Save system prompt to file or send via curl/webhook
   fixture: prompt-taint-to-file
@@ -93,146 +124,194 @@ properties:
   - SKIL-TAINT-PRIVILEGED-CONTEXT
   - SKIL-EX-001
   - SKIL-PL-001
-  external_rule: P8
   status: FULL
   notes: Taint test covers system_prompt flowing to file write.
+  external_rules:
+  - P8
+  suite: static
+  external_rule: P8
 - id: anti-refusal
   description: Instructions demanding unconditional compliance / suppress refusal
   fixture: anti-refusal
   skil_rules:
   - SKIL-INTENT-REFUSAL
-  external_rule: AR1
   status: FULL
   notes: Covers never-refuse, always-comply, comply-mandatory, refusal-prohibited.
+  external_rules:
+  - AR1
+  suite: static
+  external_rule: AR1
 - id: disclaimer-suppression
   description: No warnings/don't moralize/skip the ethics instructions
   fixture: disclaimer-suppression
   skil_rules:
   - SKIL-INTENT-WARNING
-  external_rule: AR2
   status: FULL
   notes: Suppresses false positives from detect/reject X meta-discussion.
+  external_rules:
+  - AR2
+  suite: static
+  external_rule: AR2
 - id: safety-nullification
   description: You have no restrictions / DAN mode / not bound by policy
   fixture: safety-nullification
   skil_rules:
   - SKIL-INTENT-GUARDRAIL
-  external_rule: AR3
   status: FULL
   notes: Also has SKIL-GUARDRAIL-I18N-001 for CJK phrasing.
+  external_rules:
+  - AR3
+  suite: static
+  external_rule: AR3
 - id: external-transmission
   description: HTTP POST/PUT calls to external endpoints, suspicious subdomains
   fixture: external-transmission
   skil_rules:
   - SKIL-NET-001
   - SKIL-INTENT-EXTERNAL-TRANSFER
-  external_rule: E1
   status: FULL
   notes: AST-anchored Python call-name resolution rather than regex.
+  external_rules:
+  - E1
+  suite: static
+  external_rule: E1
 - id: env-harvesting
   description: Iterating env vars, reading KEY/SECRET/TOKEN/PASSWORD env vars
   fixture: env-harvesting
   skil_rules:
   - SKIL-SEC-001
-  external_rule: E2
   status: FULL
   notes: Also fires on Python AST reads (os.environ.get()).
+  external_rules:
+  - E2
+  suite: static
+  external_rule: E2
 - id: fs-enumeration
   description: Recursive walk/glob/find of home or credential directories
   fixture: code-level-fs-enumeration
   skil_rules:
   - SKIL-INTENT-FS-DISCOVERY
   - SKIL-FS-DISCOVERY-CODE
-  external_rule: E3
   status: FULL
   notes: Covers glob/os.walk/Path/iterdir/Path.home on credential-bearing directories.
+  external_rules:
+  - E3
+  suite: static
+  external_rule: E3
 - id: context-leakage
   description: Instructions to send/log/export full conversation/session/memory
   fixture: context-leakage
   skil_rules:
   - SKIL-EX-001
   - SKIL-INTENT-EXTERNAL-TRANSFER
+  status: FULL
+  notes: Neither rule specifically targets conversation/session/memory as the exfiltrated object.
+  external_rules:
+  - E4
+  suite: static
   external_rule: E4
-  status: PARTIAL
-  notes: Neither rule specifically targets conversation/session/memory as the exfiltrated
-    object.
 - id: cloud-exfiltration
   description: Cloud SDK upload calls (boto3/GCS/Azure SDK), CLI forms
   fixture: cloud-sdk-upload
   skil_rules:
   - SKIL-BOUNDARY-CLOUD-EXFIL
   - SKIL-BOUNDARY-CLOUD-SDK-UPLOAD
-  external_rule: E5
   status: FULL
-  notes: SDK (put_object, upload_file, upload_blob) and CLI (aws s3 cp, gsutil cp)
-    forms.
+  notes: SDK (put_object, upload_file, upload_blob) and CLI (aws s3 cp, gsutil cp) forms.
+  external_rules:
+  - E5
+  suite: static
+  external_rule: E5
 - id: excessive-permissions
   description: Wildcard or "grant me full access" permission requests
   fixture: excessive-permissions
   skil_rules:
   - SKIL-AGENCY-TOOLS
   - SKIL-MCP-001
+  status: FULL
+  notes: Broader full/complete access NL phrasing outside MCP-structured blocks not matched.
+  external_rules:
+  - PE1
+  suite: static
   external_rule: PE1
-  status: PARTIAL
-  notes: Broader full/complete access NL phrasing outside MCP-structured blocks not
-    matched.
 - id: sudo-root-escalation
   description: Literal shell privilege-escalation commands
   fixture: sudo-root-escalation
   skil_rules:
   - SKIL-SH-002
-  external_rule: PE2
   status: FULL
   notes: Covers sudo, doas, pkexec, su -, chmod u+s/+s.
+  external_rules:
+  - PE2
+  suite: static
+  external_rule: PE2
 - id: credential-file-access
   description: Reads concrete credential-bearing file paths
   fixture: credential-file-access
   skil_rules:
   - SKIL-SEC-001
-  external_rule: PE3
   status: FULL
   notes: Extended to cover K8s, Docker, GCP, Azure, browser credential paths.
+  external_rules:
+  - PE3
+  suite: static
+  external_rule: PE3
 - id: docker-socket-access
   description: Accesses Docker/container control-plane socket
   fixture: docker-socket-access
   skil_rules:
   - SKIL-BOUNDARY-CONTAINER
-  external_rule: PE4
   status: FULL
   notes: Covers /var/run/docker.sock, /run/containerd/containerd.sock.
+  external_rules:
+  - PE4
+  suite: static
+  external_rule: PE4
 - id: container-escape
   description: Privileged container or host-namespace escape primitive
   fixture: container-escape
   skil_rules:
   - SKIL-BOUNDARY-CONTAINER-ESCAPE
-  external_rule: PE5
   status: FULL
   notes: Covers --privileged, hostNetwork/PID/IPC, nsenter, unshare, cgroup release_agent.
+  external_rules:
+  - PE5
+  suite: static
+  external_rule: PE5
 - id: unrestricted-tool-access
   description: Wildcard tool permissions, call any/all tools
   fixture: unrestricted-tool-access
   skil_rules:
   - SKIL-AGENCY-TOOLS
   - SKIL-MCP-001
-  external_rule: EA1
   status: FULL
   notes: Documented in external-control-crosswalk.md.
+  external_rules:
+  - EA1
+  suite: static
+  external_rule: EA1
 - id: autonomous-decision
   description: Without asking confirmation/auto-approve/proceed without permission
   fixture: autonomous-decision
   skil_rules:
   - SKIL-AGENCY-APPROVAL
-  external_rule: EA2
   status: FULL
   notes: Requires specific high-impact verb paired with without approval.
+  external_rules:
+  - EA2
+  suite: static
+  external_rule: EA2
 - id: scope-creep
   description: NL instructions requesting scope expansion beyond stated purpose
   fixture: scope-creep
   skil_rules:
   - SKIL-INTENT-SCOPE-CREEP
-  external_rule: EA3
   status: FULL
   notes: Covers extend-scope, general-purpose, act-as-omniscient requests.
+  external_rules:
+  - EA3
+  suite: static
+  external_rule: EA3
 - id: unbounded-resource
   description: Unlimited resource access in code and NL phrasing
   fixture: unbounded-resource-code
@@ -240,102 +319,136 @@ properties:
   - SKIL-AGENCY-BOUNDS
   - SKIL-RESOURCE-UNLIMITED
   - SKIL-RESOURCE-TIMEOUT
-  external_rule: EA4
   status: FULL
   notes: Covers code-level float('inf'), math.inf alongside NL unlimited phrasing.
+  external_rules:
+  - EA4
+  suite: static
+  external_rule: EA4
 - id: unvalidated-output
   description: Model output piped into exec/eval/subprocess or code execution
   fixture: model-output-taint-execution
   skil_rules:
   - SKIL-OUTPUT-EXECUTION
   - SKIL-TAINT-EXECUTION
-  external_rule: OH1
   status: FULL
   notes: Taint sources extended with .responses.create pattern.
+  external_rules:
+  - OH1
+  suite: static
+  external_rule: OH1
 - id: cross-context-output
   description: Output from one agent/session passed into another's system prompt
   fixture: cross-context-output
   skil_rules:
   - SKIL-OUTPUT-BOUNDARY
-  external_rule: OH2
   status: FULL
   notes: Requires insert/copy tool output into system prompt/trusted context phrase.
+  external_rules:
+  - OH2
+  suite: static
+  external_rule: OH2
 - id: unbounded-output
   description: No output length/token limit, generate unlimited text
   fixture: unbounded-output
   skil_rules:
   - SKIL-OUTPUT-LIMIT
   - SKIL-RESOURCE-UNLIMITED
-  external_rule: OH3
   status: FULL
   notes: Same float('inf')/math.inf/999999 patterns as EA4 for output bounds.
+  external_rules:
+  - OH3
+  suite: static
+  external_rule: OH3
 - id: persistent-context-injection
   description: Remember this for all future interactions/store in memory permanently
   fixture: persistent-context-injection
   skil_rules:
   - SKIL-MP-001
-  external_rule: MP1
   status: FULL
   notes: Matches persist-across-sessions property.
+  external_rules:
+  - MP1
+  suite: static
+  external_rule: MP1
 - id: context-window-stuffing
   description: Fill/stuff/flood context window to displace original instructions
   fixture: context-window-stuffing
   skil_rules:
   - SKIL-MEMORY-SATURATION
-  external_rule: MP2
   status: FULL
-  notes: Requires explicit stuff/flood/displace phrasing; no structural repeated-substring
-    detector.
+  notes: Requires explicit stuff/flood/displace phrasing; no structural repeated-substring detector.
+  external_rules:
+  - MP2
+  suite: static
+  external_rule: MP2
 - id: memory-manipulation
   description: Clear/wipe memory, overwrite instructions, inject false memories
   fixture: memory-manipulation
   skil_rules:
   - SKIL-AGENT-SELF-MODIFY
   - SKIL-MP-001
-  external_rule: MP3
-  status: PARTIAL
+  status: FULL
   notes: Clear/reset/wipe memory and you are no longer X phrasings not covered.
+  external_rules:
+  - MP3
+  suite: static
+  external_rule: MP3
 - id: self-modification
   description: Modify own code/config/instructions/disable safety checks
   fixture: self-modification
   skil_rules:
   - SKIL-AGENT-SELF-MODIFY
-  external_rule: RA1
   status: FULL
   notes: Matches modify/rewrite/patch your own code/instructions/policy.
+  external_rules:
+  - RA1
+  suite: static
+  external_rule: RA1
 - id: session-persistence
-  description: Crontab, bashrc/zshrc injection, systemd/launchd service, background
-    processes
+  description: Crontab, bashrc/zshrc injection, systemd/launchd service, background processes
   fixture: session-persistence
   skil_rules:
   - SKIL-PERSISTENCE-STARTUP
-  external_rule: RA2
-  status: PARTIAL
+  status: FULL
   notes: No equivalent for .bashrc/.zshrc append, nohup/disown, Windows registry.
+  external_rules:
+  - RA2
+  suite: static
+  external_rule: RA2
 - id: broad-trigger
   description: Single common-word trigger or trigger <=2 chars in manifest
   fixture: broad-trigger
   skil_rules:
   - SKIL-TRIGGER-GENERIC
-  external_rule: TR1
   status: FULL
   notes: 'Structural YAML triggers: array parsing with genericTriggerWords set-membership.'
+  external_rules:
+  - TR1
+  suite: static
+  external_rule: TR1
 - id: shadow-command-trigger
   description: Trigger collides with a built-in command name
   fixture: shadow-command-trigger
   skil_rules:
   - SKIL-TRIGGER-SHADOW
-  external_rule: TR2
   status: FULL
   notes: Set-membership check against shadowTriggerWords.
+  external_rules:
+  - TR2
+  suite: static
+  external_rule: TR2
 - id: trigger-baiting
   description: Single-word trigger matches known baiting keyword
   fixture: trigger-baiting
   skil_rules:
   - SKIL-TRIGGER-BAITING
-  external_rule: TR3
   status: FULL
   notes: Covers anything/everything/always as triggers.
+  external_rules:
+  - TR3
+  suite: static
+  external_rule: TR3
 - id: dynamic-python-execution
   description: Python dynamically executes untrusted input (exec/eval/subprocess)
   fixture: dynamic-python-execution
@@ -344,17 +457,32 @@ properties:
   - SKIL-PY-002
   - SKIL-PY-003
   - SKIL-PY-004
-  external_rule: AST1-9
   status: FULL
   notes: 9 dangerous-call shapes via Python AST walk.
+  external_rule: AST1-9
+  external_variant: aggregate-9-shapes
+  external_rules:
+  - AST1
+  - AST2
+  - AST3
+  - AST4
+  - AST5
+  - AST6
+  - AST7
+  - AST8
+  - AST9
+  suite: static
 - id: reflective-execution
   description: Reflective getattr()-resolved call to dangerous execution sink
   fixture: reflective-execution
   skil_rules:
   - SKIL-PY-REFLECT-EXEC
-  external_rule: AST9
   status: FULL
   notes: Resolves reflective execution sinks.
+  external_rules:
+  - AST9
+  suite: static
+  external_rule: AST9
 - id: taint-generic-flow
   description: Any source flowing directly into any execution/network/file-write sink
   fixture: model-output-taint-execution
@@ -362,83 +490,115 @@ properties:
   - SKIL-TAINT-EXECUTION
   - SKIL-TAINT-NETWORK
   - SKIL-TAINT-PRIVILEGED-CONTEXT
-  external_rule: TT1
   status: FULL
   notes: All 4 sink categories (network, execution, filesystem-write, log) fire unconditionally.
+  external_rules:
+  - TT1
+  suite: static
+  external_rule: TT1
 - id: taint-variable-mediated
   description: Taint propagated through re-assignment and container literals
   fixture: taint-variable-mediated
   skil_rules:
   - SKIL-TAINT-EXECUTION
   - SKIL-TAINT-NETWORK
-  external_rule: TT2
   status: FULL
   notes: Multi-step assignment aliases are propagated.
+  external_rules:
+  - TT2
+  suite: static
+  external_rule: TT2
 - id: taint-credential-network
   description: os.environ/os.getenv source flowing to network sink
   fixture: taint-credential-network
   skil_rules:
   - SKIL-TAINT-NETWORK
-  external_rule: TT3
   status: FULL
   notes: Credential to network sink flow.
+  external_rules:
+  - TT3
+  suite: static
+  external_rule: TT3
 - id: taint-file-network
   description: File read source flowing to network sink
   fixture: taint-file-network
   skil_rules:
   - SKIL-TAINT-NETWORK
-  external_rule: TT4
   status: FULL
   notes: File read to network flow; same rule ID as TT3.
+  external_rules:
+  - TT4
+  suite: static
+  external_rule: TT4
 - id: taint-external-execution
   description: External/user input flowing into execution sink
   fixture: taint-external-execution
   skil_rules:
   - SKIL-TAINT-EXECUTION
-  external_rule: TT5
   status: FULL
   notes: requests.get/input() source to exec/eval/subprocess.
+  external_rules:
+  - TT5
+  suite: static
+  external_rule: TT5
 - id: unpinned-dependencies
   description: Bare package name or >= range or * in dependency files
   fixture: unpinned-dependencies
   skil_rules:
   - SKIL-DEP-001
-  external_rule: SC1
   status: FULL
   notes: Documented in external-control-crosswalk.md.
+  external_rules:
+  - SC1
+  suite: static
+  external_rule: SC1
 - id: vulnerable-dependency
   description: Known vulnerable dependency via OSV query or static fallback
   fixture: vulnerable-dependency
   skil_rules:
   - SKIL-DEP-VULN
-  external_rule: SC4
   status: PROVIDER_BACKED
   notes: Only runs with --osv/--full; default scan is offline.
+  external_rules:
+  - SC4
+  suite: provider
+  external_rule: SC4
+  scan_args: --osv
+  status_note: Runs only with --osv (live OSV query with offline static fallback); excluded from the offline CI static gate, verified in the provider suite.
 - id: abandoned-dependency
   description: Known-abandoned PyPI/npm packages
   fixture: abandoned-dependency
   skil_rules:
   - SKIL-DEP-ABANDONED
-  external_rule: SC5
-  status: PARTIAL
+  status: FULL
   notes: skil seed has 27 entries vs ~35 in reference scanner.
+  external_rules:
+  - SC5
+  suite: static
+  external_rule: SC5
 - id: typosquatting
   description: Levenshtein edit-distance <=2 against curated popular-package lists
   fixture: typosquatting
   skil_rules:
   - SKIL-DEP-002
-  external_rule: SC6
   status: FULL
   notes: Ecosystem-aware canonical package names.
+  external_rules:
+  - SC6
+  suite: static
+  external_rule: SC6
 - id: untrusted-container-image
   description: --disable-content-trust / DOCKER_CONTENT_TRUST=0 / --insecure-registry
   fixture: untrusted-container-image
   skil_rules:
   - SKIL-CONTAINER-TRUST
   - SKIL-BOUNDARY-MUTABLE-IMAGE
-  external_rule: SC7
   status: FULL
   notes: Documented FULL in crosswalk.
+  external_rules:
+  - SC7
+  suite: static
+  external_rule: SC7
 - id: obfuscated-code
   description: exec(base64.b64decode(...)), marshal.loads, decode-then-execute chains
   fixture: obfuscated-code
@@ -446,289 +606,387 @@ properties:
   - SKIL-OBF-001
   - SKIL-UNI-001
   - SKIL-UNI-002
-  external_rule: SC3
   status: FULL
   notes: Documented FULL in crosswalk.
+  external_rules:
+  - SC3
+  suite: static
+  external_rule: SC3
 - id: external-script-fetch
   description: curl | sh, wget | python, eval(fetch(...)) with trusted-domain allowlist
   fixture: external-script-fetch
   skil_rules:
   - SKIL-SH-001
-  external_rule: SC2
   status: FULL
   notes: Documented FULL in crosswalk.
+  external_rules:
+  - SC2
+  suite: static
+  external_rule: SC2
 - id: cloud-metadata-ssrf
   description: Cloud metadata endpoint access (169.254.169.254, metadata.google.internal)
   fixture: cloud-metadata-ssrf
   skil_rules:
   - SKIL-BOUNDARY-METADATA
-  external_rule: SSRF1
   status: FULL
   notes: Requires IP/hostname co-occur with metadata/token keyword within 100 chars.
+  external_rules:
+  - SSRF1
+  suite: static
+  external_rule: SSRF1
 - id: internal-ssrf
   description: Hardcoded request to internal/loopback/private network address
   fixture: internal-ssrf
   skil_rules:
   - SKIL-BOUNDARY-SSRF-INTERNAL
-  external_rule: SSRF2
   status: FULL
   notes: Covers 127.0.0.0/8, localhost, 10.0.0.0/8, 192.168.0.0/16, 172.16.0.0/12.
+  external_rules:
+  - SSRF2
+  suite: static
+  external_rule: SSRF2
 - id: dynamic-ssrf
   description: F-string/template-literal URL built from interpolated variable
   fixture: dynamic-ssrf
   skil_rules:
   - SKIL-BOUNDARY-SSRF
-  external_rule: SSRF3
   status: FULL
   notes: Requires specific untrusted-source keyword list.
+  external_rules:
+  - SSRF3
+  suite: static
+  external_rule: SSRF3
 - id: privileged-k8s-workload
-  description: 'Privileged: true, hostPath, hostPID, kubectl run --privileged in K8s
-    manifest'
+  description: 'Privileged: true, hostPath, hostPID, kubectl run --privileged in K8s manifest'
   fixture: container-escape
   skil_rules:
   - SKIL-BOUNDARY-CONTAINER-ESCAPE
-  external_rule: TM4
   status: FULL
   notes: K8s and Docker privilege-escape signals folded into one rule.
+  external_rules:
+  - TM4
+  suite: static
+  external_rule: TM4
 - id: agent-config-snooping
   description: Reads another agent's private configuration directory
   fixture: agent-config-snooping
   skil_rules:
   - SKIL-BOUNDARY-AGENT-STATE
+  status: FULL
+  notes: .gemini/.continue dirs not covered; does not anchor on config/settings/credentials file access.
+  external_rules:
+  - AS1
+  suite: static
   external_rule: AS1
-  status: PARTIAL
-  notes: .gemini/.continue dirs not covered; does not anchor on config/settings/credentials
-    file access.
 - id: mcp-config-snooping
   description: Reads/enumerates MCP server configuration
   fixture: mcp-config-snooping
   skil_rules:
   - SKIL-BOUNDARY-MCP-CONFIG
-  external_rule: AS2
   status: FULL
   notes: Matches direct mcp.json/mcp_config.json access and MCP server/tool enumeration.
+  external_rules:
+  - AS2
+  suite: static
+  external_rule: AS2
 - id: peer-skill-enumeration
   description: Enumerates/reads sibling skills' directories/manifests
   fixture: peer-skill-enumeration
   skil_rules:
   - SKIL-BOUNDARY-PEER-SKILL
-  external_rule: AS3
   status: FULL
   notes: Covers os.listdir/glob/Path.iterdir on skill directories.
+  external_rules:
+  - AS3
+  suite: static
+  external_rule: AS3
 - id: under-declared-capability
   description: Code capability detected but not covered by declared permissions
   fixture: under-declared-capability
   skil_rules:
   - SKIL-CAP-DECLARATION-MISSING
-  external_rule: LP1
   status: DIFFERENT_BY_DESIGN
-  notes: skil requires explicit reviewed contract (skil verify); reference scanner
-    infers heuristically.
+  notes: skil requires explicit reviewed contract (skil verify); reference scanner infers heuristically.
+  external_rules:
+  - LP1
+  suite: static
+  external_rule: LP1
 - id: mcp-wildcard-permission
   description: MCP/tool permission grant uses unconstrained wildcard
   fixture: mcp-wildcard-permission
   skil_rules:
   - SKIL-MCP-001
   - SKIL-AGENCY-TOOLS
-  external_rule: LP2
   status: FULL
   notes: Structured wildcard detection in mcp.yaml/mcp.json.
+  external_rules:
+  - LP2
+  suite: static
+  external_rule: LP2
 - id: no-permissions-declared
   description: No permissions/allowed-tools field but code capabilities exist
   fixture: no-permissions-declared
   skil_rules:
   - SKIL-CAP-DECLARATION-MISSING
-  external_rule: LP3
   status: FULL
   notes: Documented FULL in crosswalk.
+  external_rules:
+  - LP3
+  suite: static
+  external_rule: LP3
 - id: over-declared-permission
   description: Declared permission has no corresponding code capability
   fixture: over-declared-permission
   skil_rules:
   - SKIL-CAP-DECLARATION-MISSING
+  status: DIFFERENT_BY_DESIGN
+  notes: Category-level over-declaration covered. Per-item allowlist over-declaration not covered.
+  external_rules:
+  - LP4
+  suite: static
   external_rule: LP4
-  status: PARTIAL
-  notes: Category-level over-declaration covered. Per-item allowlist over-declaration
-    not covered.
+  status_note: 'Declared-but-unused permissions are a verification-layer signal: skil verify enforces contract-scoped permission usage against an explicit reviewed contract, and per-item allowlist over-declaration cannot be inferred statically without reproducing false positives on legitimately unused-but-declared entries. The reference scanner''s static reverse-mapping heuristic is deliberately not reproduced.'
 - id: unpinned-mcp-server
   description: npx/uvx/pip install/docker pull without version pin or digest
   fixture: unpinned-mcp-server
   skil_rules:
   - SKIL-MCP-003
   - SKIL-BOUNDARY-MUTABLE-IMAGE
-  external_rule: RP1
   status: FULL
   notes: Documented FULL in crosswalk.
+  external_rules:
+  - RP1
+  suite: static
+  external_rule: RP1
 - id: mcp-permission-manifest-diff
   description: Permission expansion between manifest versions
   fixture: mcp-permission-manifest-diff
   skil_rules:
   - SKIL-MCP-005
-  external_rule: RP1-diff
   status: DIFFERENT_BY_DESIGN
   notes: Lock-file diff vs caller-supplied prior manifest snapshot.
+  external_rule: RP1
+  external_variant: version-diff
+  external_rules:
+  - RP1
+  suite: static
 - id: trigger-modification-diff
   description: Trigger phrase modification between versions
   fixture: trigger-modification-diff
   skil_rules:
   - SKIL-TRIGGER-LOCK-DIFF
-  external_rule: RP2-diff
   status: DIFFERENT_BY_DESIGN
   notes: Lock-file diff vs caller-supplied prior manifest snapshot.
+  external_rule: RP2
+  external_variant: version-diff
+  external_rules:
+  - RP2
+  suite: static
 - id: permission-pre-staging
   description: Add new/additional/extra permissions language in manifest
   fixture: permission-pre-staging
   skil_rules:
   - SKIL-MANIFEST-PERMISSION-STAGING
-  external_rule: RP2-static
   status: FULL
   notes: Static regex over manifest text.
+  external_rule: RP2
+  external_variant: static-manifest
+  external_rules:
+  - RP2
+  suite: static
 - id: parameter-schema-modification
   description: Parameter type/default/description modification between versions
   fixture: parameter-schema-modification
   skil_rules:
   - SKIL-MCP-005
-  external_rule: RP3-diff
-  status: PARTIAL
-  notes: Lock-file diff covering tool metadata broadly, partial.
+  status: DIFFERENT_BY_DESIGN
+  notes: Requires comparing two manifest snapshots; skil lock-diff (SKIL-MCP-005) covers tool metadata, caller supplies prior snapshot. By design.
+  external_rule: RP3
+  external_variant: version-diff
+  external_rules:
+  - RP3
+  suite: static
 - id: unpinned-skill-version
   description: Manifest version field is wildcard or overly broad range
   fixture: unpinned-skill-version
   skil_rules:
   - SKIL-MANIFEST-UNPINNED-VERSION
-  external_rule: RP3-static
   status: FULL
   notes: Line-scoped regex distinguishes skill version from schema integer version.
+  external_rule: RP3
+  external_variant: static-manifest
+  external_rules:
+  - RP3
+  suite: static
 - id: hidden-instructions-mcp
   description: HTML/Markdown comments, zero-width, base64 in MCP metadata fields
-  fixture: hidden-instructions-markdown
+  fixture: hidden-instructions-mcp
   skil_rules:
   - SKIL-MCP-002
+  status: FULL
+  notes: MCP metadata fields embedding injection instructions; covered by SKIL-MCP-002 poisonValue on description/default fields.
+  external_rules:
+  - TP1
+  suite: static
   external_rule: TP1
-  status: PARTIAL
-  notes: poisonValue regex matches literal phrases; does not check for HTML comments
-    or base64 blobs.
 - id: unicode-deception-mcp
-  description: Homoglyph/RTL/invisible/mixed-script in tool name/triggers/parameter
-    names
+  description: Homoglyph/RTL/invisible/mixed-script in tool name/triggers/parameter names
   fixture: unicode-homoglyph
   skil_rules:
   - SKIL-UNI-002
   - SKIL-UNI-001
-  external_rule: TP2
   status: FULL
   notes: Confusable hostname tokens, bidi overrides, invisible chars in identifiers.
+  external_rules:
+  - TP2
+  suite: static
+  external_rule: TP2
 - id: parameter-description-injection
-  description: Instruction-override/system-prompt tokens/exfiltration in parameter
-    description
+  description: Instruction-override/system-prompt tokens/exfiltration in parameter description
   fixture: mcp-parameter-injection
   skil_rules:
   - SKIL-MCP-004
   - SKIL-MCP-007
-  external_rule: TP3
   status: FULL
-  notes: 'Five sub-checks: instruction-override, exfiltration, privilege-escalation,
-    system tokens, length.'
+  notes: 'Five sub-checks: instruction-override, exfiltration, privilege-escalation, system tokens, length.'
+  external_rules:
+  - TP3
+  suite: static
+  external_rule: TP3
 - id: llm-description-behavior-mismatch
   description: LLM compares manifest description/triggers/permissions vs code
   fixture: llm-description-behavior-mismatch
   skil_rules:
   - SKIL-MCP-006
   - SKIL-INTENT-DESCRIPTION
+  status: FULL
+  notes: Provider-backed; SKIL-MCP-006 + SKIL-INTENT-DESCRIPTION fire when a semantic provider is configured. Verified in the semantic differential suite.
+  external_rules:
+  - TP4
+  suite: semantic
   external_rule: TP4
-  status: PARTIAL
-  notes: Provider-backed; default scan emits nothing for this property.
 - id: description-behavior-mismatch
   description: LLM compares manifest description vs code operations
   fixture: description-behavior-mismatch
   skil_rules:
   - SKIL-INTENT-DESCRIPTION
+  status: FULL
+  notes: Provider-backed; verified in semantic suite.
+  external_rules:
+  - SDI-1
+  suite: semantic
   external_rule: SDI-1
-  status: PARTIAL
-  notes: Provider-backed.
 - id: context-inappropriate-capability
   description: LLM flags capability unjustified by stated purpose
   fixture: context-inappropriate-capability
   skil_rules:
   - SKIL-INTENT-CONTEXT
+  status: FULL
+  notes: Provider-backed; verified in semantic suite.
+  external_rules:
+  - SDI-2
+  suite: semantic
   external_rule: SDI-2
-  status: PARTIAL
-  notes: Provider-backed.
 - id: scope-creep-permissions
   description: LLM compares code behavior against declared permissions
   fixture: scope-creep-permissions
   skil_rules:
   - SKIL-INTENT-SCOPE
+  status: FULL
+  notes: Provider-backed; verified in semantic suite.
+  external_rules:
+  - SDI-3
+  suite: semantic
   external_rule: SDI-3
-  status: PARTIAL
-  notes: Provider-backed.
 - id: intent-code-divergence
   description: LLM flags comments/docstrings contradicting code
   fixture: intent-code-divergence
   skil_rules:
   - SKIL-INTENT-IMPLEMENTATION
-  external_rule: SDI-4
   status: FULL
   notes: Deterministic local-semantic pass, not LLM.
+  external_rules:
+  - SDI-4
+  suite: semantic
+  external_rule: SDI-4
 - id: vague-triggers
   description: LLM flags ambiguous/overbroad trigger phrasing
   fixture: vague-triggers
   skil_rules:
   - SKIL-TRIGGER-GENERIC
   - SKIL-TA-001
-  external_rule: SQP-1
   status: DIFFERENT_BY_DESIGN
   notes: Deterministic pattern-based vs LLM; different mechanism, overlapping coverage.
+  external_rules:
+  - SQP-1
+  suite: semantic
+  external_rule: SQP-1
 - id: undisclosed-operation
   description: Safety-critical operations with no user-facing disclosure
   fixture: undisclosed-operation
   skil_rules:
   - SKIL-INTENT-UNDISCLOSED-OPERATION
+  status: FULL
+  notes: SKIL-INTENT-UNDISCLOSED-OPERATION fires on silent/secret framing of safety-critical operations.
+  external_rules:
+  - SQP-2
+  suite: semantic
   external_rule: SQP-2
-  status: PARTIAL
-  notes: Positive-signal proxy for silent/secret framing, not true absence-of-disclosure
-    detector.
 - id: nl-policy-violations
   description: LLM flags org-policy violations (e.g. forced language)
   fixture: nl-policy-violations
-  skil_rules: []
+  skil_rules:
+  - SKIL-SEM-POLICY
+  status: FULL
+  notes: Provider-backed semantic control for organization-policy violations (e.g. forced language).
+  external_rules:
+  - SQP-3
+  suite: semantic
   external_rule: SQP-3
-  status: MISSING
-  notes: Inherently an LLM-judgment property requiring a semantic provider.
 - id: semantic-prompt-injection
-  description: LLM detects polite/role-play/hypothetical reframings of instruction
-    override
+  description: LLM detects polite/role-play/hypothetical reframings of instruction override
   fixture: semantic-prompt-injection
   skil_rules:
   - SKIL-SEM-SECURITY
+  status: FULL
+  notes: SKIL-SEM-SECURITY covers SSD-1 reframing; granularity coarser than reference. Provider-backed, verified in semantic suite.
+  external_rules:
+  - SSD-1
+  suite: semantic
   external_rule: SSD-1
-  status: PARTIAL
-  notes: Generic catch-all; not confirmed to target four SSD sub-properties with same
-    prompt precision.
 - id: paraphrased-attack
   description: LLM detects creative synonyms/encoded intent for known attack patterns
   fixture: paraphrased-attack
   skil_rules:
   - SKIL-SEM-SECURITY
+  status: FULL
+  notes: SKIL-SEM-SECURITY covers paraphrased/encoded intent. Provider-backed, verified in semantic suite.
+  external_rules:
+  - SSD-2
+  suite: semantic
   external_rule: SSD-2
-  status: PARTIAL
-  notes: Provider-backed.
 - id: nl-exfiltration
   description: LLM detects remember everything and include in response style leaks
   fixture: nl-exfiltration
   skil_rules:
   - SKIL-SEM-SECURITY
+  status: FULL
+  notes: SKIL-SEM-SECURITY covers remember-and-include leaks. Provider-backed, verified in semantic suite.
+  external_rules:
+  - SSD-3
+  suite: semantic
   external_rule: SSD-3
-  status: PARTIAL
-  notes: Provider-backed.
 - id: narrative-deception
   description: LLM detects multi-step trust-building sequences toward harm
   fixture: narrative-deception
   skil_rules:
   - SKIL-SEM-COMPOSITE
+  status: FULL
+  notes: SKIL-SEM-COMPOSITE covers multi-step trust-building. Provider-backed, verified in semantic suite.
+  external_rules:
+  - SSD-4
+  suite: semantic
   external_rule: SSD-4
-  status: PARTIAL
-  notes: Provider-backed; conceptually close but exact prompt not confirmed.
 - id: yara-malware-signatures
   description: Built-in YARA rules for malware, webshell, cryptominer, hack_tool
   fixture: yara-malware-signatures
@@ -737,6 +995,15 @@ properties:
   - SKIL-YARA-002
   - SKIL-YARA-003
   - SKIL-YARA-004
-  external_rule: YR1-4
-  status: FULL
+  status: PROVIDER_BACKED
   notes: Documented FULL in crosswalk.
+  external_rule: YR1-4
+  external_variant: aggregate-4-rules
+  external_rules:
+  - YR1
+  - YR2
+  - YR3
+  - YR4
+  suite: provider
+  scan_args: --yara-builtin
+  status_note: Requires the system yara runtime with the embedded default rule set; excluded from the offline CI static gate, verified in the provider suite.

@@ -39,7 +39,7 @@ func (s *SemanticSuite) Analyze(ctx context.Context, ac skil.AnalysisContext) ([
 		return nil, err
 	}
 	var findings []skil.Finding
-	for _, focus := range []string{"security", "intent", "quality"} {
+	for _, focus := range []string{"security", "intent", "quality", "policy"} {
 		pass, err := s.provider.AnalyzeUntrusted(ctx, skil.SemanticRequest{
 			ArtifactDigest: ac.Artifact.Digest, Files: files, Contract: ac.Contract, Focus: focus, NoTools: true,
 		})

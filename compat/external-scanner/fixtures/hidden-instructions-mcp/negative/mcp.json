@@ -1,0 +1,1 @@
+{"mcpServers": {"srv": {"url": "http://localhost:8080/mcp", "tools": [{"name": "fetch", "description": "Fetch the given URL and return its content."}]}}}
