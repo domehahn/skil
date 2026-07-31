@@ -1,0 +1,1281 @@
+{
+  "schema_version": "2.1.0",
+  "commit": {
+    "skil": "58100c61ef674d2bf10cc6024dcdeadab29fb824",
+    "external": "34f60308522f45447cd343da0aad77bcea308ad4"
+  },
+  "scanner_version": {
+    "skil": "0.1.0",
+    "external": null
+  },
+  "suite": "semantic",
+  "model": "qwen2.5-coder:7b-instruct",
+  "prompt_version": "2026-07-31",
+  "results": [
+    {
+      "property": "ASP-01.08",
+      "fixture": "scope-creep",
+      "suite": "static",
+      "skil_rules": [
+        "SKIL-INTENT-SCOPE-CREEP"
+      ],
+      "external_rules": [
+        "EA3"
+      ],
+      "positive": {
+        "skil": {
+          "ok": true,
+          "detected": true,
+          "rule_ids": [
+            "SKIL-INTENT-SCOPE-CREEP"
+          ],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        }
+      },
+      "negative": {
+        "skil": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        }
+      },
+      "skil_pass": true,
+      "external_pass": false
+    },
+    {
+      "property": "ASP-01.08",
+      "fixture": "scope-creep-permissions",
+      "suite": "semantic",
+      "skil_rules": [
+        "SKIL-INTENT-SCOPE"
+      ],
+      "external_rules": [
+        "SDI-3"
+      ],
+      "positive": {
+        "skil": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        }
+      },
+      "negative": {
+        "skil": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [
+            "SQP-3"
+          ],
+          "error": ""
+        }
+      },
+      "skil_pass": false,
+      "external_pass": false
+    },
+    {
+      "property": "ASP-02.02",
+      "fixture": "llm-description-behavior-mismatch",
+      "suite": "semantic",
+      "skil_rules": [
+        "SKIL-MCP-006",
+        "SKIL-INTENT-DESCRIPTION"
+      ],
+      "external_rules": [
+        "TP4"
+      ],
+      "positive": {
+        "skil": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        }
+      },
+      "negative": {
+        "skil": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        }
+      },
+      "skil_pass": false,
+      "external_pass": false
+    },
+    {
+      "property": "ASP-02.02",
+      "fixture": "description-behavior-mismatch",
+      "suite": "semantic",
+      "skil_rules": [
+        "SKIL-INTENT-DESCRIPTION"
+      ],
+      "external_rules": [
+        "SDI-1"
+      ],
+      "positive": {
+        "skil": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        }
+      },
+      "negative": {
+        "skil": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [
+            "SSD-SUMMARY"
+          ],
+          "error": ""
+        }
+      },
+      "skil_pass": false,
+      "external_pass": false
+    },
+    {
+      "property": "ASP-02.02",
+      "fixture": "intent-code-divergence",
+      "suite": "semantic",
+      "skil_rules": [
+        "SKIL-INTENT-IMPLEMENTATION"
+      ],
+      "external_rules": [
+        "SDI-4"
+      ],
+      "positive": {
+        "skil": {
+          "ok": false,
+          "detected": false,
+          "rule_ids": [],
+          "error": "semantic analysis: provider=openai-compatible model=qwen2.5-coder:7b-instruct destination=http://127.0.0.1:11434/v1/chat/completions transmission=all text files up to 1 MiB tools=none passes=security,intent,quality,policy,meta\ninput error: semantic-suite.openai-compatible/qwen2.5-coder:7b-instruct analyzer: security semantic pass: semantic finding has invalid location or confidence\n"
+        },
+        "external": {
+          "ok": true,
+          "detected": true,
+          "rule_ids": [
+            "SDI-4",
+            "SQP-2"
+          ],
+          "error": ""
+        }
+      },
+      "negative": {
+        "skil": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        }
+      },
+      "skil_pass": false,
+      "external_pass": true
+    },
+    {
+      "property": "ASP-02.03",
+      "fixture": "broad-trigger",
+      "suite": "static",
+      "skil_rules": [
+        "SKIL-TRIGGER-GENERIC"
+      ],
+      "external_rules": [
+        "TR1"
+      ],
+      "positive": {
+        "skil": {
+          "ok": true,
+          "detected": true,
+          "rule_ids": [
+            "SKIL-TRIGGER-GENERIC",
+            "SKIL-TRIGGER-BAITING",
+            "SKIL-TRIGGER-GENERIC",
+            "SKIL-TRIGGER-BAITING",
+            "SKIL-TRIGGER-GENERIC"
+          ],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        }
+      },
+      "negative": {
+        "skil": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        }
+      },
+      "skil_pass": true,
+      "external_pass": false
+    },
+    {
+      "property": "ASP-02.03",
+      "fixture": "trigger-baiting",
+      "suite": "static",
+      "skil_rules": [
+        "SKIL-TRIGGER-BAITING"
+      ],
+      "external_rules": [
+        "TR3"
+      ],
+      "positive": {
+        "skil": {
+          "ok": true,
+          "detected": true,
+          "rule_ids": [
+            "SKIL-TRIGGER-BAITING",
+            "SKIL-TRIGGER-BAITING"
+          ],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        }
+      },
+      "negative": {
+        "skil": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        }
+      },
+      "skil_pass": true,
+      "external_pass": false
+    },
+    {
+      "property": "ASP-02.03",
+      "fixture": "vague-triggers",
+      "suite": "semantic",
+      "skil_rules": [
+        "SKIL-TRIGGER-GENERIC",
+        "SKIL-TA-001"
+      ],
+      "external_rules": [
+        "SQP-1"
+      ],
+      "positive": {
+        "skil": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        }
+      },
+      "negative": {
+        "skil": {
+          "ok": false,
+          "detected": false,
+          "rule_ids": [],
+          "error": "semantic analysis: provider=openai-compatible model=qwen2.5-coder:7b-instruct destination=http://127.0.0.1:11434/v1/chat/completions transmission=all text files up to 1 MiB tools=none passes=security,intent,quality,policy,meta\ninput error: semantic-suite.openai-compatible/qwen2.5-coder:7b-instruct analyzer: quality semantic pass: semantic finding control \"context_misuse\" is outside requested focus \"quality\"\n"
+        },
+        "external": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        }
+      },
+      "skil_pass": false,
+      "external_pass": false
+    },
+    {
+      "property": "ASP-02.06",
+      "fixture": "llm-description-behavior-mismatch",
+      "suite": "semantic",
+      "skil_rules": [
+        "SKIL-MCP-006",
+        "SKIL-INTENT-DESCRIPTION"
+      ],
+      "external_rules": [
+        "TP4"
+      ],
+      "positive": {
+        "skil": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        }
+      },
+      "negative": {
+        "skil": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        }
+      },
+      "skil_pass": false,
+      "external_pass": false
+    },
+    {
+      "property": "ASP-02.06",
+      "fixture": "description-behavior-mismatch",
+      "suite": "semantic",
+      "skil_rules": [
+        "SKIL-INTENT-DESCRIPTION"
+      ],
+      "external_rules": [
+        "SDI-1"
+      ],
+      "positive": {
+        "skil": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        }
+      },
+      "negative": {
+        "skil": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        }
+      },
+      "skil_pass": false,
+      "external_pass": false
+    },
+    {
+      "property": "ASP-02.06",
+      "fixture": "semantic-prompt-injection",
+      "suite": "semantic",
+      "skil_rules": [
+        "SKIL-SEM-SECURITY"
+      ],
+      "external_rules": [
+        "SSD-1"
+      ],
+      "positive": {
+        "skil": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        }
+      },
+      "negative": {
+        "skil": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        }
+      },
+      "skil_pass": false,
+      "external_pass": false
+    },
+    {
+      "property": "ASP-02.06",
+      "fixture": "paraphrased-attack",
+      "suite": "semantic",
+      "skil_rules": [
+        "SKIL-SEM-SECURITY"
+      ],
+      "external_rules": [
+        "SSD-2"
+      ],
+      "positive": {
+        "skil": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        }
+      },
+      "negative": {
+        "skil": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        }
+      },
+      "skil_pass": false,
+      "external_pass": false
+    },
+    {
+      "property": "ASP-02.06",
+      "fixture": "nl-exfiltration",
+      "suite": "semantic",
+      "skil_rules": [
+        "SKIL-SEM-SECURITY"
+      ],
+      "external_rules": [
+        "SSD-3"
+      ],
+      "positive": {
+        "skil": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        }
+      },
+      "negative": {
+        "skil": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        }
+      },
+      "skil_pass": false,
+      "external_pass": false
+    },
+    {
+      "property": "ASP-02.08",
+      "fixture": "under-declared-capability",
+      "suite": "static",
+      "skil_rules": [
+        "SKIL-CAP-DECLARATION-MISSING"
+      ],
+      "external_rules": [
+        "LP1"
+      ],
+      "positive": {
+        "skil": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        }
+      },
+      "negative": {
+        "skil": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        }
+      },
+      "skil_pass": false,
+      "external_pass": false
+    },
+    {
+      "property": "ASP-02.08",
+      "fixture": "no-permissions-declared",
+      "suite": "static",
+      "skil_rules": [
+        "SKIL-CAP-DECLARATION-MISSING"
+      ],
+      "external_rules": [
+        "LP3"
+      ],
+      "positive": {
+        "skil": {
+          "ok": true,
+          "detected": true,
+          "rule_ids": [
+            "SKIL-CAP-DECLARATION-MISSING",
+            "SKIL-PY-002"
+          ],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [
+            "AST4",
+            "TM1"
+          ],
+          "error": ""
+        }
+      },
+      "negative": {
+        "skil": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [
+            "SKIL-PY-002"
+          ],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [
+            "AST4",
+            "TM1"
+          ],
+          "error": ""
+        }
+      },
+      "skil_pass": true,
+      "external_pass": false
+    },
+    {
+      "property": "ASP-02.08",
+      "fixture": "over-declared-permission",
+      "suite": "static",
+      "skil_rules": [
+        "SKIL-CAP-DECLARATION-MISSING"
+      ],
+      "external_rules": [
+        "LP4"
+      ],
+      "positive": {
+        "skil": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        }
+      },
+      "negative": {
+        "skil": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        }
+      },
+      "skil_pass": false,
+      "external_pass": false
+    },
+    {
+      "property": "ASP-02.08",
+      "fixture": "llm-description-behavior-mismatch",
+      "suite": "semantic",
+      "skil_rules": [
+        "SKIL-MCP-006",
+        "SKIL-INTENT-DESCRIPTION"
+      ],
+      "external_rules": [
+        "TP4"
+      ],
+      "positive": {
+        "skil": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        }
+      },
+      "negative": {
+        "skil": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        }
+      },
+      "skil_pass": false,
+      "external_pass": false
+    },
+    {
+      "property": "ASP-02.08",
+      "fixture": "description-behavior-mismatch",
+      "suite": "semantic",
+      "skil_rules": [
+        "SKIL-INTENT-DESCRIPTION"
+      ],
+      "external_rules": [
+        "SDI-1"
+      ],
+      "positive": {
+        "skil": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        }
+      },
+      "negative": {
+        "skil": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        }
+      },
+      "skil_pass": false,
+      "external_pass": false
+    },
+    {
+      "property": "ASP-02.08",
+      "fixture": "context-inappropriate-capability",
+      "suite": "semantic",
+      "skil_rules": [
+        "SKIL-INTENT-CONTEXT"
+      ],
+      "external_rules": [
+        "SDI-2"
+      ],
+      "positive": {
+        "skil": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [
+            "SQP-3"
+          ],
+          "error": ""
+        }
+      },
+      "negative": {
+        "skil": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        }
+      },
+      "skil_pass": false,
+      "external_pass": false
+    },
+    {
+      "property": "ASP-05.07",
+      "fixture": "exfiltration-commands",
+      "suite": "static",
+      "skil_rules": [
+        "SKIL-EX-001",
+        "SKIL-INTENT-EXTERNAL-TRANSFER",
+        "SKIL-INTENT-UNDISCLOSED-OPERATION"
+      ],
+      "external_rules": [
+        "P3"
+      ],
+      "positive": {
+        "skil": {
+          "ok": true,
+          "detected": true,
+          "rule_ids": [
+            "SKIL-CAP-DECLARATION-MISSING",
+            "SKIL-INTENT-EXTERNAL-TRANSFER",
+            "SKIL-INTENT-UNDISCLOSED-OPERATION"
+          ],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": true,
+          "rule_ids": [
+            "P3"
+          ],
+          "error": ""
+        }
+      },
+      "negative": {
+        "skil": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        }
+      },
+      "skil_pass": true,
+      "external_pass": true
+    },
+    {
+      "property": "ASP-05.07",
+      "fixture": "undisclosed-operation",
+      "suite": "semantic",
+      "skil_rules": [
+        "SKIL-INTENT-UNDISCLOSED-OPERATION"
+      ],
+      "external_rules": [
+        "SQP-2"
+      ],
+      "positive": {
+        "skil": {
+          "ok": true,
+          "detected": true,
+          "rule_ids": [
+            "SKIL-ABUSE-DESTRUCTION",
+            "SKIL-INTENT-UNDISCLOSED-OPERATION"
+          ],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": true,
+          "rule_ids": [
+            "SQP-2",
+            "SSD-1"
+          ],
+          "error": ""
+        }
+      },
+      "negative": {
+        "skil": {
+          "ok": false,
+          "detected": false,
+          "rule_ids": [],
+          "error": "semantic analysis: provider=openai-compatible model=qwen2.5-coder:7b-instruct destination=http://127.0.0.1:11434/v1/chat/completions transmission=all text files up to 1 MiB tools=none passes=security,intent,quality,policy,meta\ninput error: semantic-suite.openai-compatible/qwen2.5-coder:7b-instruct analyzer: quality semantic pass: semantic finding control \"description_mismatch\" is outside requested focus \"quality\"\n"
+        },
+        "external": {
+          "ok": true,
+          "detected": true,
+          "rule_ids": [
+            "SQP-2"
+          ],
+          "error": ""
+        }
+      },
+      "skil_pass": true,
+      "external_pass": false
+    },
+    {
+      "property": "ASP-10.05",
+      "fixture": "llm-description-behavior-mismatch",
+      "suite": "semantic",
+      "skil_rules": [
+        "SKIL-MCP-006",
+        "SKIL-INTENT-DESCRIPTION"
+      ],
+      "external_rules": [
+        "TP4"
+      ],
+      "positive": {
+        "skil": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        }
+      },
+      "negative": {
+        "skil": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        }
+      },
+      "skil_pass": false,
+      "external_pass": false
+    },
+    {
+      "property": "ASP-10.05",
+      "fixture": "description-behavior-mismatch",
+      "suite": "semantic",
+      "skil_rules": [
+        "SKIL-INTENT-DESCRIPTION"
+      ],
+      "external_rules": [
+        "SDI-1"
+      ],
+      "positive": {
+        "skil": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        }
+      },
+      "negative": {
+        "skil": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        }
+      },
+      "skil_pass": false,
+      "external_pass": false
+    },
+    {
+      "property": "ASP-13.01",
+      "fixture": "exfiltration-commands",
+      "suite": "static",
+      "skil_rules": [
+        "SKIL-EX-001",
+        "SKIL-INTENT-EXTERNAL-TRANSFER",
+        "SKIL-INTENT-UNDISCLOSED-OPERATION"
+      ],
+      "external_rules": [
+        "P3"
+      ],
+      "positive": {
+        "skil": {
+          "ok": true,
+          "detected": true,
+          "rule_ids": [
+            "SKIL-CAP-DECLARATION-MISSING",
+            "SKIL-INTENT-EXTERNAL-TRANSFER",
+            "SKIL-INTENT-UNDISCLOSED-OPERATION"
+          ],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": true,
+          "rule_ids": [
+            "P3"
+          ],
+          "error": ""
+        }
+      },
+      "negative": {
+        "skil": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        }
+      },
+      "skil_pass": true,
+      "external_pass": true
+    },
+    {
+      "property": "ASP-13.01",
+      "fixture": "undisclosed-operation",
+      "suite": "semantic",
+      "skil_rules": [
+        "SKIL-INTENT-UNDISCLOSED-OPERATION"
+      ],
+      "external_rules": [
+        "SQP-2"
+      ],
+      "positive": {
+        "skil": {
+          "ok": true,
+          "detected": true,
+          "rule_ids": [
+            "SKIL-ABUSE-DESTRUCTION",
+            "SKIL-INTENT-UNDISCLOSED-OPERATION"
+          ],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": true,
+          "rule_ids": [
+            "SQP-2"
+          ],
+          "error": ""
+        }
+      },
+      "negative": {
+        "skil": {
+          "ok": false,
+          "detected": false,
+          "rule_ids": [],
+          "error": "semantic analysis: provider=openai-compatible model=qwen2.5-coder:7b-instruct destination=http://127.0.0.1:11434/v1/chat/completions transmission=all text files up to 1 MiB tools=none passes=security,intent,quality,policy,meta\ninput error: semantic-suite.openai-compatible/qwen2.5-coder:7b-instruct analyzer: quality semantic pass: semantic finding control \"description_mismatch\" is outside requested focus \"quality\"\n"
+        },
+        "external": {
+          "ok": true,
+          "detected": true,
+          "rule_ids": [
+            "SQP-2"
+          ],
+          "error": ""
+        }
+      },
+      "skil_pass": true,
+      "external_pass": false
+    },
+    {
+      "property": "ASP-13.03",
+      "fixture": "behavior-manipulation",
+      "suite": "static",
+      "skil_rules": [
+        "SKIL-INTENT-BEHAVIOR-MANIPULATION"
+      ],
+      "external_rules": [
+        "P4"
+      ],
+      "positive": {
+        "skil": {
+          "ok": true,
+          "detected": true,
+          "rule_ids": [
+            "SKIL-INTENT-BEHAVIOR-MANIPULATION"
+          ],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": true,
+          "rule_ids": [
+            "P4",
+            "P4"
+          ],
+          "error": ""
+        }
+      },
+      "negative": {
+        "skil": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        }
+      },
+      "skil_pass": true,
+      "external_pass": true
+    },
+    {
+      "property": "ASP-13.03",
+      "fixture": "nl-policy-violations",
+      "suite": "semantic",
+      "skil_rules": [
+        "SKIL-SEM-POLICY"
+      ],
+      "external_rules": [
+        "SQP-3"
+      ],
+      "positive": {
+        "skil": {
+          "ok": false,
+          "detected": false,
+          "rule_ids": [],
+          "error": "semantic analysis: provider=openai-compatible model=qwen2.5-coder:7b-instruct destination=http://127.0.0.1:11434/v1/chat/completions transmission=all text files up to 1 MiB tools=none passes=security,intent,quality,policy,meta\ninput error: semantic-suite.openai-compatible/qwen2.5-coder:7b-instruct analyzer: meta semantic pass: semantic finding control \"description_mismatch\" is outside requested focus \"meta\"\n"
+        },
+        "external": {
+          "ok": true,
+          "detected": true,
+          "rule_ids": [
+            "SQP-3",
+            "AR1"
+          ],
+          "error": ""
+        }
+      },
+      "negative": {
+        "skil": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        }
+      },
+      "skil_pass": false,
+      "external_pass": true
+    },
+    {
+      "property": "ASP-13.03",
+      "fixture": "narrative-deception",
+      "suite": "semantic",
+      "skil_rules": [
+        "SKIL-SEM-COMPOSITE"
+      ],
+      "external_rules": [
+        "SSD-4"
+      ],
+      "positive": {
+        "skil": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        }
+      },
+      "negative": {
+        "skil": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        },
+        "external": {
+          "ok": true,
+          "detected": false,
+          "rule_ids": [],
+          "error": ""
+        }
+      },
+      "skil_pass": false,
+      "external_pass": false
+    }
+  ],
+  "summary": {
+    "total": 28,
+    "skil_pass": 9,
+    "external_pass": 5,
+    "skil_only": [
+      "ASP-01.08",
+      "ASP-02.03",
+      "ASP-02.03",
+      "ASP-02.08",
+      "ASP-05.07",
+      "ASP-13.01"
+    ],
+    "external_only": [
+      "ASP-02.02",
+      "ASP-13.03"
+    ],
+    "both_detect": [
+      "ASP-05.07",
+      "ASP-13.01",
+      "ASP-13.03"
+    ],
+    "neither": [
+      "ASP-01.08",
+      "ASP-02.02",
+      "ASP-02.02",
+      "ASP-02.03",
+      "ASP-02.06",
+      "ASP-02.06",
+      "ASP-02.06",
+      "ASP-02.06",
+      "ASP-02.06",
+      "ASP-02.08",
+      "ASP-02.08",
+      "ASP-02.08",
+      "ASP-02.08",
+      "ASP-02.08",
+      "ASP-10.05",
+      "ASP-10.05",
+      "ASP-13.03"
+    ],
+    "gap": true
+  }
+}

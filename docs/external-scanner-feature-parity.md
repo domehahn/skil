@@ -295,3 +295,29 @@ FULL is concentrated in the areas the existing `external-control-crosswalk.md` c
 6. ~~**E5/cloud-exfiltration via SDK calls**~~ — **Closed.** New `SKIL-BOUNDARY-CLOUD-SDK-UPLOAD` rule.
 7. ~~**PE3 path-list breadth**~~ — **Closed.** `SKIL-SEC-001` extended (see row above).
 8. ~~**E3 code-level filesystem enumeration**~~ — **Closed.** New `SKIL-FS-DISCOVERY-CODE` rule.
+
+### Semantic differential benchmark (local model, 2026-07-31)
+
+A live semantic-suite benchmark was recorded on 2026-07-31 against a single
+OpenAI-compatible local model, exercising every semantic fixture on both
+polarities through both scanners. Full results (per-fixture rule IDs and
+errors) are stored in
+`compat/external-scanner/reports/semantic-qwen2.5-coder-7b-instruct-2026-07-31.json`.
+
+- **Model**: `qwen2.5-coder:7b-instruct` (Ollama, `http://127.0.0.1:11434/v1`) — same model for both scanners
+- **skil**: commit `58100c6`, prompt version `2026-07-31`, `--semantic --semantic-model qwen2.5-coder:7b-instruct`
+- **External scanner**: commit `34f6030` (v2.5.0), `SKILLSPECTOR_MODEL=qwen2.5-coder:7b-instruct`
+- **Result**: skil 9/28 fixture entries, external 5/28; **external-only gaps: 2**
+  (`ASP-02.02` intent-code-divergence, `ASP-13.03` nl-policy-violations), skil-only: 6, neither: 17
+
+Both gaps are weak-model **schema violations that abort the skil scan before it
+reports**, not properties the external scanner detects that skil cannot:
+`intent-code-divergence` fails the `security` pass with "invalid location or
+confidence"; `nl-policy-violations` fails the `meta` pass when the model returns
+a non-`semantic_composite` control. Because one violating pass aborts the whole
+scan, the four valid passes' findings are discarded — a robustness gap on weak
+models, not a detection gap. The 14b variant is too slow on this hardware
+(>90s/request) to re-run. A frontier model (with an API key) is expected to
+avoid these aborts; the benchmark command and report schema (2.1.0, recording
+model id, prompt version, and both scanner digests) make such a run
+reproducible.
