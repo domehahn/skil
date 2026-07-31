@@ -188,6 +188,12 @@ jobs:
           mkdir -p dist-e2e
           go build -trimpath -o "dist-e2e/skil${EXECUTABLE_SUFFIX}" ./cmd/skil
           go build -trimpath -o "dist-e2e/assurance-adapter${EXECUTABLE_SUFFIX}" ./internal/evaltestadapter/cmd
+      - name: Diagnose adapter directly
+        if: matrix.os == 'windows'
+        shell: bash
+        run: |
+          printf '%s' '{"version":1,"request":{"test":{"name":"diag","type":"adversarial"},"artifact":{},"run":1},"results":[]}' > /tmp/adapter-input.json
+          timeout 10 "dist-e2e/assurance-adapter.exe" < /tmp/adapter-input.json; echo "adapter_exit=$?"
       - name: Execute digest-bound CLI assurance gate
         shell: bash
         env:
