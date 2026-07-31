@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -397,8 +398,13 @@ func TestIsolatedAdapterHelper(t *testing.T) {
 	}
 	if helperArgument("gateway-adapter") != "" {
 		var exchange skil.GatewayExchange
-		if err := json.NewDecoder(os.Stdin).Decode(&exchange); err != nil {
+		decoder := json.NewDecoder(os.Stdin)
+		if err := decoder.Decode(&exchange); err != nil {
 			os.Exit(10)
+		}
+		var extra any
+		if err := decoder.Decode(&extra); !errors.Is(err, io.EOF) {
+			os.Exit(11)
 		}
 		if len(exchange.Results) == 0 {
 			fmt.Print(`{"type":"tool_call","id":"native-1","tool":"containment.simulate","arguments":{"action":"challenge_access"}}`)

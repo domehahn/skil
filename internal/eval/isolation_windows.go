@@ -175,6 +175,11 @@ func runWindowsIsolation(ctx context.Context, executable string, request Isolati
 			return err
 		}
 	}
+	for _, file := range []*os.File{stdinWrite, stdoutRead, stderrRead} {
+		if err := setNotInheritable(file); err != nil {
+			return err
+		}
+	}
 
 	attributeList, cleanupAttributes, err := appContainerAttributes(sid)
 	if err != nil {
@@ -395,6 +400,13 @@ func appContainerAttributes(sid uintptr) (uintptr, func(), error) {
 func setInheritable(file *os.File) error {
 	if ok, _, err := procSetHandleInformation.Call(file.Fd(), handleFlagInherit, handleFlagInherit); ok == 0 {
 		return fmt.Errorf("make Windows sandbox pipe inheritable: %w", err)
+	}
+	return nil
+}
+
+func setNotInheritable(file *os.File) error {
+	if ok, _, err := procSetHandleInformation.Call(file.Fd(), handleFlagInherit, 0); ok == 0 {
+		return fmt.Errorf("make Windows sandbox pipe non-inheritable: %w", err)
 	}
 	return nil
 }
