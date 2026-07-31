@@ -11,6 +11,10 @@ properties:
   - P1
   suite: static
   external_rule: P1
+  sp: SP01
+  owasp: [ASI01]
+  atlas: [LLM Prompt Injection]
+
 - id: hidden-instructions-html
   description: HTML comments with injection-bearing content
   fixture: hidden-instructions-html
@@ -23,6 +27,10 @@ properties:
   external_rules:
   - P2
   suite: static
+  sp: SP01
+  owasp: [ASI01]
+  atlas: [LLM Prompt Injection, LLM Prompt Obfuscation]
+
 - id: hidden-instructions-markdown
   description: Markdown hidden comments with injection/suspicious content
   fixture: hidden-instructions-markdown
@@ -36,6 +44,10 @@ properties:
   external_rules:
   - P2
   suite: static
+  sp: SP01
+  owasp: [ASI01]
+  atlas: [LLM Prompt Injection, LLM Prompt Obfuscation]
+
 - id: unicode-zero-width
   description: Zero-width chars and bidi override characters
   fixture: unicode-zero-width
@@ -48,6 +60,10 @@ properties:
   external_rules:
   - P2
   suite: static
+  sp: SP01
+  owasp: [ASI01]
+  atlas: [LLM Prompt Obfuscation]
+
 - id: unicode-tag-smuggling
   description: Unicode Tag block ASCII smuggling with RGI emoji-flag carve-out
   fixture: unicode-tag-smuggling
@@ -60,6 +76,10 @@ properties:
   external_rules:
   - P2
   suite: static
+  sp: SP01
+  owasp: [ASI01]
+  atlas: [LLM Prompt Obfuscation]
+
 - id: exfiltration-commands
   description: Instructions to send/transmit conversation/data to an external sink
   fixture: exfiltration-commands
@@ -73,6 +93,10 @@ properties:
   - P3
   suite: static
   external_rule: P3
+  sp: SP03
+  owasp: [ASI01]
+  atlas: [LLM Prompt Injection, Exfiltration via AI Agent Tool Invocation]
+
 - id: behavior-manipulation
   description: Covert behavioral steering / dark-pattern influence on the user
   fixture: behavior-manipulation
@@ -84,6 +108,10 @@ properties:
   - P4
   suite: static
   external_rule: P4
+  sp: SP11
+  owasp: [ASI09]
+  atlas: [Manipulate User LLM Chat History]
+
 - id: physical-harm-content
   description: Actionable operational instructions for causing physical harm
   fixture: physical-harm-content
@@ -95,6 +123,10 @@ properties:
   - P5
   suite: static
   external_rule: P5
+  sp: SP02
+  owasp: [ASI01]
+  atlas: []
+
 - id: direct-prompt-extraction
   description: Print/reveal/show system prompt instructions
   fixture: direct-prompt-extraction
@@ -106,6 +138,10 @@ properties:
   - P6
   suite: static
   external_rule: P6
+  sp: SP03
+  owasp: [ASI01]
+  atlas: [Extract LLM System Prompt]
+
 - id: indirect-prompt-extraction
   description: Repeat/translate/encode/summarize instructions to leak prompt
   fixture: indirect-prompt-extraction
@@ -117,6 +153,10 @@ properties:
   - P7
   suite: static
   external_rule: P7
+  sp: SP03
+  owasp: [ASI01]
+  atlas: [Extract LLM System Prompt]
+
 - id: prompt-exfiltration-tool
   description: Save system prompt to file or send via curl/webhook
   fixture: prompt-taint-to-file
@@ -130,6 +170,10 @@ properties:
   - P8
   suite: static
   external_rule: P8
+  sp: SP03
+  owasp: [ASI01]
+  atlas: [Extract LLM System Prompt]
+
 - id: anti-refusal
   description: Instructions demanding unconditional compliance / suppress refusal
   fixture: anti-refusal
@@ -141,6 +185,10 @@ properties:
   - AR1
   suite: static
   external_rule: AR1
+  sp: SP01
+  owasp: [ASI01]
+  atlas: [LLM Prompt Injection]
+
 - id: disclaimer-suppression
   description: No warnings/don't moralize/skip the ethics instructions
   fixture: disclaimer-suppression
@@ -152,6 +200,10 @@ properties:
   - AR2
   suite: static
   external_rule: AR2
+  sp: SP01
+  owasp: [ASI01]
+  atlas: [LLM Prompt Injection]
+
 - id: safety-nullification
   description: You have no restrictions / DAN mode / not bound by policy
   fixture: safety-nullification
@@ -163,6 +215,10 @@ properties:
   - AR3
   suite: static
   external_rule: AR3
+  sp: SP01
+  owasp: [ASI01]
+  atlas: [LLM Prompt Injection]
+
 - id: external-transmission
   description: HTTP POST/PUT calls to external endpoints, suspicious subdomains
   fixture: external-transmission
@@ -175,6 +231,10 @@ properties:
   - E1
   suite: static
   external_rule: E1
+  sp: SP03
+  owasp: [ASI01]
+  atlas: [Exfiltration via AI Agent Tool Invocation]
+
 - id: env-harvesting
   description: Iterating env vars, reading KEY/SECRET/TOKEN/PASSWORD env vars
   fixture: env-harvesting
@@ -186,6 +246,10 @@ properties:
   - E2
   suite: static
   external_rule: E2
+  sp: SP03
+  owasp: [ASI03]
+  atlas: [AI Agent Tool Credential Harvesting]
+
 - id: fs-enumeration
   description: Recursive walk/glob/find of home or credential directories
   fixture: code-level-fs-enumeration
@@ -198,6 +262,10 @@ properties:
   - E3
   suite: static
   external_rule: E3
+  sp: SP03
+  owasp: [ASI03]
+  atlas: [AI Agent Tool Credential Harvesting]
+
 - id: context-leakage
   description: Instructions to send/log/export full conversation/session/memory
   fixture: context-leakage
@@ -210,6 +278,10 @@ properties:
   - E4
   suite: static
   external_rule: E4
+  sp: SP03
+  owasp: [ASI01]
+  atlas: [Exfiltration via AI Agent Tool Invocation]
+
 - id: cloud-exfiltration
   description: Cloud SDK upload calls (boto3/GCS/Azure SDK), CLI forms
   fixture: cloud-sdk-upload
@@ -222,6 +294,10 @@ properties:
   - E5
   suite: static
   external_rule: E5
+  sp: SP03
+  owasp: [ASI02]
+  atlas: [Exfiltration via AI Agent Tool Invocation]
+
 - id: excessive-permissions
   description: Wildcard or "grant me full access" permission requests
   fixture: excessive-permissions
@@ -234,6 +310,10 @@ properties:
   - PE1
   suite: static
   external_rule: PE1
+  sp: SP04
+  owasp: [ASI03]
+  atlas: []
+
 - id: sudo-root-escalation
   description: Literal shell privilege-escalation commands
   fixture: sudo-root-escalation
@@ -245,6 +325,10 @@ properties:
   - PE2
   suite: static
   external_rule: PE2
+  sp: SP04
+  owasp: [ASI03]
+  atlas: []
+
 - id: credential-file-access
   description: Reads concrete credential-bearing file paths
   fixture: credential-file-access
@@ -256,6 +340,10 @@ properties:
   - PE3
   suite: static
   external_rule: PE3
+  sp: SP04
+  owasp: [ASI03]
+  atlas: [AI Agent Tool Credential Harvesting]
+
 - id: docker-socket-access
   description: Accesses Docker/container control-plane socket
   fixture: docker-socket-access
@@ -267,6 +355,10 @@ properties:
   - PE4
   suite: static
   external_rule: PE4
+  sp: SP10
+  owasp: [ASI02]
+  atlas: [AI Agent Tool Invocation]
+
 - id: container-escape
   description: Privileged container or host-namespace escape primitive
   fixture: container-escape
@@ -278,6 +370,10 @@ properties:
   - PE5
   suite: static
   external_rule: PE5
+  sp: SP10
+  owasp: [ASI05]
+  atlas: [AI Agent Tool Invocation]
+
 - id: unrestricted-tool-access
   description: Wildcard tool permissions, call any/all tools
   fixture: unrestricted-tool-access
@@ -290,6 +386,10 @@ properties:
   - EA1
   suite: static
   external_rule: EA1
+  sp: SP05
+  owasp: [ASI02]
+  atlas: [AI Agent Tool Invocation]
+
 - id: autonomous-decision
   description: Without asking confirmation/auto-approve/proceed without permission
   fixture: autonomous-decision
@@ -301,6 +401,10 @@ properties:
   - EA2
   suite: static
   external_rule: EA2
+  sp: SP05
+  owasp: [ASI02]
+  atlas: [AI Agent Tool Invocation]
+
 - id: scope-creep
   description: NL instructions requesting scope expansion beyond stated purpose
   fixture: scope-creep
@@ -312,6 +416,10 @@ properties:
   - EA3
   suite: static
   external_rule: EA3
+  sp: SP02
+  owasp: [ASI01]
+  atlas: []
+
 - id: unbounded-resource
   description: Unlimited resource access in code and NL phrasing
   fixture: unbounded-resource-code
@@ -325,6 +433,10 @@ properties:
   - EA4
   suite: static
   external_rule: EA4
+  sp: SP12
+  owasp: [ASI08]
+  atlas: []
+
 - id: unvalidated-output
   description: Model output piped into exec/eval/subprocess or code execution
   fixture: model-output-taint-execution
@@ -337,6 +449,10 @@ properties:
   - OH1
   suite: static
   external_rule: OH1
+  sp: SP06
+  owasp: [ASI05]
+  atlas: []
+
 - id: cross-context-output
   description: Output from one agent/session passed into another's system prompt
   fixture: cross-context-output
@@ -348,6 +464,10 @@ properties:
   - OH2
   suite: static
   external_rule: OH2
+  sp: SP08
+  owasp: [ASI07]
+  atlas: [AI Agent Context Poisoning]
+
 - id: unbounded-output
   description: No output length/token limit, generate unlimited text
   fixture: unbounded-output
@@ -360,6 +480,10 @@ properties:
   - OH3
   suite: static
   external_rule: OH3
+  sp: SP12
+  owasp: [ASI08]
+  atlas: []
+
 - id: persistent-context-injection
   description: Remember this for all future interactions/store in memory permanently
   fixture: persistent-context-injection
@@ -371,6 +495,10 @@ properties:
   - MP1
   suite: static
   external_rule: MP1
+  sp: SP07
+  owasp: [ASI06]
+  atlas: [AI Agent Context Poisoning]
+
 - id: context-window-stuffing
   description: Fill/stuff/flood context window to displace original instructions
   fixture: context-window-stuffing
@@ -382,6 +510,10 @@ properties:
   - MP2
   suite: static
   external_rule: MP2
+  sp: SP07
+  owasp: [ASI06]
+  atlas: [AI Agent Context Poisoning]
+
 - id: memory-manipulation
   description: Clear/wipe memory, overwrite instructions, inject false memories
   fixture: memory-manipulation
@@ -394,6 +526,10 @@ properties:
   - MP3
   suite: static
   external_rule: MP3
+  sp: SP07
+  owasp: [ASI06]
+  atlas: [AI Agent Context Poisoning]
+
 - id: self-modification
   description: Modify own code/config/instructions/disable safety checks
   fixture: self-modification
@@ -405,6 +541,10 @@ properties:
   - RA1
   suite: static
   external_rule: RA1
+  sp: SP07
+  owasp: [ASI10]
+  atlas: [Modify AI Agent Configuration]
+
 - id: session-persistence
   description: Crontab, bashrc/zshrc injection, systemd/launchd service, background processes
   fixture: session-persistence
@@ -416,6 +556,10 @@ properties:
   - RA2
   suite: static
   external_rule: RA2
+  sp: SP07
+  owasp: [ASI10]
+  atlas: []
+
 - id: broad-trigger
   description: Single common-word trigger or trigger <=2 chars in manifest
   fixture: broad-trigger
@@ -427,6 +571,10 @@ properties:
   - TR1
   suite: static
   external_rule: TR1
+  sp: SP05
+  owasp: [ASI02]
+  atlas: []
+
 - id: shadow-command-trigger
   description: Trigger collides with a built-in command name
   fixture: shadow-command-trigger
@@ -438,6 +586,10 @@ properties:
   - TR2
   suite: static
   external_rule: TR2
+  sp: SP05
+  owasp: [ASI02]
+  atlas: []
+
 - id: trigger-baiting
   description: Single-word trigger matches known baiting keyword
   fixture: trigger-baiting
@@ -449,6 +601,10 @@ properties:
   - TR3
   suite: static
   external_rule: TR3
+  sp: SP05
+  owasp: [ASI02]
+  atlas: []
+
 - id: dynamic-python-execution
   description: Python dynamically executes untrusted input (exec/eval/subprocess)
   fixture: dynamic-python-execution
@@ -472,6 +628,10 @@ properties:
   - AST8
   - AST9
   suite: static
+  sp: SP06
+  owasp: [ASI05]
+  atlas: []
+
 - id: reflective-execution
   description: Reflective getattr()-resolved call to dangerous execution sink
   fixture: reflective-execution
@@ -483,6 +643,10 @@ properties:
   - AST9
   suite: static
   external_rule: AST9
+  sp: SP06
+  owasp: [ASI05]
+  atlas: []
+
 - id: taint-generic-flow
   description: Any source flowing directly into any execution/network/file-write sink
   fixture: model-output-taint-execution
@@ -496,6 +660,10 @@ properties:
   - TT1
   suite: static
   external_rule: TT1
+  sp: SP06
+  owasp: [ASI05]
+  atlas: []
+
 - id: taint-variable-mediated
   description: Taint propagated through re-assignment and container literals
   fixture: taint-variable-mediated
@@ -508,6 +676,10 @@ properties:
   - TT2
   suite: static
   external_rule: TT2
+  sp: SP06
+  owasp: [ASI05]
+  atlas: []
+
 - id: taint-credential-network
   description: os.environ/os.getenv source flowing to network sink
   fixture: taint-credential-network
@@ -519,6 +691,10 @@ properties:
   - TT3
   suite: static
   external_rule: TT3
+  sp: SP03
+  owasp: [ASI03]
+  atlas: [Exfiltration via AI Agent Tool Invocation]
+
 - id: taint-file-network
   description: File read source flowing to network sink
   fixture: taint-file-network
@@ -530,6 +706,10 @@ properties:
   - TT4
   suite: static
   external_rule: TT4
+  sp: SP03
+  owasp: [ASI02]
+  atlas: [Exfiltration via AI Agent Tool Invocation]
+
 - id: taint-external-execution
   description: External/user input flowing into execution sink
   fixture: taint-external-execution
@@ -541,6 +721,10 @@ properties:
   - TT5
   suite: static
   external_rule: TT5
+  sp: SP06
+  owasp: [ASI05]
+  atlas: []
+
 - id: unpinned-dependencies
   description: Bare package name or >= range or * in dependency files
   fixture: unpinned-dependencies
@@ -552,6 +736,10 @@ properties:
   - SC1
   suite: static
   external_rule: SC1
+  sp: SP09
+  owasp: [ASI04]
+  atlas: []
+
 - id: vulnerable-dependency
   description: Known vulnerable dependency via OSV query or static fallback
   fixture: vulnerable-dependency
@@ -565,6 +753,10 @@ properties:
   external_rule: SC4
   scan_args: --osv
   status_note: Runs only with --osv (live OSV query with offline static fallback); excluded from the offline CI static gate, verified in the provider suite.
+  sp: SP09
+  owasp: [ASI04]
+  atlas: []
+
 - id: abandoned-dependency
   description: Known-abandoned PyPI/npm packages
   fixture: abandoned-dependency
@@ -576,6 +768,10 @@ properties:
   - SC5
   suite: static
   external_rule: SC5
+  sp: SP09
+  owasp: [ASI04]
+  atlas: []
+
 - id: typosquatting
   description: Levenshtein edit-distance <=2 against curated popular-package lists
   fixture: typosquatting
@@ -587,6 +783,10 @@ properties:
   - SC6
   suite: static
   external_rule: SC6
+  sp: SP09
+  owasp: [ASI04]
+  atlas: []
+
 - id: untrusted-container-image
   description: --disable-content-trust / DOCKER_CONTENT_TRUST=0 / --insecure-registry
   fixture: untrusted-container-image
@@ -599,6 +799,10 @@ properties:
   - SC7
   suite: static
   external_rule: SC7
+  sp: SP09
+  owasp: [ASI04]
+  atlas: []
+
 - id: obfuscated-code
   description: exec(base64.b64decode(...)), marshal.loads, decode-then-execute chains
   fixture: obfuscated-code
@@ -612,6 +816,10 @@ properties:
   - SC3
   suite: static
   external_rule: SC3
+  sp: SP06
+  owasp: [ASI05]
+  atlas: [LLM Prompt Obfuscation]
+
 - id: external-script-fetch
   description: curl | sh, wget | python, eval(fetch(...)) with trusted-domain allowlist
   fixture: external-script-fetch
@@ -623,6 +831,10 @@ properties:
   - SC2
   suite: static
   external_rule: SC2
+  sp: SP06
+  owasp: [ASI05]
+  atlas: [AI Agent Tool Invocation]
+
 - id: cloud-metadata-ssrf
   description: Cloud metadata endpoint access (169.254.169.254, metadata.google.internal)
   fixture: cloud-metadata-ssrf
@@ -634,6 +846,10 @@ properties:
   - SSRF1
   suite: static
   external_rule: SSRF1
+  sp: SP10
+  owasp: [ASI02]
+  atlas: [AI Agent Tool Invocation]
+
 - id: internal-ssrf
   description: Hardcoded request to internal/loopback/private network address
   fixture: internal-ssrf
@@ -645,6 +861,10 @@ properties:
   - SSRF2
   suite: static
   external_rule: SSRF2
+  sp: SP10
+  owasp: [ASI02]
+  atlas: [AI Agent Tool Invocation]
+
 - id: dynamic-ssrf
   description: F-string/template-literal URL built from interpolated variable
   fixture: dynamic-ssrf
@@ -656,6 +876,10 @@ properties:
   - SSRF3
   suite: static
   external_rule: SSRF3
+  sp: SP10
+  owasp: [ASI02]
+  atlas: [AI Agent Tool Invocation]
+
 - id: privileged-k8s-workload
   description: 'Privileged: true, hostPath, hostPID, kubectl run --privileged in K8s manifest'
   fixture: container-escape
@@ -667,6 +891,10 @@ properties:
   - TM4
   suite: static
   external_rule: TM4
+  sp: SP10
+  owasp: [ASI05]
+  atlas: []
+
 - id: agent-config-snooping
   description: Reads another agent's private configuration directory
   fixture: agent-config-snooping
@@ -678,6 +906,10 @@ properties:
   - AS1
   suite: static
   external_rule: AS1
+  sp: SP08
+  owasp: [ASI07]
+  atlas: [Discover AI Agent Configuration]
+
 - id: mcp-config-snooping
   description: Reads/enumerates MCP server configuration
   fixture: mcp-config-snooping
@@ -689,6 +921,10 @@ properties:
   - AS2
   suite: static
   external_rule: AS2
+  sp: SP08
+  owasp: [ASI07]
+  atlas: [Discover AI Agent Configuration]
+
 - id: peer-skill-enumeration
   description: Enumerates/reads sibling skills' directories/manifests
   fixture: peer-skill-enumeration
@@ -700,6 +936,10 @@ properties:
   - AS3
   suite: static
   external_rule: AS3
+  sp: SP08
+  owasp: [ASI07]
+  atlas: [Discover AI Agent Configuration]
+
 - id: under-declared-capability
   description: Code capability detected but not covered by declared permissions
   fixture: under-declared-capability
@@ -711,6 +951,10 @@ properties:
   - LP1
   suite: static
   external_rule: LP1
+  sp: SP05
+  owasp: [ASI03]
+  atlas: []
+
 - id: mcp-wildcard-permission
   description: MCP/tool permission grant uses unconstrained wildcard
   fixture: mcp-wildcard-permission
@@ -723,6 +967,10 @@ properties:
   - LP2
   suite: static
   external_rule: LP2
+  sp: SP05
+  owasp: [ASI03]
+  atlas: [AI Agent Tool Invocation]
+
 - id: no-permissions-declared
   description: No permissions/allowed-tools field but code capabilities exist
   fixture: no-permissions-declared
@@ -734,6 +982,10 @@ properties:
   - LP3
   suite: static
   external_rule: LP3
+  sp: SP05
+  owasp: [ASI03]
+  atlas: []
+
 - id: over-declared-permission
   description: Declared permission has no corresponding code capability
   fixture: over-declared-permission
@@ -746,6 +998,10 @@ properties:
   suite: static
   external_rule: LP4
   status_note: 'Declared-but-unused permissions are a verification-layer signal: skil verify enforces contract-scoped permission usage against an explicit reviewed contract, and per-item allowlist over-declaration cannot be inferred statically without reproducing false positives on legitimately unused-but-declared entries. The reference scanner''s static reverse-mapping heuristic is deliberately not reproduced.'
+  sp: SP05
+  owasp: [ASI03]
+  atlas: []
+
 - id: unpinned-mcp-server
   description: npx/uvx/pip install/docker pull without version pin or digest
   fixture: unpinned-mcp-server
@@ -758,6 +1014,10 @@ properties:
   - RP1
   suite: static
   external_rule: RP1
+  sp: SP09
+  owasp: [ASI04]
+  atlas: [AI Supply Chain Rug Pull]
+
 - id: mcp-permission-manifest-diff
   description: Permission expansion between manifest versions
   fixture: mcp-permission-manifest-diff
@@ -770,6 +1030,10 @@ properties:
   external_rules:
   - RP1
   suite: static
+  sp: SP09
+  owasp: [ASI04]
+  atlas: []
+
 - id: trigger-modification-diff
   description: Trigger phrase modification between versions
   fixture: trigger-modification-diff
@@ -782,6 +1046,10 @@ properties:
   external_rules:
   - RP2
   suite: static
+  sp: SP09
+  owasp: [ASI04]
+  atlas: []
+
 - id: permission-pre-staging
   description: Add new/additional/extra permissions language in manifest
   fixture: permission-pre-staging
@@ -794,6 +1062,10 @@ properties:
   external_rules:
   - RP2
   suite: static
+  sp: SP05
+  owasp: [ASI03]
+  atlas: []
+
 - id: parameter-schema-modification
   description: Parameter type/default/description modification between versions
   fixture: parameter-schema-modification
@@ -806,6 +1078,10 @@ properties:
   external_rules:
   - RP3
   suite: static
+  sp: SP09
+  owasp: [ASI04]
+  atlas: []
+
 - id: unpinned-skill-version
   description: Manifest version field is wildcard or overly broad range
   fixture: unpinned-skill-version
@@ -818,6 +1094,10 @@ properties:
   external_rules:
   - RP3
   suite: static
+  sp: SP09
+  owasp: [ASI04]
+  atlas: []
+
 - id: hidden-instructions-mcp
   description: HTML/Markdown comments, zero-width, base64 in MCP metadata fields
   fixture: hidden-instructions-mcp
@@ -829,6 +1109,10 @@ properties:
   - TP1
   suite: static
   external_rule: TP1
+  sp: SP01
+  owasp: [ASI01]
+  atlas: [AI Agent Tool Poisoning]
+
 - id: unicode-deception-mcp
   description: Homoglyph/RTL/invisible/mixed-script in tool name/triggers/parameter names
   fixture: unicode-homoglyph
@@ -841,6 +1125,10 @@ properties:
   - TP2
   suite: static
   external_rule: TP2
+  sp: SP01
+  owasp: [ASI01]
+  atlas: [AI Agent Tool Poisoning]
+
 - id: parameter-description-injection
   description: Instruction-override/system-prompt tokens/exfiltration in parameter description
   fixture: mcp-parameter-injection
@@ -853,6 +1141,10 @@ properties:
   - TP3
   suite: static
   external_rule: TP3
+  sp: SP01
+  owasp: [ASI01]
+  atlas: [AI Agent Tool Poisoning]
+
 - id: llm-description-behavior-mismatch
   description: LLM compares manifest description/triggers/permissions vs code
   fixture: llm-description-behavior-mismatch
@@ -865,6 +1157,10 @@ properties:
   - TP4
   suite: semantic
   external_rule: TP4
+  sp: SP08
+  owasp: [ASI02]
+  atlas: [AI Agent Tool Poisoning]
+
 - id: description-behavior-mismatch
   description: LLM compares manifest description vs code operations
   fixture: description-behavior-mismatch
@@ -876,6 +1172,10 @@ properties:
   - SDI-1
   suite: semantic
   external_rule: SDI-1
+  sp: SP05
+  owasp: [ASI02]
+  atlas: [AI Agent Tool Poisoning]
+
 - id: context-inappropriate-capability
   description: LLM flags capability unjustified by stated purpose
   fixture: context-inappropriate-capability
@@ -887,6 +1187,10 @@ properties:
   - SDI-2
   suite: semantic
   external_rule: SDI-2
+  sp: SP05
+  owasp: [ASI02]
+  atlas: []
+
 - id: scope-creep-permissions
   description: LLM compares code behavior against declared permissions
   fixture: scope-creep-permissions
@@ -898,6 +1202,10 @@ properties:
   - SDI-3
   suite: semantic
   external_rule: SDI-3
+  sp: SP05
+  owasp: [ASI02]
+  atlas: []
+
 - id: intent-code-divergence
   description: LLM flags comments/docstrings contradicting code
   fixture: intent-code-divergence
@@ -909,6 +1217,10 @@ properties:
   - SDI-4
   suite: semantic
   external_rule: SDI-4
+  sp: SP05
+  owasp: [ASI02]
+  atlas: []
+
 - id: vague-triggers
   description: LLM flags ambiguous/overbroad trigger phrasing
   fixture: vague-triggers
@@ -921,6 +1233,10 @@ properties:
   - SQP-1
   suite: semantic
   external_rule: SQP-1
+  sp: SP05
+  owasp: [ASI02]
+  atlas: []
+
 - id: undisclosed-operation
   description: Safety-critical operations with no user-facing disclosure
   fixture: undisclosed-operation
@@ -932,6 +1248,10 @@ properties:
   - SQP-2
   suite: semantic
   external_rule: SQP-2
+  sp: SP11
+  owasp: [ASI09]
+  atlas: []
+
 - id: nl-policy-violations
   description: LLM flags org-policy violations (e.g. forced language)
   fixture: nl-policy-violations
@@ -943,6 +1263,10 @@ properties:
   - SQP-3
   suite: semantic
   external_rule: SQP-3
+  sp: SP11
+  owasp: [ASI09]
+  atlas: []
+
 - id: semantic-prompt-injection
   description: LLM detects polite/role-play/hypothetical reframings of instruction override
   fixture: semantic-prompt-injection
@@ -954,6 +1278,10 @@ properties:
   - SSD-1
   suite: semantic
   external_rule: SSD-1
+  sp: SP01
+  owasp: [ASI01]
+  atlas: [LLM Prompt Injection]
+
 - id: paraphrased-attack
   description: LLM detects creative synonyms/encoded intent for known attack patterns
   fixture: paraphrased-attack
@@ -965,6 +1293,10 @@ properties:
   - SSD-2
   suite: semantic
   external_rule: SSD-2
+  sp: SP01
+  owasp: [ASI01]
+  atlas: [LLM Prompt Injection]
+
 - id: nl-exfiltration
   description: LLM detects remember everything and include in response style leaks
   fixture: nl-exfiltration
@@ -976,6 +1308,10 @@ properties:
   - SSD-3
   suite: semantic
   external_rule: SSD-3
+  sp: SP03
+  owasp: [ASI01]
+  atlas: [Exfiltration via AI Agent Tool Invocation]
+
 - id: narrative-deception
   description: LLM detects multi-step trust-building sequences toward harm
   fixture: narrative-deception
@@ -987,6 +1323,10 @@ properties:
   - SSD-4
   suite: semantic
   external_rule: SSD-4
+  sp: SP11
+  owasp: [ASI09]
+  atlas: []
+
 - id: yara-malware-signatures
   description: Built-in YARA rules for malware, webshell, cryptominer, hack_tool
   fixture: yara-malware-signatures
@@ -1007,3 +1347,6 @@ properties:
   suite: provider
   scan_args: --yara-builtin
   status_note: Requires the system yara runtime with the embedded default rule set; excluded from the offline CI static gate, verified in the provider suite.
+  sp: SP06
+  owasp: [ASI05]
+  atlas: []

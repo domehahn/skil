@@ -24,6 +24,9 @@ type Property struct {
 	Status          string   `yaml:"status"`
 	StatusNote      string   `yaml:"status_note"`
 	Notes           string   `yaml:"notes"`
+	SP              string   `yaml:"sp"`
+	OWASP           []string `yaml:"owasp"`
+	Atlas           []string `yaml:"atlas"`
 }
 
 type Manifest struct {
@@ -92,6 +95,38 @@ var knownHyphenatedExternal = map[string]bool{
 	"SSD-1": true, "SSD-2": true, "SSD-3": true, "SSD-4": true,
 }
 
+// knownSPFamilies are the top-level Security-Property families defined in
+// docs/spec/agent-skill-security-properties-v1.md (SP01..SP14). Every gate
+// property must map to exactly one family.
+var knownSPFamilies = map[string]bool{
+	"SP01": true, "SP02": true, "SP03": true, "SP04": true, "SP05": true,
+	"SP06": true, "SP07": true, "SP08": true, "SP09": true, "SP10": true,
+	"SP11": true, "SP12": true, "SP13": true, "SP14": true,
+}
+
+// knownOWASPRisks are the OWASP Agentic Top 10 2026 risk IDs.
+var knownOWASPRisks = map[string]bool{
+	"ASI01": true, "ASI02": true, "ASI03": true, "ASI04": true, "ASI05": true,
+	"ASI06": true, "ASI07": true, "ASI08": true, "ASI09": true, "ASI10": true,
+}
+
+// knownAtlasTechniques are MITRE ATLAS technique names used in the corpus.
+var knownAtlasTechniques = map[string]bool{
+	"LLM Prompt Injection":                          true,
+	"LLM Prompt Obfuscation":                        true,
+	"AI Agent Context Poisoning":                    true,
+	"AI Agent Tool Poisoning":                       true,
+	"AI Agent Tool Data Poisoning":                  true,
+	"Modify AI Agent Configuration":                 true,
+	"Discover AI Agent Configuration":               true,
+	"AI Agent Tool Credential Harvesting":           true,
+	"AI Supply Chain Rug Pull":                      true,
+	"AI Agent Tool Invocation":                      true,
+	"Exfiltration via AI Agent Tool Invocation":     true,
+	"Extract LLM System Prompt":                     true,
+	"Manipulate User LLM Chat History":              true,
+}
+
 func TestPropertyModel(t *testing.T) {
 	m := readProperties(t)
 	for _, p := range m.Properties {
@@ -119,6 +154,33 @@ func TestNoSyntheticExternalIDs(t *testing.T) {
 		for _, r := range p.ExternalRules {
 			if strings.Contains(r, "-") && !knownHyphenatedExternal[r] {
 				t.Errorf("property %q declares external rule %q with a synthetic suffix; the scanner emits the base ID only", p.ID, r)
+			}
+		}
+	}
+}
+
+func TestTaxonomyMappings(t *testing.T) {
+	// Every gate property must be classified in the SKIL Security-Property
+	// taxonomy (SP01..SP14), map to at least one OWASP Agentic Top 10 2026
+	// risk (ASI01..ASI10), and use only known MITRE ATLAS technique names.
+	m := readProperties(t)
+	for _, p := range m.Properties {
+		if p.SP == "" {
+			t.Errorf("property %q must declare an sp: family (SP01..SP14)", p.ID)
+		} else if !knownSPFamilies[p.SP] {
+			t.Errorf("property %q declares unknown sp %q — see docs/spec/agent-skill-security-properties-v1.md", p.ID, p.SP)
+		}
+		if len(p.OWASP) == 0 {
+			t.Errorf("property %q must map to at least one OWASP risk (ASI01..ASI10)", p.ID)
+		}
+		for _, r := range p.OWASP {
+			if !knownOWASPRisks[r] {
+				t.Errorf("property %q declares unknown OWASP risk %q — want ASI01..ASI10", p.ID, r)
+			}
+		}
+		for _, a := range p.Atlas {
+			if !knownAtlasTechniques[a] {
+				t.Errorf("property %q declares unknown ATLAS technique %q — extend knownAtlasTechniques or fix the YAML", p.ID, a)
 			}
 		}
 	}
