@@ -1,1352 +1,4416 @@
-schema_version: 1.1.0
+schema_version: 2.0.0
+source_specification: ASPS v1.0
+registry: ../asps/asps-registry.json
 properties:
-- id: instruction-override
-  description: Fabricated instruction attempts to override higher-priority guidance
-  fixture: instruction-override
-  skil_rules:
+- id: ASP-01.01
+  name: Instruction Hierarchy Preservation
+  domain_id: ASP-01
+  domain: Instruction & Goal Integrity
+  invariant: Höher priorisierte System-, Developer- und Policy-Instruktionen dürfen durch Skill-Inhalte weder explizit noch
+    semantisch überschrieben, entwertet oder ersetzt werden.
+  detection: Pattern-/Intent-Analyse mit Negationsscope; semantische Residualanalyse; Runtime-Policy.
+  minimum_evidence: Override-Operation, Target, Modalität, Scope und Kontext.
+  owasp_agentic:
+  - ASI01
+  - ASI09
+  - ASI10
+  owasp_llm:
+  - LLM01
+  - LLM06
+  - LLM07
+  mitre_atlas:
+  - LLM Prompt Injection
+  - LLM Jailbreak
+  - AI Agent Context Poisoning
+  - Modify AI Agent Configuration
+  skil_controls:
   - SKIL-PI-001
-  status: FULL
-  notes: Contextual negative examples are tested.
-  external_rules:
-  - P1
-  suite: static
-  external_rule: P1
-  sp: SP01
-  owasp: [ASI01]
-  atlas: [LLM Prompt Injection]
-
-- id: hidden-instructions-html
-  description: HTML comments with injection-bearing content
-  fixture: hidden-instructions-html
-  skil_rules:
-  - SKIL-PI-HIDDEN-COMMENT
-  status: FULL
-  notes: HTML <!--...--> comments with injection/suspicious content.
-  external_rule: P2
-  external_variant: html-comment
-  external_rules:
-  - P2
-  suite: static
-  sp: SP01
-  owasp: [ASI01]
-  atlas: [LLM Prompt Injection, LLM Prompt Obfuscation]
-
-- id: hidden-instructions-markdown
-  description: Markdown hidden comments with injection/suspicious content
-  fixture: hidden-instructions-markdown
-  skil_rules:
-  - SKIL-PI-MD-HIDDEN-COMMENT
-  - SKIL-PI-MD-SUSPICIOUS-COMMENT
-  status: FULL
-  notes: '[//]: #(...) patterns with injection or suspicious content.'
-  external_rule: P2
-  external_variant: markdown-comment
-  external_rules:
-  - P2
-  suite: static
-  sp: SP01
-  owasp: [ASI01]
-  atlas: [LLM Prompt Injection, LLM Prompt Obfuscation]
-
-- id: unicode-zero-width
-  description: Zero-width chars and bidi override characters
-  fixture: unicode-zero-width
-  skil_rules:
-  - SKIL-UNI-001
-  status: FULL
-  notes: Zero-width spaces, bidi overrides with emoji-ZWJ carve-out.
-  external_rule: P2
-  external_variant: zero-width
-  external_rules:
-  - P2
-  suite: static
-  sp: SP01
-  owasp: [ASI01]
-  atlas: [LLM Prompt Obfuscation]
-
-- id: unicode-tag-smuggling
-  description: Unicode Tag block ASCII smuggling with RGI emoji-flag carve-out
-  fixture: unicode-tag-smuggling
-  skil_rules:
-  - SKIL-UNI-003
-  status: FULL
-  notes: Invisible U+E0000-E007F tag characters carrying hidden ASCII payload.
-  external_rule: P2
-  external_variant: unicode-tag
-  external_rules:
-  - P2
-  suite: static
-  sp: SP01
-  owasp: [ASI01]
-  atlas: [LLM Prompt Obfuscation]
-
-- id: exfiltration-commands
-  description: Instructions to send/transmit conversation/data to an external sink
-  fixture: exfiltration-commands
-  skil_rules:
-  - SKIL-EX-001
-  - SKIL-INTENT-EXTERNAL-TRANSFER
-  - SKIL-INTENT-UNDISCLOSED-OPERATION
-  status: FULL
-  notes: SKIL-INTENT-EXTERNAL-TRANSFER covers generic conversation/data transmission without a secrecy qualifier.
-  external_rules:
-  - P3
-  suite: static
-  external_rule: P3
-  sp: SP03
-  owasp: [ASI01]
-  atlas: [LLM Prompt Injection, Exfiltration via AI Agent Tool Invocation]
-
-- id: behavior-manipulation
-  description: Covert behavioral steering / dark-pattern influence on the user
-  fixture: behavior-manipulation
-  skil_rules:
-  - SKIL-INTENT-BEHAVIOR-MANIPULATION
-  status: FULL
-  notes: Covers biased recommendation steering, silent suppression, trust-then-exploit patterns.
-  external_rules:
-  - P4
-  suite: static
-  external_rule: P4
-  sp: SP11
-  owasp: [ASI09]
-  atlas: [Manipulate User LLM Chat History]
-
-- id: physical-harm-content
-  description: Actionable operational instructions for causing physical harm
-  fixture: physical-harm-content
-  skil_rules:
-  - SKIL-ABUSE-PHYSICAL-HARM
-  status: FULL
-  notes: 'Action-anchored: poison-in-food, bleach+ammonia, self-harm, bomb/explosive construction.'
-  external_rules:
-  - P5
-  suite: static
-  external_rule: P5
-  sp: SP02
-  owasp: [ASI01]
-  atlas: []
-
-- id: direct-prompt-extraction
-  description: Print/reveal/show system prompt instructions
-  fixture: direct-prompt-extraction
-  skil_rules:
-  - SKIL-PL-001
-  status: FULL
-  notes: Covers direct prompt extraction with benign-heading carve-out.
-  external_rules:
-  - P6
-  suite: static
-  external_rule: P6
-  sp: SP03
-  owasp: [ASI01]
-  atlas: [Extract LLM System Prompt]
-
-- id: indirect-prompt-extraction
-  description: Repeat/translate/encode/summarize instructions to leak prompt
-  fixture: indirect-prompt-extraction
-  skil_rules:
-  - SKIL-PROMPT-INDIRECT-LEAK
-  status: FULL
-  notes: Covers translate/rephrase/encode/summarize framings.
-  external_rules:
-  - P7
-  suite: static
-  external_rule: P7
-  sp: SP03
-  owasp: [ASI01]
-  atlas: [Extract LLM System Prompt]
-
-- id: prompt-exfiltration-tool
-  description: Save system prompt to file or send via curl/webhook
-  fixture: prompt-taint-to-file
-  skil_rules:
-  - SKIL-TAINT-PRIVILEGED-CONTEXT
-  - SKIL-EX-001
-  - SKIL-PL-001
-  status: FULL
-  notes: Taint test covers system_prompt flowing to file write.
-  external_rules:
-  - P8
-  suite: static
-  external_rule: P8
-  sp: SP03
-  owasp: [ASI01]
-  atlas: [Extract LLM System Prompt]
-
-- id: anti-refusal
-  description: Instructions demanding unconditional compliance / suppress refusal
-  fixture: anti-refusal
-  skil_rules:
+  skil_status: IMPLEMENTED
+  fixtures:
+  - fixture: instruction-override
+    description: Fabricated instruction attempts to override higher-priority guidance
+    skil_rules:
+    - SKIL-PI-001
+    external_rule: P1
+    external_rules:
+    - P1
+    suite: static
+    status: FULL
+    notes: Contextual negative examples are tested.
+- id: ASP-01.02
+  name: Role & Context Integrity
+  domain_id: ASP-01
+  domain: Instruction & Goal Integrity
+  invariant: Ein Skill darf weder eine privilegiertere Rolle vortäuschen noch untrusted Inhalt in einen höher vertrauenswürdigen
+    Kontext umklassifizieren.
+  detection: Rollen-/Kontext-Token-Erkennung, semantische Rollenrelation, Trust-Label-Propagation.
+  minimum_evidence: Actor, beanspruchte Rolle, ursprüngliche Trust-Klasse und Kontextwechsel.
+  owasp_agentic:
+  - ASI01
+  - ASI09
+  - ASI10
+  owasp_llm:
+  - LLM01
+  - LLM06
+  - LLM07
+  mitre_atlas:
+  - LLM Prompt Injection
+  - LLM Jailbreak
+  - AI Agent Context Poisoning
+  - Modify AI Agent Configuration
+  skil_controls:
+  - SKIL-PI-002
+  - SKIL-PI-003
+  skil_status: IMPLEMENTED
+  fixtures: []
+- id: ASP-01.03
+  name: Refusal Preservation
+  domain_id: ASP-01
+  domain: Instruction & Goal Integrity
+  invariant: Ein Skill darf die Fähigkeit des Agenten, unzulässige oder nicht verifizierbare Aktionen abzulehnen, nicht generell
+    unterdrücken.
+  detection: Intent- und Modalitätsanalyse für REFUSE/COMPLY.
+  minimum_evidence: actor=AGENT; action=REFUSE; permission=FORBIDDEN bzw. unconditional compliance.
+  owasp_agentic:
+  - ASI01
+  - ASI09
+  - ASI10
+  owasp_llm:
+  - LLM01
+  - LLM06
+  - LLM07
+  mitre_atlas:
+  - LLM Prompt Injection
+  - LLM Jailbreak
+  - AI Agent Context Poisoning
+  - Modify AI Agent Configuration
+  skil_controls:
   - SKIL-INTENT-REFUSAL
-  status: FULL
-  notes: Covers never-refuse, always-comply, comply-mandatory, refusal-prohibited.
-  external_rules:
-  - AR1
-  suite: static
-  external_rule: AR1
-  sp: SP01
-  owasp: [ASI01]
-  atlas: [LLM Prompt Injection]
-
-- id: disclaimer-suppression
-  description: No warnings/don't moralize/skip the ethics instructions
-  fixture: disclaimer-suppression
-  skil_rules:
+  skil_status: IMPLEMENTED
+  fixtures:
+  - fixture: anti-refusal
+    description: Instructions demanding unconditional compliance / suppress refusal
+    skil_rules:
+    - SKIL-INTENT-REFUSAL
+    external_rule: AR1
+    external_rules:
+    - AR1
+    suite: static
+    status: FULL
+    notes: Covers never-refuse, always-comply, comply-mandatory, refusal-prohibited.
+- id: ASP-01.04
+  name: Warning & Safety-Context Preservation
+  domain_id: ASP-01
+  domain: Instruction & Goal Integrity
+  invariant: Ein Skill darf notwendige Warnungen, Caveats oder sicherheitsrelevante Hinweise nicht pauschal unterdrücken.
+  detection: Intent-Analyse für Suppression-Verben und Safety-Objekte.
+  minimum_evidence: Suppression-Intent, Safety-Objekt, Scope und Kontext.
+  owasp_agentic:
+  - ASI01
+  - ASI09
+  - ASI10
+  owasp_llm:
+  - LLM01
+  - LLM06
+  - LLM07
+  mitre_atlas:
+  - LLM Prompt Injection
+  - LLM Jailbreak
+  - AI Agent Context Poisoning
+  - Modify AI Agent Configuration
+  skil_controls:
   - SKIL-INTENT-WARNING
-  status: FULL
-  notes: Suppresses false positives from detect/reject X meta-discussion.
-  external_rules:
-  - AR2
-  suite: static
-  external_rule: AR2
-  sp: SP01
-  owasp: [ASI01]
-  atlas: [LLM Prompt Injection]
-
-- id: safety-nullification
-  description: You have no restrictions / DAN mode / not bound by policy
-  fixture: safety-nullification
-  skil_rules:
+  skil_status: IMPLEMENTED
+  fixtures:
+  - fixture: disclaimer-suppression
+    description: No warnings/don't moralize/skip the ethics instructions
+    skil_rules:
+    - SKIL-INTENT-WARNING
+    external_rule: AR2
+    external_rules:
+    - AR2
+    suite: static
+    status: FULL
+    notes: Suppresses false positives from detect/reject X meta-discussion.
+- id: ASP-01.05
+  name: Guardrail Integrity
+  domain_id: ASP-01
+  domain: Instruction & Goal Integrity
+  invariant: Ein Skill darf Sicherheitsrichtlinien, Guardrails oder Policy-Enforcement nicht als unwirksam, optional oder
+    deaktivierbar deklarieren.
+  detection: Guardrail-Nullification-Patterns plus semantische Policy-Relation.
+  minimum_evidence: Guardrail/Policy als Target, Nullification-Operation und Reichweite.
+  owasp_agentic:
+  - ASI01
+  - ASI09
+  - ASI10
+  owasp_llm:
+  - LLM01
+  - LLM06
+  - LLM07
+  mitre_atlas:
+  - LLM Prompt Injection
+  - LLM Jailbreak
+  - AI Agent Context Poisoning
+  - Modify AI Agent Configuration
+  skil_controls:
   - SKIL-INTENT-GUARDRAIL
-  status: FULL
-  notes: Also has SKIL-GUARDRAIL-I18N-001 for CJK phrasing.
-  external_rules:
-  - AR3
-  suite: static
-  external_rule: AR3
-  sp: SP01
-  owasp: [ASI01]
-  atlas: [LLM Prompt Injection]
-
-- id: external-transmission
-  description: HTTP POST/PUT calls to external endpoints, suspicious subdomains
-  fixture: external-transmission
-  skil_rules:
-  - SKIL-NET-001
-  - SKIL-INTENT-EXTERNAL-TRANSFER
-  status: FULL
-  notes: AST-anchored Python call-name resolution rather than regex.
-  external_rules:
-  - E1
-  suite: static
-  external_rule: E1
-  sp: SP03
-  owasp: [ASI01]
-  atlas: [Exfiltration via AI Agent Tool Invocation]
-
-- id: env-harvesting
-  description: Iterating env vars, reading KEY/SECRET/TOKEN/PASSWORD env vars
-  fixture: env-harvesting
-  skil_rules:
-  - SKIL-SEC-001
-  status: FULL
-  notes: Also fires on Python AST reads (os.environ.get()).
-  external_rules:
-  - E2
-  suite: static
-  external_rule: E2
-  sp: SP03
-  owasp: [ASI03]
-  atlas: [AI Agent Tool Credential Harvesting]
-
-- id: fs-enumeration
-  description: Recursive walk/glob/find of home or credential directories
-  fixture: code-level-fs-enumeration
-  skil_rules:
-  - SKIL-INTENT-FS-DISCOVERY
-  - SKIL-FS-DISCOVERY-CODE
-  status: FULL
-  notes: Covers glob/os.walk/Path/iterdir/Path.home on credential-bearing directories.
-  external_rules:
-  - E3
-  suite: static
-  external_rule: E3
-  sp: SP03
-  owasp: [ASI03]
-  atlas: [AI Agent Tool Credential Harvesting]
-
-- id: context-leakage
-  description: Instructions to send/log/export full conversation/session/memory
-  fixture: context-leakage
-  skil_rules:
-  - SKIL-EX-001
-  - SKIL-INTENT-EXTERNAL-TRANSFER
-  status: FULL
-  notes: Neither rule specifically targets conversation/session/memory as the exfiltrated object.
-  external_rules:
-  - E4
-  suite: static
-  external_rule: E4
-  sp: SP03
-  owasp: [ASI01]
-  atlas: [Exfiltration via AI Agent Tool Invocation]
-
-- id: cloud-exfiltration
-  description: Cloud SDK upload calls (boto3/GCS/Azure SDK), CLI forms
-  fixture: cloud-sdk-upload
-  skil_rules:
-  - SKIL-BOUNDARY-CLOUD-EXFIL
-  - SKIL-BOUNDARY-CLOUD-SDK-UPLOAD
-  status: FULL
-  notes: SDK (put_object, upload_file, upload_blob) and CLI (aws s3 cp, gsutil cp) forms.
-  external_rules:
-  - E5
-  suite: static
-  external_rule: E5
-  sp: SP03
-  owasp: [ASI02]
-  atlas: [Exfiltration via AI Agent Tool Invocation]
-
-- id: excessive-permissions
-  description: Wildcard or "grant me full access" permission requests
-  fixture: excessive-permissions
-  skil_rules:
-  - SKIL-AGENCY-TOOLS
-  - SKIL-MCP-001
-  status: FULL
-  notes: Broader full/complete access NL phrasing outside MCP-structured blocks not matched.
-  external_rules:
-  - PE1
-  suite: static
-  external_rule: PE1
-  sp: SP04
-  owasp: [ASI03]
-  atlas: []
-
-- id: sudo-root-escalation
-  description: Literal shell privilege-escalation commands
-  fixture: sudo-root-escalation
-  skil_rules:
-  - SKIL-SH-002
-  status: FULL
-  notes: Covers sudo, doas, pkexec, su -, chmod u+s/+s.
-  external_rules:
-  - PE2
-  suite: static
-  external_rule: PE2
-  sp: SP04
-  owasp: [ASI03]
-  atlas: []
-
-- id: credential-file-access
-  description: Reads concrete credential-bearing file paths
-  fixture: credential-file-access
-  skil_rules:
-  - SKIL-SEC-001
-  status: FULL
-  notes: Extended to cover K8s, Docker, GCP, Azure, browser credential paths.
-  external_rules:
-  - PE3
-  suite: static
-  external_rule: PE3
-  sp: SP04
-  owasp: [ASI03]
-  atlas: [AI Agent Tool Credential Harvesting]
-
-- id: docker-socket-access
-  description: Accesses Docker/container control-plane socket
-  fixture: docker-socket-access
-  skil_rules:
-  - SKIL-BOUNDARY-CONTAINER
-  status: FULL
-  notes: Covers /var/run/docker.sock, /run/containerd/containerd.sock.
-  external_rules:
-  - PE4
-  suite: static
-  external_rule: PE4
-  sp: SP10
-  owasp: [ASI02]
-  atlas: [AI Agent Tool Invocation]
-
-- id: container-escape
-  description: Privileged container or host-namespace escape primitive
-  fixture: container-escape
-  skil_rules:
-  - SKIL-BOUNDARY-CONTAINER-ESCAPE
-  status: FULL
-  notes: Covers --privileged, hostNetwork/PID/IPC, nsenter, unshare, cgroup release_agent.
-  external_rules:
-  - PE5
-  suite: static
-  external_rule: PE5
-  sp: SP10
-  owasp: [ASI05]
-  atlas: [AI Agent Tool Invocation]
-
-- id: unrestricted-tool-access
-  description: Wildcard tool permissions, call any/all tools
-  fixture: unrestricted-tool-access
-  skil_rules:
-  - SKIL-AGENCY-TOOLS
-  - SKIL-MCP-001
-  status: FULL
-  notes: Documented in external-control-crosswalk.md.
-  external_rules:
-  - EA1
-  suite: static
-  external_rule: EA1
-  sp: SP05
-  owasp: [ASI02]
-  atlas: [AI Agent Tool Invocation]
-
-- id: autonomous-decision
-  description: Without asking confirmation/auto-approve/proceed without permission
-  fixture: autonomous-decision
-  skil_rules:
-  - SKIL-AGENCY-APPROVAL
-  status: FULL
-  notes: Requires specific high-impact verb paired with without approval.
-  external_rules:
-  - EA2
-  suite: static
-  external_rule: EA2
-  sp: SP05
-  owasp: [ASI02]
-  atlas: [AI Agent Tool Invocation]
-
-- id: scope-creep
-  description: NL instructions requesting scope expansion beyond stated purpose
-  fixture: scope-creep
-  skil_rules:
-  - SKIL-INTENT-SCOPE-CREEP
-  status: FULL
-  notes: Covers extend-scope, general-purpose, act-as-omniscient requests.
-  external_rules:
-  - EA3
-  suite: static
-  external_rule: EA3
-  sp: SP02
-  owasp: [ASI01]
-  atlas: []
-
-- id: unbounded-resource
-  description: Unlimited resource access in code and NL phrasing
-  fixture: unbounded-resource-code
-  skil_rules:
-  - SKIL-AGENCY-BOUNDS
-  - SKIL-RESOURCE-UNLIMITED
-  - SKIL-RESOURCE-TIMEOUT
-  status: FULL
-  notes: Covers code-level float('inf'), math.inf alongside NL unlimited phrasing.
-  external_rules:
-  - EA4
-  suite: static
-  external_rule: EA4
-  sp: SP12
-  owasp: [ASI08]
-  atlas: []
-
-- id: unvalidated-output
-  description: Model output piped into exec/eval/subprocess or code execution
-  fixture: model-output-taint-execution
-  skil_rules:
-  - SKIL-OUTPUT-EXECUTION
-  - SKIL-TAINT-EXECUTION
-  status: FULL
-  notes: Taint sources extended with .responses.create pattern.
-  external_rules:
-  - OH1
-  suite: static
-  external_rule: OH1
-  sp: SP06
-  owasp: [ASI05]
-  atlas: []
-
-- id: cross-context-output
-  description: Output from one agent/session passed into another's system prompt
-  fixture: cross-context-output
-  skil_rules:
-  - SKIL-OUTPUT-BOUNDARY
-  status: FULL
-  notes: Requires insert/copy tool output into system prompt/trusted context phrase.
-  external_rules:
-  - OH2
-  suite: static
-  external_rule: OH2
-  sp: SP08
-  owasp: [ASI07]
-  atlas: [AI Agent Context Poisoning]
-
-- id: unbounded-output
-  description: No output length/token limit, generate unlimited text
-  fixture: unbounded-output
-  skil_rules:
-  - SKIL-OUTPUT-LIMIT
-  - SKIL-RESOURCE-UNLIMITED
-  status: FULL
-  notes: Same float('inf')/math.inf/999999 patterns as EA4 for output bounds.
-  external_rules:
-  - OH3
-  suite: static
-  external_rule: OH3
-  sp: SP12
-  owasp: [ASI08]
-  atlas: []
-
-- id: persistent-context-injection
-  description: Remember this for all future interactions/store in memory permanently
-  fixture: persistent-context-injection
-  skil_rules:
-  - SKIL-MP-001
-  status: FULL
-  notes: Matches persist-across-sessions property.
-  external_rules:
-  - MP1
-  suite: static
-  external_rule: MP1
-  sp: SP07
-  owasp: [ASI06]
-  atlas: [AI Agent Context Poisoning]
-
-- id: context-window-stuffing
-  description: Fill/stuff/flood context window to displace original instructions
-  fixture: context-window-stuffing
-  skil_rules:
-  - SKIL-MEMORY-SATURATION
-  status: FULL
-  notes: Requires explicit stuff/flood/displace phrasing; no structural repeated-substring detector.
-  external_rules:
-  - MP2
-  suite: static
-  external_rule: MP2
-  sp: SP07
-  owasp: [ASI06]
-  atlas: [AI Agent Context Poisoning]
-
-- id: memory-manipulation
-  description: Clear/wipe memory, overwrite instructions, inject false memories
-  fixture: memory-manipulation
-  skil_rules:
-  - SKIL-AGENT-SELF-MODIFY
-  - SKIL-MP-001
-  status: FULL
-  notes: Clear/reset/wipe memory and you are no longer X phrasings not covered.
-  external_rules:
-  - MP3
-  suite: static
-  external_rule: MP3
-  sp: SP07
-  owasp: [ASI06]
-  atlas: [AI Agent Context Poisoning]
-
-- id: self-modification
-  description: Modify own code/config/instructions/disable safety checks
-  fixture: self-modification
-  skil_rules:
-  - SKIL-AGENT-SELF-MODIFY
-  status: FULL
-  notes: Matches modify/rewrite/patch your own code/instructions/policy.
-  external_rules:
-  - RA1
-  suite: static
-  external_rule: RA1
-  sp: SP07
-  owasp: [ASI10]
-  atlas: [Modify AI Agent Configuration]
-
-- id: session-persistence
-  description: Crontab, bashrc/zshrc injection, systemd/launchd service, background processes
-  fixture: session-persistence
-  skil_rules:
-  - SKIL-PERSISTENCE-STARTUP
-  status: FULL
-  notes: No equivalent for .bashrc/.zshrc append, nohup/disown, Windows registry.
-  external_rules:
-  - RA2
-  suite: static
-  external_rule: RA2
-  sp: SP07
-  owasp: [ASI10]
-  atlas: []
-
-- id: broad-trigger
-  description: Single common-word trigger or trigger <=2 chars in manifest
-  fixture: broad-trigger
-  skil_rules:
-  - SKIL-TRIGGER-GENERIC
-  status: FULL
-  notes: 'Structural YAML triggers: array parsing with genericTriggerWords set-membership.'
-  external_rules:
-  - TR1
-  suite: static
-  external_rule: TR1
-  sp: SP05
-  owasp: [ASI02]
-  atlas: []
-
-- id: shadow-command-trigger
-  description: Trigger collides with a built-in command name
-  fixture: shadow-command-trigger
-  skil_rules:
-  - SKIL-TRIGGER-SHADOW
-  status: FULL
-  notes: Set-membership check against shadowTriggerWords.
-  external_rules:
-  - TR2
-  suite: static
-  external_rule: TR2
-  sp: SP05
-  owasp: [ASI02]
-  atlas: []
-
-- id: trigger-baiting
-  description: Single-word trigger matches known baiting keyword
-  fixture: trigger-baiting
-  skil_rules:
-  - SKIL-TRIGGER-BAITING
-  status: FULL
-  notes: Covers anything/everything/always as triggers.
-  external_rules:
-  - TR3
-  suite: static
-  external_rule: TR3
-  sp: SP05
-  owasp: [ASI02]
-  atlas: []
-
-- id: dynamic-python-execution
-  description: Python dynamically executes untrusted input (exec/eval/subprocess)
-  fixture: dynamic-python-execution
-  skil_rules:
-  - SKIL-PY-001
-  - SKIL-PY-002
-  - SKIL-PY-003
-  - SKIL-PY-004
-  status: FULL
-  notes: 9 dangerous-call shapes via Python AST walk.
-  external_rule: AST1-9
-  external_variant: aggregate-9-shapes
-  external_rules:
-  - AST1
-  - AST2
-  - AST3
-  - AST4
-  - AST5
-  - AST6
-  - AST7
-  - AST8
-  - AST9
-  suite: static
-  sp: SP06
-  owasp: [ASI05]
-  atlas: []
-
-- id: reflective-execution
-  description: Reflective getattr()-resolved call to dangerous execution sink
-  fixture: reflective-execution
-  skil_rules:
-  - SKIL-PY-REFLECT-EXEC
-  status: FULL
-  notes: Resolves reflective execution sinks.
-  external_rules:
-  - AST9
-  suite: static
-  external_rule: AST9
-  sp: SP06
-  owasp: [ASI05]
-  atlas: []
-
-- id: taint-generic-flow
-  description: Any source flowing directly into any execution/network/file-write sink
-  fixture: model-output-taint-execution
-  skil_rules:
-  - SKIL-TAINT-EXECUTION
-  - SKIL-TAINT-NETWORK
-  - SKIL-TAINT-PRIVILEGED-CONTEXT
-  status: FULL
-  notes: All 4 sink categories (network, execution, filesystem-write, log) fire unconditionally.
-  external_rules:
-  - TT1
-  suite: static
-  external_rule: TT1
-  sp: SP06
-  owasp: [ASI05]
-  atlas: []
-
-- id: taint-variable-mediated
-  description: Taint propagated through re-assignment and container literals
-  fixture: taint-variable-mediated
-  skil_rules:
-  - SKIL-TAINT-EXECUTION
-  - SKIL-TAINT-NETWORK
-  status: FULL
-  notes: Multi-step assignment aliases are propagated.
-  external_rules:
-  - TT2
-  suite: static
-  external_rule: TT2
-  sp: SP06
-  owasp: [ASI05]
-  atlas: []
-
-- id: taint-credential-network
-  description: os.environ/os.getenv source flowing to network sink
-  fixture: taint-credential-network
-  skil_rules:
-  - SKIL-TAINT-NETWORK
-  status: FULL
-  notes: Credential to network sink flow.
-  external_rules:
-  - TT3
-  suite: static
-  external_rule: TT3
-  sp: SP03
-  owasp: [ASI03]
-  atlas: [Exfiltration via AI Agent Tool Invocation]
-
-- id: taint-file-network
-  description: File read source flowing to network sink
-  fixture: taint-file-network
-  skil_rules:
-  - SKIL-TAINT-NETWORK
-  status: FULL
-  notes: File read to network flow; same rule ID as TT3.
-  external_rules:
-  - TT4
-  suite: static
-  external_rule: TT4
-  sp: SP03
-  owasp: [ASI02]
-  atlas: [Exfiltration via AI Agent Tool Invocation]
-
-- id: taint-external-execution
-  description: External/user input flowing into execution sink
-  fixture: taint-external-execution
-  skil_rules:
-  - SKIL-TAINT-EXECUTION
-  status: FULL
-  notes: requests.get/input() source to exec/eval/subprocess.
-  external_rules:
-  - TT5
-  suite: static
-  external_rule: TT5
-  sp: SP06
-  owasp: [ASI05]
-  atlas: []
-
-- id: unpinned-dependencies
-  description: Bare package name or >= range or * in dependency files
-  fixture: unpinned-dependencies
-  skil_rules:
-  - SKIL-DEP-001
-  status: FULL
-  notes: Documented in external-control-crosswalk.md.
-  external_rules:
-  - SC1
-  suite: static
-  external_rule: SC1
-  sp: SP09
-  owasp: [ASI04]
-  atlas: []
-
-- id: vulnerable-dependency
-  description: Known vulnerable dependency via OSV query or static fallback
-  fixture: vulnerable-dependency
-  skil_rules:
-  - SKIL-DEP-VULN
-  status: PROVIDER_BACKED
-  notes: Only runs with --osv/--full; default scan is offline.
-  external_rules:
-  - SC4
-  suite: provider
-  external_rule: SC4
-  scan_args: --osv
-  status_note: Runs only with --osv (live OSV query with offline static fallback); excluded from the offline CI static gate, verified in the provider suite.
-  sp: SP09
-  owasp: [ASI04]
-  atlas: []
-
-- id: abandoned-dependency
-  description: Known-abandoned PyPI/npm packages
-  fixture: abandoned-dependency
-  skil_rules:
-  - SKIL-DEP-ABANDONED
-  status: FULL
-  notes: skil seed has 27 entries vs ~35 in reference scanner.
-  external_rules:
-  - SC5
-  suite: static
-  external_rule: SC5
-  sp: SP09
-  owasp: [ASI04]
-  atlas: []
-
-- id: typosquatting
-  description: Levenshtein edit-distance <=2 against curated popular-package lists
-  fixture: typosquatting
-  skil_rules:
-  - SKIL-DEP-002
-  status: FULL
-  notes: Ecosystem-aware canonical package names.
-  external_rules:
-  - SC6
-  suite: static
-  external_rule: SC6
-  sp: SP09
-  owasp: [ASI04]
-  atlas: []
-
-- id: untrusted-container-image
-  description: --disable-content-trust / DOCKER_CONTENT_TRUST=0 / --insecure-registry
-  fixture: untrusted-container-image
-  skil_rules:
-  - SKIL-CONTAINER-TRUST
-  - SKIL-BOUNDARY-MUTABLE-IMAGE
-  status: FULL
-  notes: Documented FULL in crosswalk.
-  external_rules:
-  - SC7
-  suite: static
-  external_rule: SC7
-  sp: SP09
-  owasp: [ASI04]
-  atlas: []
-
-- id: obfuscated-code
-  description: exec(base64.b64decode(...)), marshal.loads, decode-then-execute chains
-  fixture: obfuscated-code
-  skil_rules:
-  - SKIL-OBF-001
+  - SKIL-GUARDRAIL-I18N-001
+  skil_status: IMPLEMENTED
+  fixtures:
+  - fixture: safety-nullification
+    description: You have no restrictions / DAN mode / not bound by policy
+    skil_rules:
+    - SKIL-INTENT-GUARDRAIL
+    external_rule: AR3
+    external_rules:
+    - AR3
+    suite: static
+    status: FULL
+    notes: Also has SKIL-GUARDRAIL-I18N-001 for CJK phrasing.
+- id: ASP-01.06
+  name: Hidden Instruction Resistance
+  domain_id: ASP-01
+  domain: Instruction & Goal Integrity
+  invariant: Instruktionen dürfen nicht durch unsichtbare Unicode-Zeichen, Bidi-Steuerung, Kommentar-/Rendering-Differenzen
+    oder Darstellungsasymmetrien verborgen werden.
+  detection: Unicode-Codepoint-, Bidi-, Markdown/HTML- und Render-vs-Raw-Analyse.
+  minimum_evidence: Raw codepoints/markup, versteckte Instruktionsspanne und Render-Differenz.
+  owasp_agentic:
+  - ASI01
+  - ASI09
+  - ASI10
+  owasp_llm:
+  - LLM01
+  - LLM06
+  - LLM07
+  mitre_atlas:
+  - LLM Prompt Injection
+  - LLM Jailbreak
+  - AI Agent Context Poisoning
+  - Modify AI Agent Configuration
+  skil_controls:
   - SKIL-UNI-001
-  - SKIL-UNI-002
-  status: FULL
-  notes: Documented FULL in crosswalk.
-  external_rules:
-  - SC3
-  suite: static
-  external_rule: SC3
-  sp: SP06
-  owasp: [ASI05]
-  atlas: [LLM Prompt Obfuscation]
-
-- id: external-script-fetch
-  description: curl | sh, wget | python, eval(fetch(...)) with trusted-domain allowlist
-  fixture: external-script-fetch
-  skil_rules:
-  - SKIL-SH-001
-  status: FULL
-  notes: Documented FULL in crosswalk.
-  external_rules:
-  - SC2
-  suite: static
-  external_rule: SC2
-  sp: SP06
-  owasp: [ASI05]
-  atlas: [AI Agent Tool Invocation]
-
-- id: cloud-metadata-ssrf
-  description: Cloud metadata endpoint access (169.254.169.254, metadata.google.internal)
-  fixture: cloud-metadata-ssrf
-  skil_rules:
-  - SKIL-BOUNDARY-METADATA
-  status: FULL
-  notes: Requires IP/hostname co-occur with metadata/token keyword within 100 chars.
-  external_rules:
-  - SSRF1
-  suite: static
-  external_rule: SSRF1
-  sp: SP10
-  owasp: [ASI02]
-  atlas: [AI Agent Tool Invocation]
-
-- id: internal-ssrf
-  description: Hardcoded request to internal/loopback/private network address
-  fixture: internal-ssrf
-  skil_rules:
-  - SKIL-BOUNDARY-SSRF-INTERNAL
-  status: FULL
-  notes: Covers 127.0.0.0/8, localhost, 10.0.0.0/8, 192.168.0.0/16, 172.16.0.0/12.
-  external_rules:
-  - SSRF2
-  suite: static
-  external_rule: SSRF2
-  sp: SP10
-  owasp: [ASI02]
-  atlas: [AI Agent Tool Invocation]
-
-- id: dynamic-ssrf
-  description: F-string/template-literal URL built from interpolated variable
-  fixture: dynamic-ssrf
-  skil_rules:
-  - SKIL-BOUNDARY-SSRF
-  status: FULL
-  notes: Requires specific untrusted-source keyword list.
-  external_rules:
-  - SSRF3
-  suite: static
-  external_rule: SSRF3
-  sp: SP10
-  owasp: [ASI02]
-  atlas: [AI Agent Tool Invocation]
-
-- id: privileged-k8s-workload
-  description: 'Privileged: true, hostPath, hostPID, kubectl run --privileged in K8s manifest'
-  fixture: container-escape
-  skil_rules:
-  - SKIL-BOUNDARY-CONTAINER-ESCAPE
-  status: FULL
-  notes: K8s and Docker privilege-escape signals folded into one rule.
-  external_rules:
-  - TM4
-  suite: static
-  external_rule: TM4
-  sp: SP10
-  owasp: [ASI05]
-  atlas: []
-
-- id: agent-config-snooping
-  description: Reads another agent's private configuration directory
-  fixture: agent-config-snooping
-  skil_rules:
-  - SKIL-BOUNDARY-AGENT-STATE
-  status: FULL
-  notes: .gemini/.continue dirs not covered; does not anchor on config/settings/credentials file access.
-  external_rules:
-  - AS1
-  suite: static
-  external_rule: AS1
-  sp: SP08
-  owasp: [ASI07]
-  atlas: [Discover AI Agent Configuration]
-
-- id: mcp-config-snooping
-  description: Reads/enumerates MCP server configuration
-  fixture: mcp-config-snooping
-  skil_rules:
-  - SKIL-BOUNDARY-MCP-CONFIG
-  status: FULL
-  notes: Matches direct mcp.json/mcp_config.json access and MCP server/tool enumeration.
-  external_rules:
-  - AS2
-  suite: static
-  external_rule: AS2
-  sp: SP08
-  owasp: [ASI07]
-  atlas: [Discover AI Agent Configuration]
-
-- id: peer-skill-enumeration
-  description: Enumerates/reads sibling skills' directories/manifests
-  fixture: peer-skill-enumeration
-  skil_rules:
-  - SKIL-BOUNDARY-PEER-SKILL
-  status: FULL
-  notes: Covers os.listdir/glob/Path.iterdir on skill directories.
-  external_rules:
-  - AS3
-  suite: static
-  external_rule: AS3
-  sp: SP08
-  owasp: [ASI07]
-  atlas: [Discover AI Agent Configuration]
-
-- id: under-declared-capability
-  description: Code capability detected but not covered by declared permissions
-  fixture: under-declared-capability
-  skil_rules:
-  - SKIL-CAP-DECLARATION-MISSING
-  status: DIFFERENT_BY_DESIGN
-  notes: skil requires explicit reviewed contract (skil verify); reference scanner infers heuristically.
-  external_rules:
-  - LP1
-  suite: static
-  external_rule: LP1
-  sp: SP05
-  owasp: [ASI03]
-  atlas: []
-
-- id: mcp-wildcard-permission
-  description: MCP/tool permission grant uses unconstrained wildcard
-  fixture: mcp-wildcard-permission
-  skil_rules:
-  - SKIL-MCP-001
-  - SKIL-AGENCY-TOOLS
-  status: FULL
-  notes: Structured wildcard detection in mcp.yaml/mcp.json.
-  external_rules:
-  - LP2
-  suite: static
-  external_rule: LP2
-  sp: SP05
-  owasp: [ASI03]
-  atlas: [AI Agent Tool Invocation]
-
-- id: no-permissions-declared
-  description: No permissions/allowed-tools field but code capabilities exist
-  fixture: no-permissions-declared
-  skil_rules:
-  - SKIL-CAP-DECLARATION-MISSING
-  status: FULL
-  notes: Documented FULL in crosswalk.
-  external_rules:
-  - LP3
-  suite: static
-  external_rule: LP3
-  sp: SP05
-  owasp: [ASI03]
-  atlas: []
-
-- id: over-declared-permission
-  description: Declared permission has no corresponding code capability
-  fixture: over-declared-permission
-  skil_rules:
-  - SKIL-CAP-DECLARATION-MISSING
-  status: DIFFERENT_BY_DESIGN
-  notes: Category-level over-declaration covered. Per-item allowlist over-declaration not covered.
-  external_rules:
-  - LP4
-  suite: static
-  external_rule: LP4
-  status_note: 'Declared-but-unused permissions are a verification-layer signal: skil verify enforces contract-scoped permission usage against an explicit reviewed contract, and per-item allowlist over-declaration cannot be inferred statically without reproducing false positives on legitimately unused-but-declared entries. The reference scanner''s static reverse-mapping heuristic is deliberately not reproduced.'
-  sp: SP05
-  owasp: [ASI03]
-  atlas: []
-
-- id: unpinned-mcp-server
-  description: npx/uvx/pip install/docker pull without version pin or digest
-  fixture: unpinned-mcp-server
-  skil_rules:
-  - SKIL-MCP-003
-  - SKIL-BOUNDARY-MUTABLE-IMAGE
-  status: FULL
-  notes: Documented FULL in crosswalk.
-  external_rules:
-  - RP1
-  suite: static
-  external_rule: RP1
-  sp: SP09
-  owasp: [ASI04]
-  atlas: [AI Supply Chain Rug Pull]
-
-- id: mcp-permission-manifest-diff
-  description: Permission expansion between manifest versions
-  fixture: mcp-permission-manifest-diff
-  skil_rules:
-  - SKIL-MCP-005
-  status: DIFFERENT_BY_DESIGN
-  notes: Lock-file diff vs caller-supplied prior manifest snapshot.
-  external_rule: RP1
-  external_variant: version-diff
-  external_rules:
-  - RP1
-  suite: static
-  sp: SP09
-  owasp: [ASI04]
-  atlas: []
-
-- id: trigger-modification-diff
-  description: Trigger phrase modification between versions
-  fixture: trigger-modification-diff
-  skil_rules:
-  - SKIL-TRIGGER-LOCK-DIFF
-  status: DIFFERENT_BY_DESIGN
-  notes: Lock-file diff vs caller-supplied prior manifest snapshot.
-  external_rule: RP2
-  external_variant: version-diff
-  external_rules:
-  - RP2
-  suite: static
-  sp: SP09
-  owasp: [ASI04]
-  atlas: []
-
-- id: permission-pre-staging
-  description: Add new/additional/extra permissions language in manifest
-  fixture: permission-pre-staging
-  skil_rules:
-  - SKIL-MANIFEST-PERMISSION-STAGING
-  status: FULL
-  notes: Static regex over manifest text.
-  external_rule: RP2
-  external_variant: static-manifest
-  external_rules:
-  - RP2
-  suite: static
-  sp: SP05
-  owasp: [ASI03]
-  atlas: []
-
-- id: parameter-schema-modification
-  description: Parameter type/default/description modification between versions
-  fixture: parameter-schema-modification
-  skil_rules:
-  - SKIL-MCP-005
-  status: DIFFERENT_BY_DESIGN
-  notes: Requires comparing two manifest snapshots; skil lock-diff (SKIL-MCP-005) covers tool metadata, caller supplies prior snapshot. By design.
-  external_rule: RP3
-  external_variant: version-diff
-  external_rules:
-  - RP3
-  suite: static
-  sp: SP09
-  owasp: [ASI04]
-  atlas: []
-
-- id: unpinned-skill-version
-  description: Manifest version field is wildcard or overly broad range
-  fixture: unpinned-skill-version
-  skil_rules:
-  - SKIL-MANIFEST-UNPINNED-VERSION
-  status: FULL
-  notes: Line-scoped regex distinguishes skill version from schema integer version.
-  external_rule: RP3
-  external_variant: static-manifest
-  external_rules:
-  - RP3
-  suite: static
-  sp: SP09
-  owasp: [ASI04]
-  atlas: []
-
-- id: hidden-instructions-mcp
-  description: HTML/Markdown comments, zero-width, base64 in MCP metadata fields
-  fixture: hidden-instructions-mcp
-  skil_rules:
-  - SKIL-MCP-002
-  status: FULL
-  notes: MCP metadata fields embedding injection instructions; covered by SKIL-MCP-002 poisonValue on description/default fields.
-  external_rules:
-  - TP1
-  suite: static
-  external_rule: TP1
-  sp: SP01
-  owasp: [ASI01]
-  atlas: [AI Agent Tool Poisoning]
-
-- id: unicode-deception-mcp
-  description: Homoglyph/RTL/invisible/mixed-script in tool name/triggers/parameter names
-  fixture: unicode-homoglyph
-  skil_rules:
-  - SKIL-UNI-002
-  - SKIL-UNI-001
-  status: FULL
-  notes: Confusable hostname tokens, bidi overrides, invisible chars in identifiers.
-  external_rules:
-  - TP2
-  suite: static
-  external_rule: TP2
-  sp: SP01
-  owasp: [ASI01]
-  atlas: [AI Agent Tool Poisoning]
-
-- id: parameter-description-injection
-  description: Instruction-override/system-prompt tokens/exfiltration in parameter description
-  fixture: mcp-parameter-injection
-  skil_rules:
-  - SKIL-MCP-004
-  - SKIL-MCP-007
-  status: FULL
-  notes: 'Five sub-checks: instruction-override, exfiltration, privilege-escalation, system tokens, length.'
-  external_rules:
-  - TP3
-  suite: static
-  external_rule: TP3
-  sp: SP01
-  owasp: [ASI01]
-  atlas: [AI Agent Tool Poisoning]
-
-- id: llm-description-behavior-mismatch
-  description: LLM compares manifest description/triggers/permissions vs code
-  fixture: llm-description-behavior-mismatch
-  skil_rules:
+  - SKIL-UNI-003
+  skil_status: PARTIAL
+  fixtures:
+  - fixture: hidden-instructions-html
+    description: HTML comments with injection-bearing content
+    skil_rules:
+    - SKIL-PI-HIDDEN-COMMENT
+    external_rule: P2
+    external_rules:
+    - P2
+    suite: static
+    status: FULL
+    notes: HTML <!--...--> comments with injection/suspicious content.
+    external_variant: html-comment
+  - fixture: hidden-instructions-markdown
+    description: Markdown hidden comments with injection/suspicious content
+    skil_rules:
+    - SKIL-PI-MD-HIDDEN-COMMENT
+    - SKIL-PI-MD-SUSPICIOUS-COMMENT
+    external_rule: P2
+    external_rules:
+    - P2
+    suite: static
+    status: FULL
+    notes: '[//]: #(...) patterns with injection or suspicious content.'
+    external_variant: markdown-comment
+  - fixture: unicode-zero-width
+    description: Zero-width chars and bidi override characters
+    skil_rules: &id065
+    - SKIL-UNI-001
+    external_rule: P2
+    external_rules: &id066
+    - P2
+    suite: static
+    status: FULL
+    notes: Zero-width spaces, bidi overrides with emoji-ZWJ carve-out.
+    external_variant: zero-width
+  - fixture: unicode-tag-smuggling
+    description: Unicode Tag block ASCII smuggling with RGI emoji-flag carve-out
+    skil_rules:
+    - SKIL-UNI-003
+    external_rule: P2
+    external_rules:
+    - P2
+    suite: static
+    status: FULL
+    notes: Invisible U+E0000-E007F tag characters carrying hidden ASCII payload.
+    external_variant: unicode-tag
+  - fixture: obfuscated-code
+    description: exec(base64.b64decode(...)), marshal.loads, decode-then-execute chains
+    skil_rules: &id047
+    - SKIL-OBF-001
+    - SKIL-UNI-001
+    - SKIL-UNI-002
+    external_rule: SC3
+    external_rules: &id048
+    - SC3
+    suite: static
+    status: FULL
+    notes: Documented FULL in crosswalk.
+  - fixture: unicode-homoglyph
+    description: Homoglyph/RTL/invisible/mixed-script in tool name/triggers/parameter names
+    skil_rules: &id067
+    - SKIL-UNI-002
+    - SKIL-UNI-001
+    external_rule: TP2
+    external_rules: &id068
+    - TP2
+    suite: static
+    status: FULL
+    notes: Confusable hostname tokens, bidi overrides, invisible chars in identifiers.
+- id: ASP-01.07
+  name: Covert Behavioral Steering Resistance
+  domain_id: ASP-01
+  domain: Instruction & Goal Integrity
+  invariant: Ein Skill darf Nutzer- oder Agentenentscheidungen nicht verdeckt zugunsten fremder Ziele oder Sicherheitsabsenkungen
+    steuern.
+  detection: Intent-Analyse für biased recommendation, concealment, trust-then-exploit und safety-deprioritization.
+  minimum_evidence: Steering-Ziel, Begünstigter und manipulierte Entscheidung.
+  owasp_agentic:
+  - ASI01
+  - ASI09
+  - ASI10
+  owasp_llm:
+  - LLM01
+  - LLM06
+  - LLM07
+  mitre_atlas:
+  - LLM Prompt Injection
+  - LLM Jailbreak
+  - AI Agent Context Poisoning
+  - Modify AI Agent Configuration
+  skil_controls:
+  - SKIL-INTENT-BEHAVIOR-MANIPULATION
+  skil_status: IMPLEMENTED
+  fixtures:
+  - fixture: behavior-manipulation
+    description: Covert behavioral steering / dark-pattern influence on the user
+    skil_rules: &id077
+    - SKIL-INTENT-BEHAVIOR-MANIPULATION
+    external_rule: P4
+    external_rules: &id078
+    - P4
+    suite: static
+    status: FULL
+    notes: Covers biased recommendation steering, silent suppression, trust-then-exploit patterns.
+- id: ASP-01.08
+  name: Goal & Scope Integrity
+  domain_id: ASP-01
+  domain: Instruction & Goal Integrity
+  invariant: Der effektive Skill-Auftrag und daraus abgeleitete Subziele müssen innerhalb des autorisierten Scopes bleiben.
+  detection: Contract-vs-Behavior-Diff, semantische Goal-Relation und Runtime-Capability-Checks.
+  minimum_evidence: declared_goal, effective_goal, zusätzliche Operation und fehlende Autorisierung.
+  owasp_agentic:
+  - ASI01
+  - ASI09
+  - ASI10
+  owasp_llm:
+  - LLM01
+  - LLM06
+  - LLM07
+  mitre_atlas:
+  - LLM Prompt Injection
+  - LLM Jailbreak
+  - AI Agent Context Poisoning
+  - Modify AI Agent Configuration
+  skil_controls:
+  - SKIL-INTENT-SCOPE
+  skil_status: PARTIAL
+  fixtures:
+  - fixture: scope-creep
+    description: NL instructions requesting scope expansion beyond stated purpose
+    skil_rules:
+    - SKIL-INTENT-SCOPE-CREEP
+    external_rule: EA3
+    external_rules:
+    - EA3
+    suite: static
+    status: FULL
+    notes: Covers extend-scope, general-purpose, act-as-omniscient requests.
+  - fixture: scope-creep-permissions
+    description: LLM compares code behavior against declared permissions
+    skil_rules:
+    - SKIL-INTENT-SCOPE
+    external_rule: SDI-3
+    external_rules:
+    - SDI-3
+    suite: semantic
+    status: FULL
+    notes: Provider-backed; verified in semantic suite.
+- id: ASP-02.01
+  name: Metadata Authenticity
+  domain_id: ASP-02
+  domain: Discovery, Metadata & Selection Integrity
+  invariant: Name, Beschreibung, Eigentümer-, Herkunfts- und Vertrauensmetadaten müssen nachweisbar zum tatsächlich geladenen
+    Skill-Artefakt gehören.
+  detection: Schema-Validierung, Signatur-/Provenance-Bindung, Registry-Abgleich.
+  minimum_evidence: Metadatenwert, Artefakt-Digest, Publisher-Identität und Bindungsnachweis.
+  owasp_agentic:
+  - ASI01
+  - ASI04
+  - ASI09
+  owasp_llm:
+  - LLM01
+  - LLM03
+  - LLM06
+  - LLM09
+  mitre_atlas:
+  - AI Supply Chain Reputation Inflation
+  - AI Supply Chain Rug Pull
+  - Prompt Infiltration via Public-Facing Application
+  skil_controls: []
+  skil_status: NEW
+  fixtures: []
+- id: ASP-02.02
+  name: Description–Behavior Consistency
+  domain_id: ASP-02
+  domain: Discovery, Metadata & Selection Integrity
+  invariant: Die semantische Beschreibung eines Skills muss seine sicherheitsrelevanten Operationen, Datenflüsse und Capabilities
+    angemessen widerspiegeln.
+  detection: Capability-Extraktion plus semantischer Vergleich von Beschreibung und Workflow/Code.
+  minimum_evidence: description claims, observed capabilities und Mismatch.
+  owasp_agentic:
+  - ASI01
+  - ASI04
+  - ASI09
+  owasp_llm:
+  - LLM01
+  - LLM03
+  - LLM06
+  - LLM09
+  mitre_atlas:
+  - AI Supply Chain Reputation Inflation
+  - AI Supply Chain Rug Pull
+  - Prompt Infiltration via Public-Facing Application
+  skil_controls:
   - SKIL-MCP-006
   - SKIL-INTENT-DESCRIPTION
-  status: FULL
-  notes: Provider-backed; SKIL-MCP-006 + SKIL-INTENT-DESCRIPTION fire when a semantic provider is configured. Verified in the semantic differential suite.
-  external_rules:
-  - TP4
-  suite: semantic
-  external_rule: TP4
-  sp: SP08
-  owasp: [ASI02]
-  atlas: [AI Agent Tool Poisoning]
-
-- id: description-behavior-mismatch
-  description: LLM compares manifest description vs code operations
-  fixture: description-behavior-mismatch
-  skil_rules:
-  - SKIL-INTENT-DESCRIPTION
-  status: FULL
-  notes: Provider-backed; verified in semantic suite.
-  external_rules:
-  - SDI-1
-  suite: semantic
-  external_rule: SDI-1
-  sp: SP05
-  owasp: [ASI02]
-  atlas: [AI Agent Tool Poisoning]
-
-- id: context-inappropriate-capability
-  description: LLM flags capability unjustified by stated purpose
-  fixture: context-inappropriate-capability
-  skil_rules:
-  - SKIL-INTENT-CONTEXT
-  status: FULL
-  notes: Provider-backed; verified in semantic suite.
-  external_rules:
-  - SDI-2
-  suite: semantic
-  external_rule: SDI-2
-  sp: SP05
-  owasp: [ASI02]
-  atlas: []
-
-- id: scope-creep-permissions
-  description: LLM compares code behavior against declared permissions
-  fixture: scope-creep-permissions
-  skil_rules:
-  - SKIL-INTENT-SCOPE
-  status: FULL
-  notes: Provider-backed; verified in semantic suite.
-  external_rules:
-  - SDI-3
-  suite: semantic
-  external_rule: SDI-3
-  sp: SP05
-  owasp: [ASI02]
-  atlas: []
-
-- id: intent-code-divergence
-  description: LLM flags comments/docstrings contradicting code
-  fixture: intent-code-divergence
-  skil_rules:
   - SKIL-INTENT-IMPLEMENTATION
-  status: FULL
-  notes: Deterministic local-semantic pass, not LLM.
-  external_rules:
-  - SDI-4
-  suite: semantic
-  external_rule: SDI-4
-  sp: SP05
-  owasp: [ASI02]
-  atlas: []
-
-- id: vague-triggers
-  description: LLM flags ambiguous/overbroad trigger phrasing
-  fixture: vague-triggers
-  skil_rules:
+  skil_status: PARTIAL
+  fixtures:
+  - fixture: llm-description-behavior-mismatch
+    description: LLM compares manifest description/triggers/permissions vs code
+    skil_rules: &id001
+    - SKIL-MCP-006
+    - SKIL-INTENT-DESCRIPTION
+    external_rule: TP4
+    external_rules: &id002
+    - TP4
+    suite: semantic
+    status: FULL
+    notes: Provider-backed; SKIL-MCP-006 + SKIL-INTENT-DESCRIPTION fire when a semantic provider is configured. Verified in
+      the semantic differential suite.
+  - fixture: description-behavior-mismatch
+    description: LLM compares manifest description vs code operations
+    skil_rules: &id003
+    - SKIL-INTENT-DESCRIPTION
+    external_rule: SDI-1
+    external_rules: &id004
+    - SDI-1
+    suite: semantic
+    status: FULL
+    notes: Provider-backed; verified in semantic suite.
+  - fixture: intent-code-divergence
+    description: LLM flags comments/docstrings contradicting code
+    skil_rules:
+    - SKIL-INTENT-IMPLEMENTATION
+    external_rule: SDI-4
+    external_rules:
+    - SDI-4
+    suite: semantic
+    status: FULL
+    notes: Deterministic local-semantic pass, not LLM.
+- id: ASP-02.03
+  name: Trigger Specificity
+  domain_id: ASP-02
+  domain: Discovery, Metadata & Selection Integrity
+  invariant: Aktivierungskriterien müssen hinreichend spezifisch sein und dürfen nicht nahezu jeden Request matchen.
+  detection: Strukturelle Trigger-Auswertung, Stopword-/Längenregeln, semantische Spezifität.
+  minimum_evidence: Triggerwert, Matching-Breite und Konfliktmenge.
+  owasp_agentic:
+  - ASI01
+  - ASI04
+  - ASI09
+  owasp_llm:
+  - LLM01
+  - LLM03
+  - LLM06
+  - LLM09
+  mitre_atlas:
+  - AI Supply Chain Reputation Inflation
+  - AI Supply Chain Rug Pull
+  - Prompt Infiltration via Public-Facing Application
+  skil_controls:
   - SKIL-TRIGGER-GENERIC
   - SKIL-TA-001
-  status: DIFFERENT_BY_DESIGN
-  notes: Deterministic pattern-based vs LLM; different mechanism, overlapping coverage.
-  external_rules:
-  - SQP-1
-  suite: semantic
-  external_rule: SQP-1
-  sp: SP05
-  owasp: [ASI02]
-  atlas: []
-
-- id: undisclosed-operation
-  description: Safety-critical operations with no user-facing disclosure
-  fixture: undisclosed-operation
-  skil_rules:
+  skil_status: IMPLEMENTED
+  fixtures:
+  - fixture: broad-trigger
+    description: Single common-word trigger or trigger <=2 chars in manifest
+    skil_rules:
+    - SKIL-TRIGGER-GENERIC
+    external_rule: TR1
+    external_rules:
+    - TR1
+    suite: static
+    status: FULL
+    notes: 'Structural YAML triggers: array parsing with genericTriggerWords set-membership.'
+  - fixture: trigger-baiting
+    description: Single-word trigger matches known baiting keyword
+    skil_rules:
+    - SKIL-TRIGGER-BAITING
+    external_rule: TR3
+    external_rules:
+    - TR3
+    suite: static
+    status: FULL
+    notes: Covers anything/everything/always as triggers.
+  - fixture: vague-triggers
+    description: LLM flags ambiguous/overbroad trigger phrasing
+    skil_rules:
+    - SKIL-TRIGGER-GENERIC
+    - SKIL-TA-001
+    external_rule: SQP-1
+    external_rules:
+    - SQP-1
+    suite: semantic
+    status: DIFFERENT_BY_DESIGN
+    notes: Deterministic pattern-based vs LLM; different mechanism, overlapping coverage.
+- id: ASP-02.04
+  name: Trigger Shadowing Resistance
+  domain_id: ASP-02
+  domain: Discovery, Metadata & Selection Integrity
+  invariant: Ein Skill darf keine Built-in-Kommandos, anderen Skills oder Kontrollpfade durch kollidierende Trigger abfangen
+    oder ersetzen.
+  detection: Set-Membership gegen reservierte Trigger, Namespace-Analyse, Registry-Diff.
+  minimum_evidence: Trigger, kollidierende Identität und Routingpriorität.
+  owasp_agentic:
+  - ASI01
+  - ASI04
+  - ASI09
+  owasp_llm:
+  - LLM01
+  - LLM03
+  - LLM06
+  - LLM09
+  mitre_atlas:
+  - AI Supply Chain Reputation Inflation
+  - AI Supply Chain Rug Pull
+  - Prompt Infiltration via Public-Facing Application
+  skil_controls:
+  - SKIL-TRIGGER-SHADOW
+  skil_status: IMPLEMENTED
+  fixtures:
+  - fixture: shadow-command-trigger
+    description: Trigger collides with a built-in command name
+    skil_rules:
+    - SKIL-TRIGGER-SHADOW
+    external_rule: TR2
+    external_rules:
+    - TR2
+    suite: static
+    status: FULL
+    notes: Set-membership check against shadowTriggerWords.
+- id: ASP-02.05
+  name: Retrieval Keyword-Stuffing Resistance
+  domain_id: ASP-02
+  domain: Discovery, Metadata & Selection Integrity
+  invariant: Skill-Metadaten dürfen semantisches Retrieval nicht durch künstliche Keyword-Dichte manipulieren.
+  detection: Term-Density, Repetition Metrics, embedding-vs-content consistency, adversarial retrieval tests.
+  minimum_evidence: überrepräsentierte Tokens, Ranking-Delta und funktionale Entsprechung.
+  owasp_agentic:
+  - ASI01
+  - ASI04
+  - ASI09
+  owasp_llm:
+  - LLM01
+  - LLM03
+  - LLM06
+  - LLM09
+  mitre_atlas:
+  - AI Supply Chain Reputation Inflation
+  - AI Supply Chain Rug Pull
+  - Prompt Infiltration via Public-Facing Application
+  skil_controls: []
+  skil_status: NEW
+  fixtures: []
+- id: ASP-02.06
+  name: Semantic Camouflage Resistance
+  domain_id: ASP-02
+  domain: Discovery, Metadata & Selection Integrity
+  invariant: Riskantes Verhalten darf sich nicht allein durch semantisch passende, aber verharmlosende Beschreibung als legitimer
+    Kandidat tarnen.
+  detection: Metadata-to-workflow consistency, capability diff und anomaly scoring.
+  minimum_evidence: Retrieval-Relevanz bei gleichzeitigem Behavior-Mismatch.
+  owasp_agentic:
+  - ASI01
+  - ASI04
+  - ASI09
+  owasp_llm:
+  - LLM01
+  - LLM03
+  - LLM06
+  - LLM09
+  mitre_atlas:
+  - AI Supply Chain Reputation Inflation
+  - AI Supply Chain Rug Pull
+  - Prompt Infiltration via Public-Facing Application
+  skil_controls:
+  - SKIL-SEM-SECURITY
+  - SKIL-INTENT-DESCRIPTION
+  skil_status: PARTIAL
+  fixtures:
+  - fixture: llm-description-behavior-mismatch
+    description: LLM compares manifest description/triggers/permissions vs code
+    skil_rules: *id001
+    external_rule: TP4
+    external_rules: *id002
+    suite: semantic
+    status: FULL
+    notes: Provider-backed; SKIL-MCP-006 + SKIL-INTENT-DESCRIPTION fire when a semantic provider is configured. Verified in
+      the semantic differential suite.
+  - fixture: description-behavior-mismatch
+    description: LLM compares manifest description vs code operations
+    skil_rules: *id003
+    external_rule: SDI-1
+    external_rules: *id004
+    suite: semantic
+    status: FULL
+    notes: Provider-backed; verified in semantic suite.
+  - fixture: semantic-prompt-injection
+    description: LLM detects polite/role-play/hypothetical reframings of instruction override
+    skil_rules:
+    - SKIL-SEM-SECURITY
+    external_rule: SSD-1
+    external_rules:
+    - SSD-1
+    suite: semantic
+    status: FULL
+    notes: SKIL-SEM-SECURITY covers SSD-1 reframing; granularity coarser than reference. Provider-backed, verified in semantic
+      suite.
+  - fixture: paraphrased-attack
+    description: LLM detects creative synonyms/encoded intent for known attack patterns
+    skil_rules:
+    - SKIL-SEM-SECURITY
+    external_rule: SSD-2
+    external_rules:
+    - SSD-2
+    suite: semantic
+    status: FULL
+    notes: SKIL-SEM-SECURITY covers paraphrased/encoded intent. Provider-backed, verified in semantic suite.
+  - fixture: nl-exfiltration
+    description: LLM detects remember everything and include in response style leaks
+    skil_rules:
+    - SKIL-SEM-SECURITY
+    external_rule: SSD-3
+    external_rules:
+    - SSD-3
+    suite: semantic
+    status: FULL
+    notes: SKIL-SEM-SECURITY covers remember-and-include leaks. Provider-backed, verified in semantic suite.
+- id: ASP-02.07
+  name: Sybil & Reputation Manipulation Resistance
+  domain_id: ASP-02
+  domain: Discovery, Metadata & Selection Integrity
+  invariant: Clone-Skills, Publisher-Sybil-Identitäten oder erfundene Vertrauenssignale dürfen Ranking und Auswahl nicht künstlich
+    dominieren.
+  detection: Near-duplicate clustering, publisher graph analysis, signed reputation provenance und diversity filtering.
+  minimum_evidence: Clone-Cluster, Publisher-Beziehungen, Reputationsevidence und Ranking-Effekt.
+  owasp_agentic:
+  - ASI01
+  - ASI04
+  - ASI09
+  owasp_llm:
+  - LLM01
+  - LLM03
+  - LLM06
+  - LLM09
+  mitre_atlas:
+  - AI Supply Chain Reputation Inflation
+  - AI Supply Chain Rug Pull
+  - Prompt Infiltration via Public-Facing Application
+  skil_controls: []
+  skil_status: NEW
+  fixtures: []
+- id: ASP-02.08
+  name: Planner Selection Integrity
+  domain_id: ASP-02
+  domain: Discovery, Metadata & Selection Integrity
+  invariant: Der Planner darf Skills nur anhand verifizierter Metadaten, Capabilities und Vertrauenssignale auswählen; Fake
+    Recommendations und Permission Deception dürfen die Auswahl nicht dominieren.
+  detection: Metadata sanitization, planner adversarial tests, permission consistency, trust-aware reranking.
+  minimum_evidence: Candidate set, Planner-Entscheidung und manipulierendes Metadatum.
+  owasp_agentic:
+  - ASI01
+  - ASI04
+  - ASI09
+  owasp_llm:
+  - LLM01
+  - LLM03
+  - LLM06
+  - LLM09
+  mitre_atlas:
+  - AI Supply Chain Reputation Inflation
+  - AI Supply Chain Rug Pull
+  - Prompt Infiltration via Public-Facing Application
+  skil_controls:
+  - SKIL-INTENT-DESCRIPTION
+  - SKIL-CAP-DECLARATION-MISSING
+  skil_status: PARTIAL
+  fixtures:
+  - fixture: under-declared-capability
+    description: Code capability detected but not covered by declared permissions
+    skil_rules: &id025
+    - SKIL-CAP-DECLARATION-MISSING
+    external_rule: LP1
+    external_rules: &id026
+    - LP1
+    suite: static
+    status: DIFFERENT_BY_DESIGN
+    notes: skil requires explicit reviewed contract (skil verify); reference scanner infers heuristically.
+  - fixture: no-permissions-declared
+    description: No permissions/allowed-tools field but code capabilities exist
+    skil_rules: &id027
+    - SKIL-CAP-DECLARATION-MISSING
+    external_rule: LP3
+    external_rules: &id028
+    - LP3
+    suite: static
+    status: FULL
+    notes: Documented FULL in crosswalk.
+  - fixture: over-declared-permission
+    description: Declared permission has no corresponding code capability
+    skil_rules: &id029
+    - SKIL-CAP-DECLARATION-MISSING
+    external_rule: LP4
+    external_rules: &id030
+    - LP4
+    suite: static
+    status: DIFFERENT_BY_DESIGN
+    notes: Category-level over-declaration covered. Per-item allowlist over-declaration not covered.
+    status_note: 'Declared-but-unused permissions are a verification-layer signal: skil verify enforces contract-scoped permission
+      usage against an explicit reviewed contract, and per-item allowlist over-declaration cannot be inferred statically without
+      reproducing false positives on legitimately unused-but-declared entries. The reference scanner''s static reverse-mapping
+      heuristic is deliberately not reproduced.'
+  - fixture: llm-description-behavior-mismatch
+    description: LLM compares manifest description/triggers/permissions vs code
+    skil_rules: *id001
+    external_rule: TP4
+    external_rules: *id002
+    suite: semantic
+    status: FULL
+    notes: Provider-backed; SKIL-MCP-006 + SKIL-INTENT-DESCRIPTION fire when a semantic provider is configured. Verified in
+      the semantic differential suite.
+  - fixture: description-behavior-mismatch
+    description: LLM compares manifest description vs code operations
+    skil_rules: *id003
+    external_rule: SDI-1
+    external_rules: *id004
+    suite: semantic
+    status: FULL
+    notes: Provider-backed; verified in semantic suite.
+  - fixture: context-inappropriate-capability
+    description: LLM flags capability unjustified by stated purpose
+    skil_rules:
+    - SKIL-INTENT-CONTEXT
+    external_rule: SDI-2
+    external_rules:
+    - SDI-2
+    suite: semantic
+    status: FULL
+    notes: Provider-backed; verified in semantic suite.
+- id: ASP-03.01
+  name: Secret & Environment Harvesting Protection
+  domain_id: ASP-03
+  domain: Data Confidentiality & Privacy
+  invariant: Secrets, Tokens und sensitive Environment-Variablen dürfen nur bei explizit autorisiertem Zweck und Scope gelesen
+    werden.
+  detection: Credential pattern detection, AST env access, capability verification, secret-source taint.
+  minimum_evidence: konkrete Secret-Quelle, Read-Operation, Zweck und downstream flow.
+  owasp_agentic:
+  - ASI01
+  - ASI02
+  - ASI03
+  - ASI06
+  - ASI07
+  owasp_llm:
+  - LLM02
+  - LLM06
+  - LLM07
+  mitre_atlas:
+  - Exfiltration via AI Agent Tool Invocation
+  - Extract LLM System Prompt
+  - AI Agent Tool Credential Harvesting
+  skil_controls:
+  - SKIL-SEC-001
+  - SKIL-TAINT-NETWORK
+  skil_status: IMPLEMENTED
+  fixtures:
+  - fixture: env-harvesting
+    description: Iterating env vars, reading KEY/SECRET/TOKEN/PASSWORD env vars
+    skil_rules: &id005
+    - SKIL-SEC-001
+    external_rule: E2
+    external_rules: &id006
+    - E2
+    suite: static
+    status: FULL
+    notes: Also fires on Python AST reads (os.environ.get()).
+  - fixture: credential-file-access
+    description: Reads concrete credential-bearing file paths
+    skil_rules: &id007
+    - SKIL-SEC-001
+    external_rule: PE3
+    external_rules: &id008
+    - PE3
+    suite: static
+    status: FULL
+    notes: Extended to cover K8s, Docker, GCP, Azure, browser credential paths.
+  - fixture: model-output-taint-execution
+    description: Any source flowing directly into any execution/network/file-write sink
+    skil_rules: &id017
+    - SKIL-TAINT-EXECUTION
+    - SKIL-TAINT-NETWORK
+    - SKIL-TAINT-PRIVILEGED-CONTEXT
+    external_rule: TT1
+    external_rules: &id018
+    - TT1
+    suite: static
+    status: FULL
+    notes: All 4 sink categories (network, execution, filesystem-write, log) fire unconditionally.
+  - fixture: taint-variable-mediated
+    description: Taint propagated through re-assignment and container literals
+    skil_rules: &id019
+    - SKIL-TAINT-EXECUTION
+    - SKIL-TAINT-NETWORK
+    external_rule: TT2
+    external_rules: &id020
+    - TT2
+    suite: static
+    status: FULL
+    notes: Multi-step assignment aliases are propagated.
+  - fixture: taint-credential-network
+    description: os.environ/os.getenv source flowing to network sink
+    skil_rules: &id021
+    - SKIL-TAINT-NETWORK
+    external_rule: TT3
+    external_rules: &id022
+    - TT3
+    suite: static
+    status: FULL
+    notes: Credential to network sink flow.
+  - fixture: taint-file-network
+    description: File read source flowing to network sink
+    skil_rules: &id023
+    - SKIL-TAINT-NETWORK
+    external_rule: TT4
+    external_rules: &id024
+    - TT4
+    suite: static
+    status: FULL
+    notes: File read to network flow; same rule ID as TT3.
+- id: ASP-03.02
+  name: Credential File Protection
+  domain_id: ASP-03
+  domain: Data Confidentiality & Privacy
+  invariant: Credential-bearing Dateien und Stores dürfen nicht opportunistisch gesucht, gelesen, kopiert oder exportiert
+    werden.
+  detection: Pfadklassifikation, Filesystem AST/pattern analysis und defensive context suppression.
+  minimum_evidence: Credential-Pfad, Operation, Scope und Verwendungsziel.
+  owasp_agentic:
+  - ASI01
+  - ASI02
+  - ASI03
+  - ASI06
+  - ASI07
+  owasp_llm:
+  - LLM02
+  - LLM06
+  - LLM07
+  mitre_atlas:
+  - Exfiltration via AI Agent Tool Invocation
+  - Extract LLM System Prompt
+  - AI Agent Tool Credential Harvesting
+  skil_controls:
+  - SKIL-SEC-001
+  skil_status: IMPLEMENTED
+  fixtures:
+  - fixture: env-harvesting
+    description: Iterating env vars, reading KEY/SECRET/TOKEN/PASSWORD env vars
+    skil_rules: *id005
+    external_rule: E2
+    external_rules: *id006
+    suite: static
+    status: FULL
+    notes: Also fires on Python AST reads (os.environ.get()).
+  - fixture: credential-file-access
+    description: Reads concrete credential-bearing file paths
+    skil_rules: *id007
+    external_rule: PE3
+    external_rules: *id008
+    suite: static
+    status: FULL
+    notes: Extended to cover K8s, Docker, GCP, Azure, browser credential paths.
+- id: ASP-03.03
+  name: Conversation & Context Confidentiality
+  domain_id: ASP-03
+  domain: Data Confidentiality & Privacy
+  invariant: Konversationsverlauf, Agentenstatus, Memory und Session-Kontext dürfen nicht ohne Zweckbindung offengelegt oder
+    übertragen werden.
+  detection: Context-object classification, exfil intent, taint and sink analysis.
+  minimum_evidence: Context source, Transformation, Sink und Authorization.
+  owasp_agentic:
+  - ASI01
+  - ASI02
+  - ASI03
+  - ASI06
+  - ASI07
+  owasp_llm:
+  - LLM02
+  - LLM06
+  - LLM07
+  mitre_atlas:
+  - Exfiltration via AI Agent Tool Invocation
+  - Extract LLM System Prompt
+  - AI Agent Tool Credential Harvesting
+  skil_controls:
+  - SKIL-EX-001
+  - SKIL-INTENT-EXTERNAL-TRANSFER
+  skil_status: PARTIAL
+  fixtures:
+  - fixture: exfiltration-commands
+    description: Instructions to send/transmit conversation/data to an external sink
+    skil_rules: &id011
+    - SKIL-EX-001
+    - SKIL-INTENT-EXTERNAL-TRANSFER
+    - SKIL-INTENT-UNDISCLOSED-OPERATION
+    external_rule: P3
+    external_rules: &id012
+    - P3
+    suite: static
+    status: FULL
+    notes: SKIL-INTENT-EXTERNAL-TRANSFER covers generic conversation/data transmission without a secrecy qualifier.
+  - fixture: prompt-taint-to-file
+    description: Save system prompt to file or send via curl/webhook
+    skil_rules: &id009
+    - SKIL-TAINT-PRIVILEGED-CONTEXT
+    - SKIL-EX-001
+    - SKIL-PL-001
+    external_rule: P8
+    external_rules: &id010
+    - P8
+    suite: static
+    status: FULL
+    notes: Taint test covers system_prompt flowing to file write.
+  - fixture: external-transmission
+    description: HTTP POST/PUT calls to external endpoints, suspicious subdomains
+    skil_rules: &id013
+    - SKIL-NET-001
+    - SKIL-INTENT-EXTERNAL-TRANSFER
+    external_rule: E1
+    external_rules: &id014
+    - E1
+    suite: static
+    status: FULL
+    notes: AST-anchored Python call-name resolution rather than regex.
+  - fixture: context-leakage
+    description: Instructions to send/log/export full conversation/session/memory
+    skil_rules: &id015
+    - SKIL-EX-001
+    - SKIL-INTENT-EXTERNAL-TRANSFER
+    external_rule: E4
+    external_rules: &id016
+    - E4
+    suite: static
+    status: FULL
+    notes: Neither rule specifically targets conversation/session/memory as the exfiltrated object.
+- id: ASP-03.04
+  name: Privileged Instruction Confidentiality
+  domain_id: ASP-03
+  domain: Data Confidentiality & Privacy
+  invariant: System-/Developer-Prompts und interne Instruktionen dürfen weder direkt, indirekt noch über Tools extrahiert
+    werden.
+  detection: Direct/indirect leakage patterns, transform-aware semantic analysis und prompt-source taint.
+  minimum_evidence: privileged prompt source, extraction operation, transform und sink.
+  owasp_agentic:
+  - ASI01
+  - ASI02
+  - ASI03
+  - ASI06
+  - ASI07
+  owasp_llm:
+  - LLM02
+  - LLM06
+  - LLM07
+  mitre_atlas:
+  - Exfiltration via AI Agent Tool Invocation
+  - Extract LLM System Prompt
+  - AI Agent Tool Credential Harvesting
+  skil_controls:
+  - SKIL-PL-001
+  - SKIL-PROMPT-INDIRECT-LEAK
+  skil_status: PARTIAL
+  fixtures:
+  - fixture: direct-prompt-extraction
+    description: Print/reveal/show system prompt instructions
+    skil_rules:
+    - SKIL-PL-001
+    external_rule: P6
+    external_rules:
+    - P6
+    suite: static
+    status: FULL
+    notes: Covers direct prompt extraction with benign-heading carve-out.
+  - fixture: indirect-prompt-extraction
+    description: Repeat/translate/encode/summarize instructions to leak prompt
+    skil_rules:
+    - SKIL-PROMPT-INDIRECT-LEAK
+    external_rule: P7
+    external_rules:
+    - P7
+    suite: static
+    status: FULL
+    notes: Covers translate/rephrase/encode/summarize framings.
+  - fixture: prompt-taint-to-file
+    description: Save system prompt to file or send via curl/webhook
+    skil_rules: *id009
+    external_rule: P8
+    external_rules: *id010
+    suite: static
+    status: FULL
+    notes: Taint test covers system_prompt flowing to file write.
+- id: ASP-03.05
+  name: External Data Exfiltration Prevention
+  domain_id: ASP-03
+  domain: Data Confidentiality & Privacy
+  invariant: Sensitive Daten dürfen keine nicht autorisierten externen Netzwerk-, Tool- oder Logging-Sinks erreichen.
+  detection: Source/sink taint, URL/domain classification, network AST und intent analysis.
+  minimum_evidence: Source→Propagation→Sink-Pfad sowie Destination trust.
+  owasp_agentic:
+  - ASI01
+  - ASI02
+  - ASI03
+  - ASI06
+  - ASI07
+  owasp_llm:
+  - LLM02
+  - LLM06
+  - LLM07
+  mitre_atlas:
+  - Exfiltration via AI Agent Tool Invocation
+  - Extract LLM System Prompt
+  - AI Agent Tool Credential Harvesting
+  skil_controls:
+  - SKIL-EX-001
+  - SKIL-NET-001
+  - SKIL-TAINT-NETWORK
+  - SKIL-INTENT-EXTERNAL-TRANSFER
+  skil_status: IMPLEMENTED
+  fixtures:
+  - fixture: exfiltration-commands
+    description: Instructions to send/transmit conversation/data to an external sink
+    skil_rules: *id011
+    external_rule: P3
+    external_rules: *id012
+    suite: static
+    status: FULL
+    notes: SKIL-INTENT-EXTERNAL-TRANSFER covers generic conversation/data transmission without a secrecy qualifier.
+  - fixture: prompt-taint-to-file
+    description: Save system prompt to file or send via curl/webhook
+    skil_rules: *id009
+    external_rule: P8
+    external_rules: *id010
+    suite: static
+    status: FULL
+    notes: Taint test covers system_prompt flowing to file write.
+  - fixture: external-transmission
+    description: HTTP POST/PUT calls to external endpoints, suspicious subdomains
+    skil_rules: *id013
+    external_rule: E1
+    external_rules: *id014
+    suite: static
+    status: FULL
+    notes: AST-anchored Python call-name resolution rather than regex.
+  - fixture: context-leakage
+    description: Instructions to send/log/export full conversation/session/memory
+    skil_rules: *id015
+    external_rule: E4
+    external_rules: *id016
+    suite: static
+    status: FULL
+    notes: Neither rule specifically targets conversation/session/memory as the exfiltrated object.
+  - fixture: model-output-taint-execution
+    description: Any source flowing directly into any execution/network/file-write sink
+    skil_rules: *id017
+    external_rule: TT1
+    external_rules: *id018
+    suite: static
+    status: FULL
+    notes: All 4 sink categories (network, execution, filesystem-write, log) fire unconditionally.
+  - fixture: taint-variable-mediated
+    description: Taint propagated through re-assignment and container literals
+    skil_rules: *id019
+    external_rule: TT2
+    external_rules: *id020
+    suite: static
+    status: FULL
+    notes: Multi-step assignment aliases are propagated.
+  - fixture: taint-credential-network
+    description: os.environ/os.getenv source flowing to network sink
+    skil_rules: *id021
+    external_rule: TT3
+    external_rules: *id022
+    suite: static
+    status: FULL
+    notes: Credential to network sink flow.
+  - fixture: taint-file-network
+    description: File read source flowing to network sink
+    skil_rules: *id023
+    external_rule: TT4
+    external_rules: *id024
+    suite: static
+    status: FULL
+    notes: File read to network flow; same rule ID as TT3.
+- id: ASP-03.06
+  name: Cloud/Object-Storage Exfiltration Prevention
+  domain_id: ASP-03
+  domain: Data Confidentiality & Privacy
+  invariant: Uploads in S3-, GCS-, Azure- oder vergleichbare Stores müssen explizit autorisierte Daten und Ziele betreffen.
+  detection: Cloud CLI/SDK recognition, bucket/container classification und taint.
+  minimum_evidence: Upload call, Ziel, Source-Daten und Authorization evidence.
+  owasp_agentic:
+  - ASI01
+  - ASI02
+  - ASI03
+  - ASI06
+  - ASI07
+  owasp_llm:
+  - LLM02
+  - LLM06
+  - LLM07
+  mitre_atlas:
+  - Exfiltration via AI Agent Tool Invocation
+  - Extract LLM System Prompt
+  - AI Agent Tool Credential Harvesting
+  skil_controls:
+  - SKIL-BOUNDARY-CLOUD-EXFIL
+  - SKIL-BOUNDARY-CLOUD-SDK-UPLOAD
+  skil_status: IMPLEMENTED
+  fixtures:
+  - fixture: cloud-sdk-upload
+    description: Cloud SDK upload calls (boto3/GCS/Azure SDK), CLI forms
+    skil_rules:
+    - SKIL-BOUNDARY-CLOUD-EXFIL
+    - SKIL-BOUNDARY-CLOUD-SDK-UPLOAD
+    external_rule: E5
+    external_rules:
+    - E5
+    suite: static
+    status: FULL
+    notes: SDK (put_object, upload_file, upload_blob) and CLI (aws s3 cp, gsutil cp) forms.
+- id: ASP-03.07
+  name: Data Minimization
+  domain_id: ASP-03
+  domain: Data Confidentiality & Privacy
+  invariant: Ein Skill darf nur Datenklassen und Datenbereiche lesen, die für seinen deklarierten Zweck erforderlich sind.
+  detection: Contract-to-observed-read comparison, data/path scopes und runtime access policy.
+  minimum_evidence: required data set versus observed access set.
+  owasp_agentic:
+  - ASI01
+  - ASI02
+  - ASI03
+  - ASI06
+  - ASI07
+  owasp_llm:
+  - LLM02
+  - LLM06
+  - LLM07
+  mitre_atlas:
+  - Exfiltration via AI Agent Tool Invocation
+  - Extract LLM System Prompt
+  - AI Agent Tool Credential Harvesting
+  skil_controls: []
+  skil_status: NEW
+  fixtures: []
+- id: ASP-03.08
+  name: Purpose & Retention Bound
+  domain_id: ASP-03
+  domain: Data Confidentiality & Privacy
+  invariant: Erhobene Daten dürfen weder für neue Zwecke umgewidmet noch länger oder persistenter gespeichert werden als autorisiert.
+  detection: Data lineage labels, state-write analysis, retention metadata und runtime policy.
+  minimum_evidence: data class, original purpose, new purpose/store und retention lifetime.
+  owasp_agentic:
+  - ASI01
+  - ASI02
+  - ASI03
+  - ASI06
+  - ASI07
+  owasp_llm:
+  - LLM02
+  - LLM06
+  - LLM07
+  mitre_atlas:
+  - Exfiltration via AI Agent Tool Invocation
+  - Extract LLM System Prompt
+  - AI Agent Tool Credential Harvesting
+  skil_controls:
+  - SKIL-MP-001
+  - SKIL-PERSISTENCE-STARTUP
+  skil_status: PARTIAL
+  fixtures:
+  - fixture: persistent-context-injection
+    description: Remember this for all future interactions/store in memory permanently
+    skil_rules: &id049
+    - SKIL-MP-001
+    external_rule: MP1
+    external_rules: &id050
+    - MP1
+    suite: static
+    status: FULL
+    notes: Matches persist-across-sessions property.
+  - fixture: memory-manipulation
+    description: Clear/wipe memory, overwrite instructions, inject false memories
+    skil_rules: &id051
+    - SKIL-AGENT-SELF-MODIFY
+    - SKIL-MP-001
+    external_rule: MP3
+    external_rules: &id052
+    - MP3
+    suite: static
+    status: FULL
+    notes: Clear/reset/wipe memory and you are no longer X phrasings not covered.
+  - fixture: session-persistence
+    description: Crontab, bashrc/zshrc injection, systemd/launchd service, background processes
+    skil_rules: &id055
+    - SKIL-PERSISTENCE-STARTUP
+    external_rule: RA2
+    external_rules: &id056
+    - RA2
+    suite: static
+    status: FULL
+    notes: No equivalent for .bashrc/.zshrc append, nohup/disown, Windows registry.
+- id: ASP-04.01
+  name: Least-Privilege Permission Bound
+  domain_id: ASP-04
+  domain: Identity, Authorization & Consent
+  invariant: Deklarierte und effektive Berechtigungen müssen auf die minimal für den Skill-Zweck erforderliche Menge beschränkt
+    sein.
+  detection: Permission schema analysis, capability observation und contract verification.
+  minimum_evidence: requested permissions, observed needs, excess set.
+  owasp_agentic:
+  - ASI02
+  - ASI03
+  - ASI07
+  owasp_llm:
+  - LLM02
+  - LLM06
+  mitre_atlas:
+  - Valid Accounts
+  - AI Agent Tool Credential Harvesting
+  - Modify AI Agent Configuration
+  skil_controls:
+  - SKIL-AGENCY-TOOLS
+  - SKIL-MCP-001
+  skil_status: IMPLEMENTED
+  fixtures:
+  - fixture: excessive-permissions
+    description: Wildcard or "grant me full access" permission requests
+    skil_rules: &id031
+    - SKIL-AGENCY-TOOLS
+    - SKIL-MCP-001
+    external_rule: PE1
+    external_rules: &id032
+    - PE1
+    suite: static
+    status: FULL
+    notes: Broader full/complete access NL phrasing outside MCP-structured blocks not matched.
+  - fixture: unrestricted-tool-access
+    description: Wildcard tool permissions, call any/all tools
+    skil_rules: &id033
+    - SKIL-AGENCY-TOOLS
+    - SKIL-MCP-001
+    external_rule: EA1
+    external_rules: &id034
+    - EA1
+    suite: static
+    status: FULL
+    notes: Documented in external-control-crosswalk.md.
+  - fixture: mcp-wildcard-permission
+    description: MCP/tool permission grant uses unconstrained wildcard
+    skil_rules: &id035
+    - SKIL-MCP-001
+    - SKIL-AGENCY-TOOLS
+    external_rule: LP2
+    external_rules: &id036
+    - LP2
+    suite: static
+    status: FULL
+    notes: Structured wildcard detection in mcp.yaml/mcp.json.
+- id: ASP-04.02
+  name: Underdeclared Capability Detection
+  domain_id: ASP-04
+  domain: Identity, Authorization & Consent
+  invariant: Jede tatsächlich genutzte sicherheitsrelevante Capability muss im überprüften Skill-Vertrag oder Manifest enthalten
+    sein.
+  detection: Observed-capability extraction plus set difference against declarations.
+  minimum_evidence: observed capability minus declared capability.
+  owasp_agentic:
+  - ASI02
+  - ASI03
+  - ASI07
+  owasp_llm:
+  - LLM02
+  - LLM06
+  mitre_atlas:
+  - Valid Accounts
+  - AI Agent Tool Credential Harvesting
+  - Modify AI Agent Configuration
+  skil_controls:
+  - SKIL-CAP-DECLARATION-MISSING
+  - SKIL-CAP-001
+  skil_status: IMPLEMENTED
+  fixtures:
+  - fixture: under-declared-capability
+    description: Code capability detected but not covered by declared permissions
+    skil_rules: *id025
+    external_rule: LP1
+    external_rules: *id026
+    suite: static
+    status: DIFFERENT_BY_DESIGN
+    notes: skil requires explicit reviewed contract (skil verify); reference scanner infers heuristically.
+  - fixture: no-permissions-declared
+    description: No permissions/allowed-tools field but code capabilities exist
+    skil_rules: *id027
+    external_rule: LP3
+    external_rules: *id028
+    suite: static
+    status: FULL
+    notes: Documented FULL in crosswalk.
+  - fixture: over-declared-permission
+    description: Declared permission has no corresponding code capability
+    skil_rules: *id029
+    external_rule: LP4
+    external_rules: *id030
+    suite: static
+    status: DIFFERENT_BY_DESIGN
+    notes: Category-level over-declaration covered. Per-item allowlist over-declaration not covered.
+    status_note: 'Declared-but-unused permissions are a verification-layer signal: skil verify enforces contract-scoped permission
+      usage against an explicit reviewed contract, and per-item allowlist over-declaration cannot be inferred statically without
+      reproducing false positives on legitimately unused-but-declared entries. The reference scanner''s static reverse-mapping
+      heuristic is deliberately not reproduced.'
+  - fixture: permission-pre-staging
+    description: Add new/additional/extra permissions language in manifest
+    skil_rules:
+    - SKIL-MANIFEST-PERMISSION-STAGING
+    external_rule: RP2
+    external_rules:
+    - RP2
+    suite: static
+    status: FULL
+    notes: Static regex over manifest text.
+    external_variant: static-manifest
+- id: ASP-04.03
+  name: Overdeclared Capability Minimization
+  domain_id: ASP-04
+  domain: Identity, Authorization & Consent
+  invariant: Deklarierte Capabilities ohne nachvollziehbare Nutzung oder Zweckbezug müssen entfernt oder separat gerechtfertigt
+    werden.
+  detection: Reverse capability diff, usage observations und reviewer-approved exceptions.
+  minimum_evidence: declared capability minus justified/observed capability.
+  owasp_agentic:
+  - ASI02
+  - ASI03
+  - ASI07
+  owasp_llm:
+  - LLM02
+  - LLM06
+  mitre_atlas:
+  - Valid Accounts
+  - AI Agent Tool Credential Harvesting
+  - Modify AI Agent Configuration
+  skil_controls:
+  - SKIL-CAP-001
+  skil_status: PARTIAL
+  fixtures: []
+- id: ASP-04.04
+  name: Approval & Confirmation Integrity
+  domain_id: ASP-04
+  domain: Identity, Authorization & Consent
+  invariant: High-impact Aktionen dürfen erforderliche Approval-Gates nicht umgehen, auto-approven oder durch generische Vorabzustimmung
+    legitimieren.
+  detection: Intent patterns, action classification und runtime pre-action policy.
+  minimum_evidence: high-impact action, required approval, actual approval state.
+  owasp_agentic:
+  - ASI02
+  - ASI03
+  - ASI07
+  owasp_llm:
+  - LLM02
+  - LLM06
+  mitre_atlas:
+  - Valid Accounts
+  - AI Agent Tool Credential Harvesting
+  - Modify AI Agent Configuration
+  skil_controls:
+  - SKIL-AGENCY-APPROVAL
+  skil_status: IMPLEMENTED
+  fixtures:
+  - fixture: autonomous-decision
+    description: Without asking confirmation/auto-approve/proceed without permission
+    skil_rules: &id037
+    - SKIL-AGENCY-APPROVAL
+    external_rule: EA2
+    external_rules: &id038
+    - EA2
+    suite: static
+    status: FULL
+    notes: Requires specific high-impact verb paired with without approval.
+- id: ASP-04.05
+  name: Credential Scope Minimization
+  domain_id: ASP-04
+  domain: Identity, Authorization & Consent
+  invariant: Tokens und Service-Identitäten müssen kleinste notwendige Scopes, Rollen und Ressourcenbereiche tragen.
+  detection: OAuth/IAM scope analysis, policy linting und requested-vs-required comparison.
+  minimum_evidence: token scopes/roles, required operation set und excess privileges.
+  owasp_agentic:
+  - ASI02
+  - ASI03
+  - ASI07
+  owasp_llm:
+  - LLM02
+  - LLM06
+  mitre_atlas:
+  - Valid Accounts
+  - AI Agent Tool Credential Harvesting
+  - Modify AI Agent Configuration
+  skil_controls: []
+  skil_status: NEW
+  fixtures: []
+- id: ASP-04.06
+  name: Token Audience & Resource Binding
+  domain_id: ASP-04
+  domain: Identity, Authorization & Consent
+  invariant: Credentials dürfen nur an der Resource verwendet werden, für die sie ausgestellt und vorgesehen wurden.
+  detection: JWT/audience/resource validation und downstream call correlation.
+  minimum_evidence: issuer, audience/resource, recipient service und mismatch.
+  owasp_agentic:
+  - ASI02
+  - ASI03
+  - ASI07
+  owasp_llm:
+  - LLM02
+  - LLM06
+  mitre_atlas:
+  - Valid Accounts
+  - AI Agent Tool Credential Harvesting
+  - Modify AI Agent Configuration
+  skil_controls: []
+  skil_status: NEW
+  fixtures: []
+- id: ASP-04.07
+  name: Credential Non-Transferability
+  domain_id: ASP-04
+  domain: Identity, Authorization & Consent
+  invariant: User- oder upstream-issued Tokens dürfen nicht ungeprüft an andere Dienste oder MCP-Backends durchgereicht werden.
+  detection: Token-passthrough detection, credential taint und proxy boundary analysis.
+  minimum_evidence: credential source, intermediary, downstream sink und fehlende exchange/binding.
+  owasp_agentic:
+  - ASI02
+  - ASI03
+  - ASI07
+  owasp_llm:
+  - LLM02
+  - LLM06
+  mitre_atlas:
+  - Valid Accounts
+  - AI Agent Tool Credential Harvesting
+  - Modify AI Agent Configuration
+  skil_controls: []
+  skil_status: NEW
+  fixtures: []
+- id: ASP-04.08
+  name: Revocation & Stop Enforcement
+  domain_id: ASP-04
+  domain: Identity, Authorization & Consent
+  invariant: Entzogene Capabilities, Credentials oder Nutzerfreigaben müssen wirksam unbrauchbar sein; Stop-/Shutdown-Signale
+    müssen zuverlässig greifen.
+  detection: Runtime policy, revocation tests, emergency-stop conformance und post-revoke trace validation.
+  minimum_evidence: revocation event followed by denied/allowed subsequent action.
+  owasp_agentic:
+  - ASI02
+  - ASI03
+  - ASI07
+  owasp_llm:
+  - LLM02
+  - LLM06
+  mitre_atlas:
+  - Valid Accounts
+  - AI Agent Tool Credential Harvesting
+  - Modify AI Agent Configuration
+  skil_controls: []
+  skil_status: NEW
+  fixtures: []
+- id: ASP-05.01
+  name: Restricted Tool Surface
+  domain_id: ASP-05
+  domain: Tool, Capability & Agency Safety
+  invariant: Ein Skill darf nicht pauschal alle verfügbaren Tools oder Wildcards erhalten, wenn eine kleinere Tool-Menge genügt.
+  detection: Manifest/MCP wildcard checks, natural-language agency patterns und runtime allowlists.
+  minimum_evidence: declared tool set, required tool set, wildcard/broad grant.
+  owasp_agentic:
+  - ASI02
+  - ASI03
+  - ASI05
+  - ASI10
+  owasp_llm:
+  - LLM05
+  - LLM06
+  mitre_atlas:
+  - AI Agent Tool Invocation
+  - Command and Scripting Interpreter
+  - Escape to Host
+  skil_controls:
+  - SKIL-AGENCY-TOOLS
+  - SKIL-MCP-001
+  skil_status: IMPLEMENTED
+  fixtures:
+  - fixture: excessive-permissions
+    description: Wildcard or "grant me full access" permission requests
+    skil_rules: *id031
+    external_rule: PE1
+    external_rules: *id032
+    suite: static
+    status: FULL
+    notes: Broader full/complete access NL phrasing outside MCP-structured blocks not matched.
+  - fixture: unrestricted-tool-access
+    description: Wildcard tool permissions, call any/all tools
+    skil_rules: *id033
+    external_rule: EA1
+    external_rules: *id034
+    suite: static
+    status: FULL
+    notes: Documented in external-control-crosswalk.md.
+  - fixture: mcp-wildcard-permission
+    description: MCP/tool permission grant uses unconstrained wildcard
+    skil_rules: *id035
+    external_rule: LP2
+    external_rules: *id036
+    suite: static
+    status: FULL
+    notes: Structured wildcard detection in mcp.yaml/mcp.json.
+- id: ASP-05.02
+  name: Tool Parameter Safety
+  domain_id: ASP-05
+  domain: Tool, Capability & Agency Safety
+  invariant: Tool-Parameter müssen typisiert, validiert und gegen Injection, Force-Flags, Path Traversal und semantischen
+    Missbrauch geschützt sein.
+  detection: Schema checks, AST/taint, argument semantics und MCP parameter analysis.
+  minimum_evidence: tool, parameter, source, validator und dangerous semantic.
+  owasp_agentic:
+  - ASI02
+  - ASI03
+  - ASI05
+  - ASI10
+  owasp_llm:
+  - LLM05
+  - LLM06
+  mitre_atlas:
+  - AI Agent Tool Invocation
+  - Command and Scripting Interpreter
+  - Escape to Host
+  skil_controls:
+  - SKIL-PY-002
+  - SKIL-TAINT-EXECUTION
+  - SKIL-MCP-004
+  skil_status: IMPLEMENTED
+  fixtures:
+  - fixture: model-output-taint-execution
+    description: Model output piped into exec/eval/subprocess or code execution
+    skil_rules: &id041
+    - SKIL-OUTPUT-EXECUTION
+    - SKIL-TAINT-EXECUTION
+    external_rule: OH1
+    external_rules: &id042
+    - OH1
+    suite: static
+    status: FULL
+    notes: Taint sources extended with .responses.create pattern.
+  - fixture: dynamic-python-execution
+    description: Python dynamically executes untrusted input (exec/eval/subprocess)
+    skil_rules: &id039
+    - SKIL-PY-001
+    - SKIL-PY-002
+    - SKIL-PY-003
+    - SKIL-PY-004
+    external_rule: AST1-9
+    external_rules: &id040
+    - AST1
+    - AST2
+    - AST3
+    - AST4
+    - AST5
+    - AST6
+    - AST7
+    - AST8
+    - AST9
+    suite: static
+    status: FULL
+    notes: 9 dangerous-call shapes via Python AST walk.
+    external_variant: aggregate-9-shapes
+  - fixture: model-output-taint-execution
+    description: Any source flowing directly into any execution/network/file-write sink
+    skil_rules: *id017
+    external_rule: TT1
+    external_rules: *id018
+    suite: static
+    status: FULL
+    notes: All 4 sink categories (network, execution, filesystem-write, log) fire unconditionally.
+  - fixture: taint-variable-mediated
+    description: Taint propagated through re-assignment and container literals
+    skil_rules: *id019
+    external_rule: TT2
+    external_rules: *id020
+    suite: static
+    status: FULL
+    notes: Multi-step assignment aliases are propagated.
+  - fixture: taint-external-execution
+    description: External/user input flowing into execution sink
+    skil_rules: &id043
+    - SKIL-TAINT-EXECUTION
+    external_rule: TT5
+    external_rules: &id044
+    - TT5
+    suite: static
+    status: FULL
+    notes: requests.get/input() source to exec/eval/subprocess.
+  - fixture: mcp-parameter-injection
+    description: Instruction-override/system-prompt tokens/exfiltration in parameter description
+    skil_rules: &id069
+    - SKIL-MCP-004
+    - SKIL-MCP-007
+    external_rule: TP3
+    external_rules: &id070
+    - TP3
+    suite: static
+    status: FULL
+    notes: 'Five sub-checks: instruction-override, exfiltration, privilege-escalation, system tokens, length.'
+- id: ASP-05.03
+  name: Tool Chaining Safety
+  domain_id: ASP-05
+  domain: Tool, Capability & Agency Safety
+  invariant: Eine Sequenz einzeln zulässiger Tools darf keine kombinierte Wirkung erzeugen, die Policy- oder Trust-Grenzen
+    umgeht.
+  detection: Shell AST, workflow graph analysis, composite policy und multi-step taint.
+  minimum_evidence: ordered tool chain, intermediate artifacts und final privileged sink.
+  owasp_agentic:
+  - ASI02
+  - ASI03
+  - ASI05
+  - ASI10
+  owasp_llm:
+  - LLM05
+  - LLM06
+  mitre_atlas:
+  - AI Agent Tool Invocation
+  - Command and Scripting Interpreter
+  - Escape to Host
+  skil_controls:
+  - SKIL-SH-001
+  skil_status: PARTIAL
+  fixtures:
+  - fixture: external-script-fetch
+    description: curl | sh, wget | python, eval(fetch(...)) with trusted-domain allowlist
+    skil_rules: &id045
+    - SKIL-SH-001
+    external_rule: SC2
+    external_rules: &id046
+    - SC2
+    suite: static
+    status: FULL
+    notes: Documented FULL in crosswalk.
+- id: ASP-05.04
+  name: High-Impact Action Gating
+  domain_id: ASP-05
+  domain: Tool, Capability & Agency Safety
+  invariant: Delete, deploy, publish, send, purchase, privilege change und vergleichbare Aktionen benötigen kontextabhängige
+    Bestätigung oder deterministische Policy.
+  detection: Action taxonomy, runtime approval gate und irreversible-effect classifier.
+  minimum_evidence: impact class, action parameters und gate decision.
+  owasp_agentic:
+  - ASI02
+  - ASI03
+  - ASI05
+  - ASI10
+  owasp_llm:
+  - LLM05
+  - LLM06
+  mitre_atlas:
+  - AI Agent Tool Invocation
+  - Command and Scripting Interpreter
+  - Escape to Host
+  skil_controls:
+  - SKIL-AGENCY-APPROVAL
+  skil_status: IMPLEMENTED
+  fixtures:
+  - fixture: autonomous-decision
+    description: Without asking confirmation/auto-approve/proceed without permission
+    skil_rules: *id037
+    external_rule: EA2
+    external_rules: *id038
+    suite: static
+    status: FULL
+    notes: Requires specific high-impact verb paired with without approval.
+- id: ASP-05.05
+  name: Safe Defaults
+  domain_id: ASP-05
+  domain: Tool, Capability & Agency Safety
+  invariant: Security-relevante Defaults müssen fail-closed sein und TLS, AuthN/AuthZ, Validierung und Schutzmechanismen standardmäßig
+    aktiv lassen.
+  detection: Config/pattern analysis, insecure flag detection und policy templates.
+  minimum_evidence: default value/flag, affected control und secure alternative.
+  owasp_agentic:
+  - ASI02
+  - ASI03
+  - ASI05
+  - ASI10
+  owasp_llm:
+  - LLM05
+  - LLM06
+  mitre_atlas:
+  - AI Agent Tool Invocation
+  - Command and Scripting Interpreter
+  - Escape to Host
+  skil_controls:
+  - SKIL-TRANSPORT-INSECURE
+  skil_status: IMPLEMENTED
+  fixtures: []
+- id: ASP-05.06
+  name: Capability Scope Confinement
+  domain_id: ASP-05
+  domain: Tool, Capability & Agency Safety
+  invariant: Eine Capability darf nur auf explizit erlaubte Ziele, Pfade, Hosts, Befehle, Tools und Datenklassen wirken.
+  detection: Contract scopes, allowlist matching und runtime policy evaluation.
+  minimum_evidence: capability, target, allowed domain und actual target.
+  owasp_agentic:
+  - ASI02
+  - ASI03
+  - ASI05
+  - ASI10
+  owasp_llm:
+  - LLM05
+  - LLM06
+  mitre_atlas:
+  - AI Agent Tool Invocation
+  - Command and Scripting Interpreter
+  - Escape to Host
+  skil_controls:
+  - SKIL-CAP-001
+  skil_status: PARTIAL
+  fixtures: []
+- id: ASP-05.07
+  name: Side-Effect Disclosure
+  domain_id: ASP-05
+  domain: Tool, Capability & Agency Safety
+  invariant: Sicherheitsrelevante externe Seiteneffekte müssen in Beschreibung/Contract sichtbar und vor Ausführung nachvollziehbar
+    sein.
+  detection: Behavior extraction versus metadata/contract diff; explicit silent/covert intent detection.
+  minimum_evidence: observed side effect, disclosure location und mismatch.
+  owasp_agentic:
+  - ASI02
+  - ASI03
+  - ASI05
+  - ASI10
+  owasp_llm:
+  - LLM05
+  - LLM06
+  mitre_atlas:
+  - AI Agent Tool Invocation
+  - Command and Scripting Interpreter
+  - Escape to Host
+  skil_controls:
   - SKIL-INTENT-UNDISCLOSED-OPERATION
-  status: FULL
-  notes: SKIL-INTENT-UNDISCLOSED-OPERATION fires on silent/secret framing of safety-critical operations.
-  external_rules:
-  - SQP-2
-  suite: semantic
-  external_rule: SQP-2
-  sp: SP11
-  owasp: [ASI09]
-  atlas: []
-
-- id: nl-policy-violations
-  description: LLM flags org-policy violations (e.g. forced language)
-  fixture: nl-policy-violations
-  skil_rules:
-  - SKIL-SEM-POLICY
-  status: FULL
-  notes: Provider-backed semantic control for organization-policy violations (e.g. forced language).
-  external_rules:
-  - SQP-3
-  suite: semantic
-  external_rule: SQP-3
-  sp: SP11
-  owasp: [ASI09]
-  atlas: []
-
-- id: semantic-prompt-injection
-  description: LLM detects polite/role-play/hypothetical reframings of instruction override
-  fixture: semantic-prompt-injection
-  skil_rules:
-  - SKIL-SEM-SECURITY
-  status: FULL
-  notes: SKIL-SEM-SECURITY covers SSD-1 reframing; granularity coarser than reference. Provider-backed, verified in semantic suite.
-  external_rules:
-  - SSD-1
-  suite: semantic
-  external_rule: SSD-1
-  sp: SP01
-  owasp: [ASI01]
-  atlas: [LLM Prompt Injection]
-
-- id: paraphrased-attack
-  description: LLM detects creative synonyms/encoded intent for known attack patterns
-  fixture: paraphrased-attack
-  skil_rules:
-  - SKIL-SEM-SECURITY
-  status: FULL
-  notes: SKIL-SEM-SECURITY covers paraphrased/encoded intent. Provider-backed, verified in semantic suite.
-  external_rules:
-  - SSD-2
-  suite: semantic
-  external_rule: SSD-2
-  sp: SP01
-  owasp: [ASI01]
-  atlas: [LLM Prompt Injection]
-
-- id: nl-exfiltration
-  description: LLM detects remember everything and include in response style leaks
-  fixture: nl-exfiltration
-  skil_rules:
-  - SKIL-SEM-SECURITY
-  status: FULL
-  notes: SKIL-SEM-SECURITY covers remember-and-include leaks. Provider-backed, verified in semantic suite.
-  external_rules:
-  - SSD-3
-  suite: semantic
-  external_rule: SSD-3
-  sp: SP03
-  owasp: [ASI01]
-  atlas: [Exfiltration via AI Agent Tool Invocation]
-
-- id: narrative-deception
-  description: LLM detects multi-step trust-building sequences toward harm
-  fixture: narrative-deception
-  skil_rules:
-  - SKIL-SEM-COMPOSITE
-  status: FULL
-  notes: SKIL-SEM-COMPOSITE covers multi-step trust-building. Provider-backed, verified in semantic suite.
-  external_rules:
-  - SSD-4
-  suite: semantic
-  external_rule: SSD-4
-  sp: SP11
-  owasp: [ASI09]
-  atlas: []
-
-- id: yara-malware-signatures
-  description: Built-in YARA rules for malware, webshell, cryptominer, hack_tool
-  fixture: yara-malware-signatures
-  skil_rules:
-  - SKIL-YARA-001
-  - SKIL-YARA-002
-  - SKIL-YARA-003
-  - SKIL-YARA-004
-  status: PROVIDER_BACKED
-  notes: Documented FULL in crosswalk.
-  external_rule: YR1-4
-  external_variant: aggregate-4-rules
-  external_rules:
-  - YR1
-  - YR2
-  - YR3
-  - YR4
-  suite: provider
-  scan_args: --yara-builtin
-  status_note: Requires the system yara runtime with the embedded default rule set; excluded from the offline CI static gate, verified in the provider suite.
-  sp: SP06
-  owasp: [ASI05]
-  atlas: []
+  skil_status: PARTIAL
+  fixtures:
+  - fixture: exfiltration-commands
+    description: Instructions to send/transmit conversation/data to an external sink
+    skil_rules: *id011
+    external_rule: P3
+    external_rules: *id012
+    suite: static
+    status: FULL
+    notes: SKIL-INTENT-EXTERNAL-TRANSFER covers generic conversation/data transmission without a secrecy qualifier.
+  - fixture: undisclosed-operation
+    description: Safety-critical operations with no user-facing disclosure
+    skil_rules: &id075
+    - SKIL-INTENT-UNDISCLOSED-OPERATION
+    external_rule: SQP-2
+    external_rules: &id076
+    - SQP-2
+    suite: semantic
+    status: FULL
+    notes: SKIL-INTENT-UNDISCLOSED-OPERATION fires on silent/secret framing of safety-critical operations.
+- id: ASP-05.08
+  name: Autonomy Bound
+  domain_id: ASP-05
+  domain: Tool, Capability & Agency Safety
+  invariant: Retry, Rekursion, Delegation, selbständige Folgeaktionen und Entscheidungsfreiheit müssen explizite Grenzen besitzen.
+  detection: Resource/agency rule analysis, workflow graph bounds und runtime budgets.
+  minimum_evidence: autonomous loop/action, bound und termination condition.
+  owasp_agentic:
+  - ASI02
+  - ASI03
+  - ASI05
+  - ASI10
+  owasp_llm:
+  - LLM05
+  - LLM06
+  mitre_atlas:
+  - AI Agent Tool Invocation
+  - Command and Scripting Interpreter
+  - Escape to Host
+  skil_controls:
+  - SKIL-AGENCY-BOUNDS
+  skil_status: PARTIAL
+  fixtures:
+  - fixture: unbounded-resource-code
+    description: Unlimited resource access in code and NL phrasing
+    skil_rules: &id073
+    - SKIL-AGENCY-BOUNDS
+    - SKIL-RESOURCE-UNLIMITED
+    - SKIL-RESOURCE-TIMEOUT
+    external_rule: EA4
+    external_rules: &id074
+    - EA4
+    suite: static
+    status: FULL
+    notes: Covers code-level float('inf'), math.inf alongside NL unlimited phrasing.
+- id: ASP-06.01
+  name: Dynamic Execution Control
+  domain_id: ASP-06
+  domain: Code Execution & Information-Flow Safety
+  invariant: Dynamisch erzeugte oder untrusted Strings dürfen nicht ungeprüft exec/eval/compile/Reflection oder äquivalente
+    Interpreter-Sinks erreichen.
+  detection: Language AST, call resolution, constant propagation und taint.
+  minimum_evidence: source expression, propagation path und execution sink.
+  owasp_agentic:
+  - ASI02
+  - ASI05
+  owasp_llm:
+  - LLM03
+  - LLM05
+  - LLM06
+  mitre_atlas:
+  - Command and Scripting Interpreter
+  - Escape to Host
+  - LLM Prompt Obfuscation
+  skil_controls:
+  - SKIL-PY-001
+  - SKIL-PY-004
+  - SKIL-PY-REFLECT-EXEC
+  skil_status: IMPLEMENTED
+  fixtures:
+  - fixture: dynamic-python-execution
+    description: Python dynamically executes untrusted input (exec/eval/subprocess)
+    skil_rules: *id039
+    external_rule: AST1-9
+    external_rules: *id040
+    suite: static
+    status: FULL
+    notes: 9 dangerous-call shapes via Python AST walk.
+    external_variant: aggregate-9-shapes
+  - fixture: reflective-execution
+    description: Reflective getattr()-resolved call to dangerous execution sink
+    skil_rules:
+    - SKIL-PY-REFLECT-EXEC
+    external_rule: AST9
+    external_rules:
+    - AST9
+    suite: static
+    status: FULL
+    notes: Resolves reflective execution sinks.
+- id: ASP-06.02
+  name: Process Execution Control
+  domain_id: ASP-06
+  domain: Code Execution & Information-Flow Safety
+  invariant: Subprozesse müssen über sichere argv-Semantik, explizite Programme und validierte Parameter gestartet werden.
+  detection: Python/JS AST, subprocess API classification und taint.
+  minimum_evidence: process API, executable, argv source und shell mode.
+  owasp_agentic:
+  - ASI02
+  - ASI05
+  owasp_llm:
+  - LLM03
+  - LLM05
+  - LLM06
+  mitre_atlas:
+  - Command and Scripting Interpreter
+  - Escape to Host
+  - LLM Prompt Obfuscation
+  skil_controls:
+  - SKIL-PY-002
+  - SKIL-JS-001
+  - SKIL-TAINT-EXECUTION
+  skil_status: IMPLEMENTED
+  fixtures:
+  - fixture: model-output-taint-execution
+    description: Model output piped into exec/eval/subprocess or code execution
+    skil_rules: *id041
+    external_rule: OH1
+    external_rules: *id042
+    suite: static
+    status: FULL
+    notes: Taint sources extended with .responses.create pattern.
+  - fixture: dynamic-python-execution
+    description: Python dynamically executes untrusted input (exec/eval/subprocess)
+    skil_rules: *id039
+    external_rule: AST1-9
+    external_rules: *id040
+    suite: static
+    status: FULL
+    notes: 9 dangerous-call shapes via Python AST walk.
+    external_variant: aggregate-9-shapes
+  - fixture: model-output-taint-execution
+    description: Any source flowing directly into any execution/network/file-write sink
+    skil_rules: *id017
+    external_rule: TT1
+    external_rules: *id018
+    suite: static
+    status: FULL
+    notes: All 4 sink categories (network, execution, filesystem-write, log) fire unconditionally.
+  - fixture: taint-variable-mediated
+    description: Taint propagated through re-assignment and container literals
+    skil_rules: *id019
+    external_rule: TT2
+    external_rules: *id020
+    suite: static
+    status: FULL
+    notes: Multi-step assignment aliases are propagated.
+  - fixture: taint-external-execution
+    description: External/user input flowing into execution sink
+    skil_rules: *id043
+    external_rule: TT5
+    external_rules: *id044
+    suite: static
+    status: FULL
+    notes: requests.get/input() source to exec/eval/subprocess.
+- id: ASP-06.03
+  name: Shell Execution Safety
+  domain_id: ASP-06
+  domain: Code Execution & Information-Flow Safety
+  invariant: Shell-Syntax aus externen Quellen, Remote-Script-Pipelines und gefährliche Operatoren dürfen keine unkontrollierte
+    Codeausführung ermöglichen.
+  detection: Tree-sitter Bash AST, pipeline graph und remote source classification.
+  minimum_evidence: shell node, command chain, remote source und sink.
+  owasp_agentic:
+  - ASI02
+  - ASI05
+  owasp_llm:
+  - LLM03
+  - LLM05
+  - LLM06
+  mitre_atlas:
+  - Command and Scripting Interpreter
+  - Escape to Host
+  - LLM Prompt Obfuscation
+  skil_controls:
+  - SKIL-SH-001
+  - SKIL-SH-002
+  skil_status: IMPLEMENTED
+  fixtures:
+  - fixture: sudo-root-escalation
+    description: Literal shell privilege-escalation commands
+    skil_rules: &id071
+    - SKIL-SH-002
+    external_rule: PE2
+    external_rules: &id072
+    - PE2
+    suite: static
+    status: FULL
+    notes: Covers sudo, doas, pkexec, su -, chmod u+s/+s.
+  - fixture: external-script-fetch
+    description: curl | sh, wget | python, eval(fetch(...)) with trusted-domain allowlist
+    skil_rules: *id045
+    external_rule: SC2
+    external_rules: *id046
+    suite: static
+    status: FULL
+    notes: Documented FULL in crosswalk.
+- id: ASP-06.04
+  name: Unsafe Deserialization Control
+  domain_id: ASP-06
+  domain: Code Execution & Information-Flow Safety
+  invariant: Untrusted serialisierte Daten dürfen keine Deserialisierer erreichen, die Objektkonstruktion oder Codeausführung
+    auslösen können.
+  detection: AST call classification plus source taint.
+  minimum_evidence: deserializer, input source und trust label.
+  owasp_agentic:
+  - ASI02
+  - ASI05
+  owasp_llm:
+  - LLM03
+  - LLM05
+  - LLM06
+  mitre_atlas:
+  - Command and Scripting Interpreter
+  - Escape to Host
+  - LLM Prompt Obfuscation
+  skil_controls:
+  - SKIL-PY-003
+  skil_status: IMPLEMENTED
+  fixtures:
+  - fixture: dynamic-python-execution
+    description: Python dynamically executes untrusted input (exec/eval/subprocess)
+    skil_rules: *id039
+    external_rule: AST1-9
+    external_rules: *id040
+    suite: static
+    status: FULL
+    notes: 9 dangerous-call shapes via Python AST walk.
+    external_variant: aggregate-9-shapes
+- id: ASP-06.05
+  name: Generated Output Execution Control
+  domain_id: ASP-06
+  domain: Code Execution & Information-Flow Safety
+  invariant: LLM-, Tool- oder Agent-Output darf nicht ohne Validierung als Code, Shell, SQL, Template oder aktive Sprache
+    interpretiert werden.
+  detection: Output-source classification, taint to interpreter sinks, improper output patterns.
+  minimum_evidence: generated output source, transformation und active sink.
+  owasp_agentic:
+  - ASI02
+  - ASI05
+  owasp_llm:
+  - LLM03
+  - LLM05
+  - LLM06
+  mitre_atlas:
+  - Command and Scripting Interpreter
+  - Escape to Host
+  - LLM Prompt Obfuscation
+  skil_controls:
+  - SKIL-OUTPUT-EXECUTION
+  - SKIL-TAINT-EXECUTION
+  skil_status: IMPLEMENTED
+  fixtures:
+  - fixture: model-output-taint-execution
+    description: Model output piped into exec/eval/subprocess or code execution
+    skil_rules: *id041
+    external_rule: OH1
+    external_rules: *id042
+    suite: static
+    status: FULL
+    notes: Taint sources extended with .responses.create pattern.
+  - fixture: model-output-taint-execution
+    description: Any source flowing directly into any execution/network/file-write sink
+    skil_rules: *id017
+    external_rule: TT1
+    external_rules: *id018
+    suite: static
+    status: FULL
+    notes: All 4 sink categories (network, execution, filesystem-write, log) fire unconditionally.
+  - fixture: taint-variable-mediated
+    description: Taint propagated through re-assignment and container literals
+    skil_rules: *id019
+    external_rule: TT2
+    external_rules: *id020
+    suite: static
+    status: FULL
+    notes: Multi-step assignment aliases are propagated.
+  - fixture: taint-external-execution
+    description: External/user input flowing into execution sink
+    skil_rules: *id043
+    external_rule: TT5
+    external_rules: *id044
+    suite: static
+    status: FULL
+    notes: requests.get/input() source to exec/eval/subprocess.
+- id: ASP-06.06
+  name: Cross-Context Output Validation
+  domain_id: ASP-06
+  domain: Code Execution & Information-Flow Safety
+  invariant: Output aus einem niedrigeren Trust-Kontext muss vor Übernahme in Systemprompt, trusted memory, Planner oder anderen
+    Agentenkontext validiert werden.
+  detection: Trust-label propagation, boundary rules und structured context sinks.
+  minimum_evidence: source context trust, target context trust und validation/declassification.
+  owasp_agentic:
+  - ASI02
+  - ASI05
+  owasp_llm:
+  - LLM03
+  - LLM05
+  - LLM06
+  mitre_atlas:
+  - Command and Scripting Interpreter
+  - Escape to Host
+  - LLM Prompt Obfuscation
+  skil_controls:
+  - SKIL-OUTPUT-BOUNDARY
+  skil_status: IMPLEMENTED
+  fixtures:
+  - fixture: cross-context-output
+    description: Output from one agent/session passed into another's system prompt
+    skil_rules: &id057
+    - SKIL-OUTPUT-BOUNDARY
+    external_rule: OH2
+    external_rules: &id058
+    - OH2
+    suite: static
+    status: FULL
+    notes: Requires insert/copy tool output into system prompt/trusted context phrase.
+- id: ASP-06.07
+  name: Information-Flow Integrity
+  domain_id: ASP-06
+  domain: Code Execution & Information-Flow Safety
+  invariant: Sensitive oder untrusted Daten dürfen nur über erlaubte Transformationen und Declassifier zu sicherheitsrelevanten
+    Sinks gelangen.
+  detection: Interprocedural taint/dataflow, CFG/SSA, function summaries und sink-specific sanitizers.
+  minimum_evidence: complete source→propagation→sanitizer→sink path.
+  owasp_agentic:
+  - ASI02
+  - ASI05
+  owasp_llm:
+  - LLM03
+  - LLM05
+  - LLM06
+  mitre_atlas:
+  - Command and Scripting Interpreter
+  - Escape to Host
+  - LLM Prompt Obfuscation
+  skil_controls:
+  - SKIL-TAINT-NETWORK
+  - SKIL-TAINT-EXECUTION
+  - SKIL-TAINT-FILESYSTEM-WRITE
+  - SKIL-TAINT-LOG
+  skil_status: IMPLEMENTED
+  fixtures:
+  - fixture: model-output-taint-execution
+    description: Model output piped into exec/eval/subprocess or code execution
+    skil_rules: *id041
+    external_rule: OH1
+    external_rules: *id042
+    suite: static
+    status: FULL
+    notes: Taint sources extended with .responses.create pattern.
+  - fixture: model-output-taint-execution
+    description: Any source flowing directly into any execution/network/file-write sink
+    skil_rules: *id017
+    external_rule: TT1
+    external_rules: *id018
+    suite: static
+    status: FULL
+    notes: All 4 sink categories (network, execution, filesystem-write, log) fire unconditionally.
+  - fixture: taint-variable-mediated
+    description: Taint propagated through re-assignment and container literals
+    skil_rules: *id019
+    external_rule: TT2
+    external_rules: *id020
+    suite: static
+    status: FULL
+    notes: Multi-step assignment aliases are propagated.
+  - fixture: taint-credential-network
+    description: os.environ/os.getenv source flowing to network sink
+    skil_rules: *id021
+    external_rule: TT3
+    external_rules: *id022
+    suite: static
+    status: FULL
+    notes: Credential to network sink flow.
+  - fixture: taint-file-network
+    description: File read source flowing to network sink
+    skil_rules: *id023
+    external_rule: TT4
+    external_rules: *id024
+    suite: static
+    status: FULL
+    notes: File read to network flow; same rule ID as TT3.
+  - fixture: taint-external-execution
+    description: External/user input flowing into execution sink
+    skil_rules: *id043
+    external_rule: TT5
+    external_rules: *id044
+    suite: static
+    status: FULL
+    notes: requests.get/input() source to exec/eval/subprocess.
+- id: ASP-06.08
+  name: Obfuscated & Malicious Payload Safety
+  domain_id: ASP-06
+  domain: Code Execution & Information-Flow Safety
+  invariant: Obfuscation, encoded execution, Malware-Signaturen und selbstentpackende Payloads dürfen Prüfung und Runtime-Grenzen
+    nicht umgehen.
+  detection: Entropy/encoding detection, decoded-content scan, YARA, sandbox/detonation und OS-boundary monitoring.
+  minimum_evidence: encoded/packed artifact, decoded behavior oder runtime effect.
+  owasp_agentic:
+  - ASI02
+  - ASI05
+  owasp_llm:
+  - LLM03
+  - LLM05
+  - LLM06
+  mitre_atlas:
+  - Command and Scripting Interpreter
+  - Escape to Host
+  - LLM Prompt Obfuscation
+  skil_controls:
+  - SKIL-OBF-001
+  - SKIL-YARA-*
+  skil_status: PARTIAL
+  fixtures:
+  - fixture: obfuscated-code
+    description: exec(base64.b64decode(...)), marshal.loads, decode-then-execute chains
+    skil_rules: *id047
+    external_rule: SC3
+    external_rules: *id048
+    suite: static
+    status: FULL
+    notes: Documented FULL in crosswalk.
+  - fixture: yara-malware-signatures
+    description: Built-in YARA rules for malware, webshell, cryptominer, hack_tool
+    skil_rules:
+    - SKIL-YARA-001
+    - SKIL-YARA-002
+    - SKIL-YARA-003
+    - SKIL-YARA-004
+    external_rule: YR1-4
+    external_rules:
+    - YR1
+    - YR2
+    - YR3
+    - YR4
+    suite: provider
+    status: PROVIDER_BACKED
+    notes: Documented FULL in crosswalk.
+    external_variant: aggregate-4-rules
+    scan_args: --yara-builtin
+    status_note: Requires the system yara runtime with the embedded default rule set; excluded from the offline CI static
+      gate, verified in the provider suite.
+- id: ASP-07.01
+  name: Memory Poisoning Resistance
+  domain_id: ASP-07
+  domain: Memory, State & Persistence Integrity
+  invariant: Untrusted Instruktionen dürfen nicht als langfristig vertrauenswürdige Erinnerung oder Verhaltensregel persistiert
+    werden.
+  detection: Memory-write intent, trust labels, persistent-state policy und semantic content classification.
+  minimum_evidence: untrusted source, memory write und persistence scope.
+  owasp_agentic:
+  - ASI06
+  - ASI10
+  owasp_llm:
+  - LLM01
+  - LLM04
+  - LLM06
+  mitre_atlas:
+  - AI Agent Context Poisoning
+  - Modify AI Agent Configuration
+  - LLM Prompt Self-Replication
+  skil_controls:
+  - SKIL-MP-001
+  skil_status: IMPLEMENTED
+  fixtures:
+  - fixture: persistent-context-injection
+    description: Remember this for all future interactions/store in memory permanently
+    skil_rules: *id049
+    external_rule: MP1
+    external_rules: *id050
+    suite: static
+    status: FULL
+    notes: Matches persist-across-sessions property.
+  - fixture: memory-manipulation
+    description: Clear/wipe memory, overwrite instructions, inject false memories
+    skil_rules: *id051
+    external_rule: MP3
+    external_rules: *id052
+    suite: static
+    status: FULL
+    notes: Clear/reset/wipe memory and you are no longer X phrasings not covered.
+- id: ASP-07.02
+  name: Context Stuffing Resistance
+  domain_id: ASP-07
+  domain: Memory, State & Persistence Integrity
+  invariant: Ein Skill darf Kontextfenster nicht absichtlich mit Füll-, Wiederholungs- oder Verdrängungsinhalt dominieren.
+  detection: Repetition metrics, token budget analysis und displacement intent.
+  minimum_evidence: content volume/repetition, displacement signal und affected context.
+  owasp_agentic:
+  - ASI06
+  - ASI10
+  owasp_llm:
+  - LLM01
+  - LLM04
+  - LLM06
+  mitre_atlas:
+  - AI Agent Context Poisoning
+  - Modify AI Agent Configuration
+  - LLM Prompt Self-Replication
+  skil_controls:
+  - SKIL-MEMORY-SATURATION
+  skil_status: IMPLEMENTED
+  fixtures:
+  - fixture: context-window-stuffing
+    description: Fill/stuff/flood context window to displace original instructions
+    skil_rules:
+    - SKIL-MEMORY-SATURATION
+    external_rule: MP2
+    external_rules:
+    - MP2
+    suite: static
+    status: FULL
+    notes: Requires explicit stuff/flood/displace phrasing; no structural repeated-substring detector.
+- id: ASP-07.03
+  name: State Manipulation Resistance
+  domain_id: ASP-07
+  domain: Memory, State & Persistence Integrity
+  invariant: Ein Skill darf Agentenstatus, Konfiguration, gespeicherte Ziele oder Memory nicht außerhalb autorisierter State-APIs
+    und Scopes verändern.
+  detection: State sink detection, config diff, persistence boundary und authorization.
+  minimum_evidence: state object, mutation, actor und authorization.
+  owasp_agentic:
+  - ASI06
+  - ASI10
+  owasp_llm:
+  - LLM01
+  - LLM04
+  - LLM06
+  mitre_atlas:
+  - AI Agent Context Poisoning
+  - Modify AI Agent Configuration
+  - LLM Prompt Self-Replication
+  skil_controls:
+  - SKIL-MP-001
+  - SKIL-AGENT-SELF-MODIFY
+  skil_status: PARTIAL
+  fixtures:
+  - fixture: persistent-context-injection
+    description: Remember this for all future interactions/store in memory permanently
+    skil_rules: *id049
+    external_rule: MP1
+    external_rules: *id050
+    suite: static
+    status: FULL
+    notes: Matches persist-across-sessions property.
+  - fixture: memory-manipulation
+    description: Clear/wipe memory, overwrite instructions, inject false memories
+    skil_rules: *id051
+    external_rule: MP3
+    external_rules: *id052
+    suite: static
+    status: FULL
+    notes: Clear/reset/wipe memory and you are no longer X phrasings not covered.
+  - fixture: self-modification
+    description: Modify own code/config/instructions/disable safety checks
+    skil_rules: &id053
+    - SKIL-AGENT-SELF-MODIFY
+    external_rule: RA1
+    external_rules: &id054
+    - RA1
+    suite: static
+    status: FULL
+    notes: Matches modify/rewrite/patch your own code/instructions/policy.
+- id: ASP-07.04
+  name: Self-Modification Control
+  domain_id: ASP-07
+  domain: Memory, State & Persistence Integrity
+  invariant: Ein Skill darf eigene Instruktionen, Code, Policy oder Manifest nur über autorisierte, versionierte und erneut
+    geprüfte Update-Pfade verändern.
+  detection: Self-reference/write detection, artifact diff und update pipeline verification.
+  minimum_evidence: self-targeted write, changed artifact und revalidation state.
+  owasp_agentic:
+  - ASI06
+  - ASI10
+  owasp_llm:
+  - LLM01
+  - LLM04
+  - LLM06
+  mitre_atlas:
+  - AI Agent Context Poisoning
+  - Modify AI Agent Configuration
+  - LLM Prompt Self-Replication
+  skil_controls:
+  - SKIL-AGENT-SELF-MODIFY
+  skil_status: IMPLEMENTED
+  fixtures:
+  - fixture: memory-manipulation
+    description: Clear/wipe memory, overwrite instructions, inject false memories
+    skil_rules: *id051
+    external_rule: MP3
+    external_rules: *id052
+    suite: static
+    status: FULL
+    notes: Clear/reset/wipe memory and you are no longer X phrasings not covered.
+  - fixture: self-modification
+    description: Modify own code/config/instructions/disable safety checks
+    skil_rules: *id053
+    external_rule: RA1
+    external_rules: *id054
+    suite: static
+    status: FULL
+    notes: Matches modify/rewrite/patch your own code/instructions/policy.
+- id: ASP-07.05
+  name: Persistence Authorization
+  domain_id: ASP-07
+  domain: Memory, State & Persistence Integrity
+  invariant: Cron, startup services, shell profiles, autorun, background daemons und ähnliche Persistenz müssen explizit deklariert
+    und genehmigt sein.
+  detection: Shell/code/config patterns, startup mechanism inventory und contract diff.
+  minimum_evidence: persistence mechanism, target und approval.
+  owasp_agentic:
+  - ASI06
+  - ASI10
+  owasp_llm:
+  - LLM01
+  - LLM04
+  - LLM06
+  mitre_atlas:
+  - AI Agent Context Poisoning
+  - Modify AI Agent Configuration
+  - LLM Prompt Self-Replication
+  skil_controls:
+  - SKIL-PERSISTENCE-STARTUP
+  skil_status: IMPLEMENTED
+  fixtures:
+  - fixture: session-persistence
+    description: Crontab, bashrc/zshrc injection, systemd/launchd service, background processes
+    skil_rules: *id055
+    external_rule: RA2
+    external_rules: *id056
+    suite: static
+    status: FULL
+    notes: No equivalent for .bashrc/.zshrc append, nohup/disown, Windows registry.
+- id: ASP-07.06
+  name: State Ownership Isolation
+  domain_id: ASP-07
+  domain: Memory, State & Persistence Integrity
+  invariant: State handles, files, memory partitions und session-scoped Objekte müssen an die richtige Nutzer-/Agent-/Skill-Identität
+    gebunden bleiben.
+  detection: Ownership/access-control checks, state-handle binding und multi-tenant tests.
+  minimum_evidence: state identifier, owner identity, caller identity und decision.
+  owasp_agentic:
+  - ASI06
+  - ASI10
+  owasp_llm:
+  - LLM01
+  - LLM04
+  - LLM06
+  mitre_atlas:
+  - AI Agent Context Poisoning
+  - Modify AI Agent Configuration
+  - LLM Prompt Self-Replication
+  skil_controls: []
+  skil_status: NEW
+  fixtures: []
+- id: ASP-07.07
+  name: Memory Provenance & Trust Labels
+  domain_id: ASP-07
+  domain: Memory, State & Persistence Integrity
+  invariant: Persistierter Kontext muss Herkunft, Trust-Level und Revalidierungszustand behalten, sodass untrusted Erinnerung
+    später nicht als Systemwissen erscheint.
+  detection: Metadata labels, provenance chain und memory retrieval policy.
+  minimum_evidence: memory item, origin, trust label und consumer context.
+  owasp_agentic:
+  - ASI06
+  - ASI10
+  owasp_llm:
+  - LLM01
+  - LLM04
+  - LLM06
+  mitre_atlas:
+  - AI Agent Context Poisoning
+  - Modify AI Agent Configuration
+  - LLM Prompt Self-Replication
+  skil_controls: []
+  skil_status: NEW
+  fixtures: []
+- id: ASP-07.08
+  name: Memory Lifecycle & Expiry
+  domain_id: ASP-07
+  domain: Memory, State & Persistence Integrity
+  invariant: Temporäre Daten, Zustände und Delegationsinformationen müssen definierte TTL, Lösch- und Invalidierungsregeln
+    besitzen.
+  detection: Retention metadata, expiry tests, state inventory und deletion verification.
+  minimum_evidence: state item, creation, TTL und deletion/expiry evidence.
+  owasp_agentic:
+  - ASI06
+  - ASI10
+  owasp_llm:
+  - LLM01
+  - LLM04
+  - LLM06
+  mitre_atlas:
+  - AI Agent Context Poisoning
+  - Modify AI Agent Configuration
+  - LLM Prompt Self-Replication
+  skil_controls: []
+  skil_status: NEW
+  fixtures: []
+- id: ASP-08.01
+  name: Agent Identity Authentication
+  domain_id: ASP-08
+  domain: Inter-Agent & Delegation Security
+  invariant: Nachrichten und Delegationen müssen eindeutig einer authentisierten Agenten-/Service-Identität zuordenbar sein.
+  detection: Signed messages, mTLS/OIDC identity validation und registry binding.
+  minimum_evidence: sender identity, credential/signature und verifier result.
+  owasp_agentic:
+  - ASI03
+  - ASI07
+  - ASI08
+  - ASI10
+  owasp_llm:
+  - LLM02
+  - LLM05
+  - LLM06
+  mitre_atlas:
+  - AI Agent Tool Invocation
+  - AI Agent Tool Data Poisoning
+  - AI Agent Tool Poisoning
+  skil_controls: []
+  skil_status: NEW
+  fixtures: []
+- id: ASP-08.02
+  name: Inter-Agent Message Integrity
+  domain_id: ASP-08
+  domain: Inter-Agent & Delegation Security
+  invariant: Agent-zu-Agent-Nachrichten dürfen zwischen Erzeugung und Verarbeitung nicht unbemerkt verändert werden.
+  detection: Message signatures/MACs, transport integrity und replay protection.
+  minimum_evidence: message digest/signature, sender und receiver.
+  owasp_agentic:
+  - ASI03
+  - ASI07
+  - ASI08
+  - ASI10
+  owasp_llm:
+  - LLM02
+  - LLM05
+  - LLM06
+  mitre_atlas:
+  - AI Agent Tool Invocation
+  - AI Agent Tool Data Poisoning
+  - AI Agent Tool Poisoning
+  skil_controls: []
+  skil_status: NEW
+  fixtures: []
+- id: ASP-08.03
+  name: Delegation Monotonicity
+  domain_id: ASP-08
+  domain: Inter-Agent & Delegation Security
+  invariant: Ein delegierter Agent darf keine Autorität erhalten, die über die Schnittmenge aus Parent-Autorität und explizit
+    delegiertem Scope hinausgeht.
+  detection: Capability algebra, delegation token scopes und runtime authorization.
+  minimum_evidence: C_child ⊆ C_parent ∩ C_delegated.
+  owasp_agentic:
+  - ASI03
+  - ASI07
+  - ASI08
+  - ASI10
+  owasp_llm:
+  - LLM02
+  - LLM05
+  - LLM06
+  mitre_atlas:
+  - AI Agent Tool Invocation
+  - AI Agent Tool Data Poisoning
+  - AI Agent Tool Poisoning
+  skil_controls: []
+  skil_status: NEW
+  fixtures: []
+- id: ASP-08.04
+  name: Confused-Deputy Resistance
+  domain_id: ASP-08
+  domain: Inter-Agent & Delegation Security
+  invariant: Ein privilegierter Agent oder Proxy darf seine Autorität nicht für einen weniger privilegierten oder bösartigen
+    Initiator missbrauchen lassen.
+  detection: Initiator binding, per-client consent, audience/scope checks und request provenance.
+  minimum_evidence: initiator, deputy, privileged resource und missing binding.
+  owasp_agentic:
+  - ASI03
+  - ASI07
+  - ASI08
+  - ASI10
+  owasp_llm:
+  - LLM02
+  - LLM05
+  - LLM06
+  mitre_atlas:
+  - AI Agent Tool Invocation
+  - AI Agent Tool Data Poisoning
+  - AI Agent Tool Poisoning
+  skil_controls: []
+  skil_status: NEW
+  fixtures: []
+- id: ASP-08.05
+  name: Cross-Agent Trust Propagation Bound
+  domain_id: ASP-08
+  domain: Inter-Agent & Delegation Security
+  invariant: Unverifizierter Output darf durch Weitergabe über mehrere Agenten nicht automatisch an Trust gewinnen.
+  detection: Trust-label propagation across messages und planner contexts.
+  minimum_evidence: origin trust, hops, target trust und declassification.
+  owasp_agentic:
+  - ASI03
+  - ASI07
+  - ASI08
+  - ASI10
+  owasp_llm:
+  - LLM02
+  - LLM05
+  - LLM06
+  mitre_atlas:
+  - AI Agent Tool Invocation
+  - AI Agent Tool Data Poisoning
+  - AI Agent Tool Poisoning
+  skil_controls:
+  - SKIL-OUTPUT-BOUNDARY
+  skil_status: PARTIAL
+  fixtures:
+  - fixture: cross-context-output
+    description: Output from one agent/session passed into another's system prompt
+    skil_rules: *id057
+    external_rule: OH2
+    external_rules: *id058
+    suite: static
+    status: FULL
+    notes: Requires insert/copy tool output into system prompt/trusted context phrase.
+- id: ASP-08.06
+  name: Inter-Agent Output Validation
+  domain_id: ASP-08
+  domain: Inter-Agent & Delegation Security
+  invariant: Agentenoutputs müssen am Empfänger wie externe Eingaben behandelt und vor Tool-, Prompt- oder State-Sinks validiert
+    werden.
+  detection: Boundary validation, schema checks, taint und intent scanning.
+  minimum_evidence: agent output source, receiver sink und validator.
+  owasp_agentic:
+  - ASI03
+  - ASI07
+  - ASI08
+  - ASI10
+  owasp_llm:
+  - LLM02
+  - LLM05
+  - LLM06
+  mitre_atlas:
+  - AI Agent Tool Invocation
+  - AI Agent Tool Data Poisoning
+  - AI Agent Tool Poisoning
+  skil_controls:
+  - SKIL-OUTPUT-BOUNDARY
+  - SKIL-TAINT-*
+  skil_status: PARTIAL
+  fixtures:
+  - fixture: cross-context-output
+    description: Output from one agent/session passed into another's system prompt
+    skil_rules: *id057
+    external_rule: OH2
+    external_rules: *id058
+    suite: static
+    status: FULL
+    notes: Requires insert/copy tool output into system prompt/trusted context phrase.
+- id: ASP-08.07
+  name: Collusion & Self-Replication Containment
+  domain_id: ASP-08
+  domain: Inter-Agent & Delegation Security
+  invariant: Mehrere Agenten dürfen durch Koordination, gegenseitige Aktivierung oder Selbstreplikation keine Policies, Quoten
+    oder Takedown-Mechanismen umgehen.
+  detection: Graph/rate analysis, identity correlation, propagation detection und runtime quotas.
+  minimum_evidence: agent graph, repeated propagation und policy bypass effect.
+  owasp_agentic:
+  - ASI03
+  - ASI07
+  - ASI08
+  - ASI10
+  owasp_llm:
+  - LLM02
+  - LLM05
+  - LLM06
+  mitre_atlas:
+  - AI Agent Tool Invocation
+  - AI Agent Tool Data Poisoning
+  - AI Agent Tool Poisoning
+  skil_controls: []
+  skil_status: NEW
+  fixtures: []
+- id: ASP-08.08
+  name: Delegation Chain Traceability
+  domain_id: ASP-08
+  domain: Inter-Agent & Delegation Security
+  invariant: Jede delegierte Aktion muss über die gesamte Kette auf Nutzerauftrag, Parent-Agent, Skill, Tool und effektiven
+    Scope zurückführbar sein.
+  detection: Distributed trace IDs, signed delegation context und audit correlation.
+  minimum_evidence: end-to-end delegation chain with identities and scopes.
+  owasp_agentic:
+  - ASI03
+  - ASI07
+  - ASI08
+  - ASI10
+  owasp_llm:
+  - LLM02
+  - LLM05
+  - LLM06
+  mitre_atlas:
+  - AI Agent Tool Invocation
+  - AI Agent Tool Data Poisoning
+  - AI Agent Tool Poisoning
+  skil_controls: []
+  skil_status: NEW
+  fixtures: []
+- id: ASP-09.01
+  name: Publisher Authenticity
+  domain_id: ASP-09
+  domain: Supply Chain, Provenance & Artifact Integrity
+  invariant: Ein Skill muss einem erwarteten, überprüfbaren Publisher beziehungsweise Repository-Owner zugeordnet werden können.
+  detection: OIDC/code-signing identity, repository ownership und publisher policy.
+  minimum_evidence: publisher identity, issuer, repository und verification result.
+  owasp_agentic:
+  - ASI04
+  - ASI10
+  owasp_llm:
+  - LLM03
+  mitre_atlas:
+  - AI Supply Chain Rug Pull
+  - AI Supply Chain Reputation Inflation
+  skil_controls: []
+  skil_status: NEW
+  fixtures: []
+- id: ASP-09.02
+  name: Artifact Signature Verification
+  domain_id: ASP-09
+  domain: Supply Chain, Provenance & Artifact Integrity
+  invariant: Veröffentlichte und installierte Skill-Artefakte müssen kryptographisch gegen einen erwarteten Signer verifiziert
+    werden können.
+  detection: Detached signature/Sigstore-style verification over the complete artifact closure.
+  minimum_evidence: artifact digest, signature, certificate/identity und verification policy.
+  owasp_agentic:
+  - ASI04
+  - ASI10
+  owasp_llm:
+  - LLM03
+  mitre_atlas:
+  - AI Supply Chain Rug Pull
+  - AI Supply Chain Reputation Inflation
+  skil_controls: []
+  skil_status: NEW
+  fixtures: []
+- id: ASP-09.03
+  name: Payload Integrity
+  domain_id: ASP-09
+  domain: Supply Chain, Provenance & Artifact Integrity
+  invariant: SKILL.md, Scripts, References, Assets, Hooks und weitere ausführungsrelevante Dateien dürfen nach Signatur/Review
+    nicht verändert werden.
+  detection: Merkle/file digest manifest, signature verification und install-time rehash.
+  minimum_evidence: reviewed digest set versus installed digest set.
+  owasp_agentic:
+  - ASI04
+  - ASI10
+  owasp_llm:
+  - LLM03
+  mitre_atlas:
+  - AI Supply Chain Rug Pull
+  - AI Supply Chain Reputation Inflation
+  skil_controls: []
+  skil_status: NEW
+  fixtures: []
+- id: ASP-09.04
+  name: Provenance & Build Attestation
+  domain_id: ASP-09
+  domain: Supply Chain, Provenance & Artifact Integrity
+  invariant: Die Entstehung des Skills muss über Quelle, Builder, Builddefinition und Inputs nachvollziehbar sein.
+  detection: SLSA-style provenance, attestations und source-to-artifact verification.
+  minimum_evidence: source URI/digest, builder, build definition und subject digest.
+  owasp_agentic:
+  - ASI04
+  - ASI10
+  owasp_llm:
+  - LLM03
+  mitre_atlas:
+  - AI Supply Chain Rug Pull
+  - AI Supply Chain Reputation Inflation
+  skil_controls: []
+  skil_status: NEW
+  fixtures: []
+- id: ASP-09.05
+  name: Version Lineage & Rollback Protection
+  domain_id: ASP-09
+  domain: Supply Chain, Provenance & Artifact Integrity
+  invariant: Installationen und Updates dürfen nicht unbemerkt auf ältere verwundbare oder nicht freigegebene Versionen zurückfallen.
+  detection: Monotonic version policy, signed release metadata und rollback denylist.
+  minimum_evidence: current version, candidate version, lineage und approval.
+  owasp_agentic:
+  - ASI04
+  - ASI10
+  owasp_llm:
+  - LLM03
+  mitre_atlas:
+  - AI Supply Chain Rug Pull
+  - AI Supply Chain Reputation Inflation
+  skil_controls: []
+  skil_status: NEW
+  fixtures: []
+- id: ASP-09.06
+  name: Update Revalidation
+  domain_id: ASP-09
+  domain: Supply Chain, Provenance & Artifact Integrity
+  invariant: Jede neue Skill-Version muss wie ein neuer Admission-Event auf Metadaten, Permissions, Verhalten, Dependencies
+    und Provenance geprüft werden.
+  detection: Version diff, semantic behavior diff, capability diff und full rescanning.
+  minimum_evidence: old/new artifact, changed security surface und revalidation result.
+  owasp_agentic:
+  - ASI04
+  - ASI10
+  owasp_llm:
+  - LLM03
+  mitre_atlas:
+  - AI Supply Chain Rug Pull
+  - AI Supply Chain Reputation Inflation
+  skil_controls:
+  - SKIL-MCP-005
+  skil_status: PARTIAL
+  fixtures:
+  - fixture: mcp-permission-manifest-diff
+    description: Permission expansion between manifest versions
+    skil_rules: &id059
+    - SKIL-MCP-005
+    external_rule: RP1
+    external_rules: &id060
+    - RP1
+    suite: static
+    status: DIFFERENT_BY_DESIGN
+    notes: Lock-file diff vs caller-supplied prior manifest snapshot.
+    external_variant: version-diff
+  - fixture: trigger-modification-diff
+    description: Trigger phrase modification between versions
+    skil_rules:
+    - SKIL-TRIGGER-LOCK-DIFF
+    external_rule: RP2
+    external_rules:
+    - RP2
+    suite: static
+    status: DIFFERENT_BY_DESIGN
+    notes: Lock-file diff vs caller-supplied prior manifest snapshot.
+    external_variant: version-diff
+  - fixture: parameter-schema-modification
+    description: Parameter type/default/description modification between versions
+    skil_rules: &id061
+    - SKIL-MCP-005
+    external_rule: RP3
+    external_rules: &id062
+    - RP3
+    suite: static
+    status: DIFFERENT_BY_DESIGN
+    notes: Requires comparing two manifest snapshots; skil lock-diff (SKIL-MCP-005) covers tool metadata, caller supplies
+      prior snapshot. By design.
+    external_variant: version-diff
+- id: ASP-09.07
+  name: Tool & Dependency Substitution Integrity
+  domain_id: ASP-09
+  domain: Supply Chain, Provenance & Artifact Integrity
+  invariant: Updates dürfen referenzierte Tools, MCP-Server oder Dependencies nicht unbemerkt durch privilegiertere oder andere
+    Identitäten ersetzen.
+  detection: Lockfiles, identity pins, dependency graph diff und tool metadata diff.
+  minimum_evidence: old/new dependency/tool identities und trust attributes.
+  owasp_agentic:
+  - ASI04
+  - ASI10
+  owasp_llm:
+  - LLM03
+  mitre_atlas:
+  - AI Supply Chain Rug Pull
+  - AI Supply Chain Reputation Inflation
+  skil_controls:
+  - SKIL-MCP-003
+  - SKIL-MCP-005
+  skil_status: PARTIAL
+  fixtures:
+  - fixture: unpinned-mcp-server
+    description: npx/uvx/pip install/docker pull without version pin or digest
+    skil_rules: &id063
+    - SKIL-MCP-003
+    - SKIL-BOUNDARY-MUTABLE-IMAGE
+    external_rule: RP1
+    external_rules: &id064
+    - RP1
+    suite: static
+    status: FULL
+    notes: Documented FULL in crosswalk.
+  - fixture: mcp-permission-manifest-diff
+    description: Permission expansion between manifest versions
+    skil_rules: *id059
+    external_rule: RP1
+    external_rules: *id060
+    suite: static
+    status: DIFFERENT_BY_DESIGN
+    notes: Lock-file diff vs caller-supplied prior manifest snapshot.
+    external_variant: version-diff
+  - fixture: parameter-schema-modification
+    description: Parameter type/default/description modification between versions
+    skil_rules: *id061
+    external_rule: RP3
+    external_rules: *id062
+    suite: static
+    status: DIFFERENT_BY_DESIGN
+    notes: Requires comparing two manifest snapshots; skil lock-diff (SKIL-MCP-005) covers tool metadata, caller supplies
+      prior snapshot. By design.
+    external_variant: version-diff
+- id: ASP-09.08
+  name: Review-to-Execution Integrity
+  domain_id: ASP-09
+  domain: Supply Chain, Provenance & Artifact Integrity
+  invariant: Zur Laufzeit ausgeführte Artefakte müssen innerhalb der geprüften Artifact Closure liegen; TOCTOU-Mutationen
+    sind zu verhindern.
+  detection: Digest pinning, immutable mounts, runtime file measurement und sandbox attestation.
+  minimum_evidence: review digest, execution digest und mutation/closure evidence.
+  owasp_agentic:
+  - ASI04
+  - ASI10
+  owasp_llm:
+  - LLM03
+  mitre_atlas:
+  - AI Supply Chain Rug Pull
+  - AI Supply Chain Reputation Inflation
+  skil_controls:
+  - SKIL-BOUNDARY-MUTABLE-IMAGE
+  skil_status: PARTIAL
+  fixtures:
+  - fixture: untrusted-container-image
+    description: --disable-content-trust / DOCKER_CONTENT_TRUST=0 / --insecure-registry
+    skil_rules: &id079
+    - SKIL-CONTAINER-TRUST
+    - SKIL-BOUNDARY-MUTABLE-IMAGE
+    external_rule: SC7
+    external_rules: &id080
+    - SC7
+    suite: static
+    status: FULL
+    notes: Documented FULL in crosswalk.
+  - fixture: unpinned-mcp-server
+    description: npx/uvx/pip install/docker pull without version pin or digest
+    skil_rules: *id063
+    external_rule: RP1
+    external_rules: *id064
+    suite: static
+    status: FULL
+    notes: Documented FULL in crosswalk.
+- id: ASP-10.01
+  name: MCP Wildcard Permission Prevention
+  domain_id: ASP-10
+  domain: MCP & Integration Protocol Security
+  invariant: MCP-Tool- oder Permission-Listen dürfen keine unbeschränkten Wildcards enthalten, wenn eine konkrete Allowlist
+    möglich ist.
+  detection: Structured JSON/YAML schema traversal und set-membership checks.
+  minimum_evidence: permission field, wildcard value und available tools.
+  owasp_agentic:
+  - ASI02
+  - ASI03
+  - ASI04
+  - ASI07
+  owasp_llm:
+  - LLM03
+  - LLM05
+  - LLM06
+  mitre_atlas:
+  - AI Agent Tool Poisoning
+  - AI Agent Tool Data Poisoning
+  - AI Agent Tool Credential Harvesting
+  skil_controls:
+  - SKIL-MCP-001
+  skil_status: IMPLEMENTED
+  fixtures:
+  - fixture: excessive-permissions
+    description: Wildcard or "grant me full access" permission requests
+    skil_rules: *id031
+    external_rule: PE1
+    external_rules: *id032
+    suite: static
+    status: FULL
+    notes: Broader full/complete access NL phrasing outside MCP-structured blocks not matched.
+  - fixture: unrestricted-tool-access
+    description: Wildcard tool permissions, call any/all tools
+    skil_rules: *id033
+    external_rule: EA1
+    external_rules: *id034
+    suite: static
+    status: FULL
+    notes: Documented in external-control-crosswalk.md.
+  - fixture: mcp-wildcard-permission
+    description: MCP/tool permission grant uses unconstrained wildcard
+    skil_rules: *id035
+    external_rule: LP2
+    external_rules: *id036
+    suite: static
+    status: FULL
+    notes: Structured wildcard detection in mcp.yaml/mcp.json.
+- id: ASP-10.02
+  name: MCP Metadata Poisoning Resistance
+  domain_id: ASP-10
+  domain: MCP & Integration Protocol Security
+  invariant: Tool-Namen, Beschreibungen, Defaults und andere MCP-Metadaten dürfen keine versteckten oder manipulativen Instruktionen
+    tragen.
+  detection: Field-scoped intent analysis, unicode/hidden-content scan und schema parsing.
+  minimum_evidence: metadata field/path, malicious span und trust context.
+  owasp_agentic:
+  - ASI02
+  - ASI03
+  - ASI04
+  - ASI07
+  owasp_llm:
+  - LLM03
+  - LLM05
+  - LLM06
+  mitre_atlas:
+  - AI Agent Tool Poisoning
+  - AI Agent Tool Data Poisoning
+  - AI Agent Tool Credential Harvesting
+  skil_controls:
+  - SKIL-MCP-002
+  - SKIL-UNI-001
+  skil_status: PARTIAL
+  fixtures:
+  - fixture: unicode-zero-width
+    description: Zero-width chars and bidi override characters
+    skil_rules: *id065
+    external_rule: P2
+    external_rules: *id066
+    suite: static
+    status: FULL
+    notes: Zero-width spaces, bidi overrides with emoji-ZWJ carve-out.
+    external_variant: zero-width
+  - fixture: obfuscated-code
+    description: exec(base64.b64decode(...)), marshal.loads, decode-then-execute chains
+    skil_rules: *id047
+    external_rule: SC3
+    external_rules: *id048
+    suite: static
+    status: FULL
+    notes: Documented FULL in crosswalk.
+  - fixture: hidden-instructions-mcp
+    description: HTML/Markdown comments, zero-width, base64 in MCP metadata fields
+    skil_rules:
+    - SKIL-MCP-002
+    external_rule: TP1
+    external_rules:
+    - TP1
+    suite: static
+    status: FULL
+    notes: MCP metadata fields embedding injection instructions; covered by SKIL-MCP-002 poisonValue on description/default
+      fields.
+  - fixture: unicode-homoglyph
+    description: Homoglyph/RTL/invisible/mixed-script in tool name/triggers/parameter names
+    skil_rules: *id067
+    external_rule: TP2
+    external_rules: *id068
+    suite: static
+    status: FULL
+    notes: Confusable hostname tokens, bidi overrides, invisible chars in identifiers.
+- id: ASP-10.03
+  name: MCP Parameter Injection Resistance
+  domain_id: ASP-10
+  domain: MCP & Integration Protocol Security
+  invariant: Parameterbeschreibungen und Defaultwerte dürfen keine Prompt-, Shell-, URL- oder Credential-Collection-Payloads
+    enthalten.
+  detection: Field-scoped intent engine, length heuristics und URL/shell classification.
+  minimum_evidence: parameter field, payload class und matched security relation.
+  owasp_agentic:
+  - ASI02
+  - ASI03
+  - ASI04
+  - ASI07
+  owasp_llm:
+  - LLM03
+  - LLM05
+  - LLM06
+  mitre_atlas:
+  - AI Agent Tool Poisoning
+  - AI Agent Tool Data Poisoning
+  - AI Agent Tool Credential Harvesting
+  skil_controls:
+  - SKIL-MCP-004
+  - SKIL-MCP-007
+  skil_status: IMPLEMENTED
+  fixtures:
+  - fixture: mcp-parameter-injection
+    description: Instruction-override/system-prompt tokens/exfiltration in parameter description
+    skil_rules: *id069
+    external_rule: TP3
+    external_rules: *id070
+    suite: static
+    status: FULL
+    notes: 'Five sub-checks: instruction-override, exfiltration, privilege-escalation, system tokens, length.'
+- id: ASP-10.04
+  name: MCP Tool Identity Stability
+  domain_id: ASP-10
+  domain: MCP & Integration Protocol Security
+  invariant: Tool-/Server-Identität, Command, Args, Schema und sicherheitsrelevante Metadaten müssen an geprüfte Versionen
+    oder Locks gebunden bleiben.
+  detection: Identity pinning, lock-file diff, immutable version/digest checks.
+  minimum_evidence: reviewed identity versus current identity.
+  owasp_agentic:
+  - ASI02
+  - ASI03
+  - ASI04
+  - ASI07
+  owasp_llm:
+  - LLM03
+  - LLM05
+  - LLM06
+  mitre_atlas:
+  - AI Agent Tool Poisoning
+  - AI Agent Tool Data Poisoning
+  - AI Agent Tool Credential Harvesting
+  skil_controls:
+  - SKIL-MCP-003
+  - SKIL-MCP-005
+  skil_status: IMPLEMENTED
+  fixtures:
+  - fixture: unpinned-mcp-server
+    description: npx/uvx/pip install/docker pull without version pin or digest
+    skil_rules: *id063
+    external_rule: RP1
+    external_rules: *id064
+    suite: static
+    status: FULL
+    notes: Documented FULL in crosswalk.
+  - fixture: mcp-permission-manifest-diff
+    description: Permission expansion between manifest versions
+    skil_rules: *id059
+    external_rule: RP1
+    external_rules: *id060
+    suite: static
+    status: DIFFERENT_BY_DESIGN
+    notes: Lock-file diff vs caller-supplied prior manifest snapshot.
+    external_variant: version-diff
+  - fixture: parameter-schema-modification
+    description: Parameter type/default/description modification between versions
+    skil_rules: *id061
+    external_rule: RP3
+    external_rules: *id062
+    suite: static
+    status: DIFFERENT_BY_DESIGN
+    notes: Requires comparing two manifest snapshots; skil lock-diff (SKIL-MCP-005) covers tool metadata, caller supplies
+      prior snapshot. By design.
+    external_variant: version-diff
+- id: ASP-10.05
+  name: MCP Description–Behavior Consistency
+  domain_id: ASP-10
+  domain: MCP & Integration Protocol Security
+  invariant: MCP-Toolbeschreibung und beobachtetes Verhalten müssen semantisch und capability-seitig übereinstimmen.
+  detection: Code/tool behavior extraction plus semantic comparison.
+  minimum_evidence: description, observed operations und mismatch.
+  owasp_agentic:
+  - ASI02
+  - ASI03
+  - ASI04
+  - ASI07
+  owasp_llm:
+  - LLM03
+  - LLM05
+  - LLM06
+  mitre_atlas:
+  - AI Agent Tool Poisoning
+  - AI Agent Tool Data Poisoning
+  - AI Agent Tool Credential Harvesting
+  skil_controls:
+  - SKIL-MCP-006
+  - SKIL-INTENT-DESCRIPTION
+  skil_status: PARTIAL
+  fixtures:
+  - fixture: llm-description-behavior-mismatch
+    description: LLM compares manifest description/triggers/permissions vs code
+    skil_rules: *id001
+    external_rule: TP4
+    external_rules: *id002
+    suite: semantic
+    status: FULL
+    notes: Provider-backed; SKIL-MCP-006 + SKIL-INTENT-DESCRIPTION fire when a semantic provider is configured. Verified in
+      the semantic differential suite.
+  - fixture: description-behavior-mismatch
+    description: LLM compares manifest description vs code operations
+    skil_rules: *id003
+    external_rule: SDI-1
+    external_rules: *id004
+    suite: semantic
+    status: FULL
+    notes: Provider-backed; verified in semantic suite.
+- id: ASP-10.06
+  name: OAuth Authorization URL Safety
+  domain_id: ASP-10
+  domain: MCP & Integration Protocol Security
+  invariant: MCP-Clients dürfen nur zulässige Authorization-URL-Schemes und validierte Redirect-Ziele öffnen; Shell-/JS-Schemes
+    und interne Targets sind abzulehnen.
+  detection: URL parsing, scheme allowlist, redirect-hop validation und SSRF controls.
+  minimum_evidence: authorization URL, scheme, resolved target und validation result.
+  owasp_agentic:
+  - ASI02
+  - ASI03
+  - ASI04
+  - ASI07
+  owasp_llm:
+  - LLM03
+  - LLM05
+  - LLM06
+  mitre_atlas:
+  - AI Agent Tool Poisoning
+  - AI Agent Tool Data Poisoning
+  - AI Agent Tool Credential Harvesting
+  skil_controls: []
+  skil_status: NEW
+  fixtures: []
+- id: ASP-10.07
+  name: MCP State-Handle Ownership Binding
+  domain_id: ASP-10
+  domain: MCP & Integration Protocol Security
+  invariant: Serverseitige State Handles müssen unvorhersagbar und an die authentisierte Identität beziehungsweise den Mandanten
+    gebunden sein.
+  detection: State-handle entropy, ownership authorization und cross-user negative tests.
+  minimum_evidence: handle, owner, caller und access result.
+  owasp_agentic:
+  - ASI02
+  - ASI03
+  - ASI04
+  - ASI07
+  owasp_llm:
+  - LLM03
+  - LLM05
+  - LLM06
+  mitre_atlas:
+  - AI Agent Tool Poisoning
+  - AI Agent Tool Data Poisoning
+  - AI Agent Tool Credential Harvesting
+  skil_controls: []
+  skil_status: NEW
+  fixtures: []
+- id: ASP-10.08
+  name: Local MCP/stdio Isolation
+  domain_id: ASP-10
+  domain: MCP & Integration Protocol Security
+  invariant: Lokale MCP-Server und stdio-Proxies müssen Prozess-, Datei-, Credential- und User-Boundaries wahren und dürfen
+    keine implizite Host-Autorität vererben.
+  detection: Process sandbox, executable allowlist, local server provenance und OS-boundary monitoring.
+  minimum_evidence: server binary, launch context, inherited privileges und accessible resources.
+  owasp_agentic:
+  - ASI02
+  - ASI03
+  - ASI04
+  - ASI07
+  owasp_llm:
+  - LLM03
+  - LLM05
+  - LLM06
+  mitre_atlas:
+  - AI Agent Tool Poisoning
+  - AI Agent Tool Data Poisoning
+  - AI Agent Tool Credential Harvesting
+  skil_controls: []
+  skil_status: NEW
+  fixtures: []
+- id: ASP-11.01
+  name: Outbound Network Boundary
+  domain_id: ASP-11
+  domain: Network, Filesystem & Runtime Boundary Security
+  invariant: Ausgehende Netzwerkverbindungen müssen auf deklarierte Protokolle, Hosts, Ports und Zwecke beschränkt sein.
+  detection: Network call inventory, domain/IP allowlists, taint und egress policy.
+  minimum_evidence: call, resolved target, purpose und policy result.
+  owasp_agentic:
+  - ASI02
+  - ASI03
+  - ASI05
+  owasp_llm:
+  - LLM02
+  - LLM05
+  - LLM06
+  mitre_atlas:
+  - Escape to Host
+  - Command and Scripting Interpreter
+  - AI Agent Tool Credential Harvesting
+  skil_controls:
+  - SKIL-NET-001
+  - SKIL-TAINT-NETWORK
+  skil_status: PARTIAL
+  fixtures:
+  - fixture: external-transmission
+    description: HTTP POST/PUT calls to external endpoints, suspicious subdomains
+    skil_rules: *id013
+    external_rule: E1
+    external_rules: *id014
+    suite: static
+    status: FULL
+    notes: AST-anchored Python call-name resolution rather than regex.
+  - fixture: model-output-taint-execution
+    description: Any source flowing directly into any execution/network/file-write sink
+    skil_rules: *id017
+    external_rule: TT1
+    external_rules: *id018
+    suite: static
+    status: FULL
+    notes: All 4 sink categories (network, execution, filesystem-write, log) fire unconditionally.
+  - fixture: taint-variable-mediated
+    description: Taint propagated through re-assignment and container literals
+    skil_rules: *id019
+    external_rule: TT2
+    external_rules: *id020
+    suite: static
+    status: FULL
+    notes: Multi-step assignment aliases are propagated.
+  - fixture: taint-credential-network
+    description: os.environ/os.getenv source flowing to network sink
+    skil_rules: *id021
+    external_rule: TT3
+    external_rules: *id022
+    suite: static
+    status: FULL
+    notes: Credential to network sink flow.
+  - fixture: taint-file-network
+    description: File read source flowing to network sink
+    skil_rules: *id023
+    external_rule: TT4
+    external_rules: *id024
+    suite: static
+    status: FULL
+    notes: File read to network flow; same rule ID as TT3.
+- id: ASP-11.02
+  name: Cloud Metadata SSRF Protection
+  domain_id: ASP-11
+  domain: Network, Filesystem & Runtime Boundary Security
+  invariant: Link-local und cloud-spezifische Metadata-Endpunkte dürfen nicht über Skill-kontrollierte Requests erreichbar
+    sein.
+  detection: Literal endpoint detection, URL resolution, redirect validation und egress block.
+  minimum_evidence: request primitive, resolved metadata endpoint und source.
+  owasp_agentic:
+  - ASI02
+  - ASI03
+  - ASI05
+  owasp_llm:
+  - LLM02
+  - LLM05
+  - LLM06
+  mitre_atlas:
+  - Escape to Host
+  - Command and Scripting Interpreter
+  - AI Agent Tool Credential Harvesting
+  skil_controls:
+  - SKIL-BOUNDARY-METADATA
+  skil_status: IMPLEMENTED
+  fixtures:
+  - fixture: cloud-metadata-ssrf
+    description: Cloud metadata endpoint access (169.254.169.254, metadata.google.internal)
+    skil_rules:
+    - SKIL-BOUNDARY-METADATA
+    external_rule: SSRF1
+    external_rules:
+    - SSRF1
+    suite: static
+    status: FULL
+    notes: Requires IP/hostname co-occur with metadata/token keyword within 100 chars.
+- id: ASP-11.03
+  name: Internal & Loopback SSRF Protection
+  domain_id: ASP-11
+  domain: Network, Filesystem & Runtime Boundary Security
+  invariant: Requests an localhost, private Netze und interne Services müssen explizit autorisiert und gegen SSRF geschützt
+    sein.
+  detection: IP range classification, DNS resolution und redirect-hop validation.
+  minimum_evidence: request target, resolved IP/range und trust classification.
+  owasp_agentic:
+  - ASI02
+  - ASI03
+  - ASI05
+  owasp_llm:
+  - LLM02
+  - LLM05
+  - LLM06
+  mitre_atlas:
+  - Escape to Host
+  - Command and Scripting Interpreter
+  - AI Agent Tool Credential Harvesting
+  skil_controls:
+  - SKIL-BOUNDARY-SSRF-INTERNAL
+  skil_status: IMPLEMENTED
+  fixtures:
+  - fixture: internal-ssrf
+    description: Hardcoded request to internal/loopback/private network address
+    skil_rules:
+    - SKIL-BOUNDARY-SSRF-INTERNAL
+    external_rule: SSRF2
+    external_rules:
+    - SSRF2
+    suite: static
+    status: FULL
+    notes: Covers 127.0.0.0/8, localhost, 10.0.0.0/8, 192.168.0.0/16, 172.16.0.0/12.
+- id: ASP-11.04
+  name: Dynamic-Target SSRF Protection
+  domain_id: ASP-11
+  domain: Network, Filesystem & Runtime Boundary Security
+  invariant: Untrusted oder dynamisch zusammengesetzte URL-Ziele müssen vor Netzwerkzugriff streng validiert und nach DNS-Auflösung
+    erneut geprüft werden.
+  detection: Taint to URL sinks, parser-based validation und DNS pinning/TOCTOU controls.
+  minimum_evidence: source variable, URL construction, resolution und network sink.
+  owasp_agentic:
+  - ASI02
+  - ASI03
+  - ASI05
+  owasp_llm:
+  - LLM02
+  - LLM05
+  - LLM06
+  mitre_atlas:
+  - Escape to Host
+  - Command and Scripting Interpreter
+  - AI Agent Tool Credential Harvesting
+  skil_controls:
+  - SKIL-BOUNDARY-SSRF
+  skil_status: IMPLEMENTED
+  fixtures:
+  - fixture: dynamic-ssrf
+    description: F-string/template-literal URL built from interpolated variable
+    skil_rules:
+    - SKIL-BOUNDARY-SSRF
+    external_rule: SSRF3
+    external_rules:
+    - SSRF3
+    suite: static
+    status: FULL
+    notes: Requires specific untrusted-source keyword list.
+- id: ASP-11.05
+  name: Agent & MCP Configuration Isolation
+  domain_id: ASP-11
+  domain: Network, Filesystem & Runtime Boundary Security
+  invariant: Skills dürfen private Agenten-, Session-, History- und MCP-Konfiguration anderer Komponenten nicht lesen oder
+    enumerieren.
+  detection: Path classification, filesystem call analysis und boundary intent rules.
+  minimum_evidence: config/state path, operation und ownership.
+  owasp_agentic:
+  - ASI02
+  - ASI03
+  - ASI05
+  owasp_llm:
+  - LLM02
+  - LLM05
+  - LLM06
+  mitre_atlas:
+  - Escape to Host
+  - Command and Scripting Interpreter
+  - AI Agent Tool Credential Harvesting
+  skil_controls:
+  - SKIL-BOUNDARY-AGENT-STATE
+  - SKIL-BOUNDARY-MCP-CONFIG
+  skil_status: IMPLEMENTED
+  fixtures:
+  - fixture: code-level-fs-enumeration
+    description: Recursive walk/glob/find of home or credential directories
+    skil_rules:
+    - SKIL-INTENT-FS-DISCOVERY
+    - SKIL-FS-DISCOVERY-CODE
+    external_rule: E3
+    external_rules:
+    - E3
+    suite: static
+    status: FULL
+    notes: Covers glob/os.walk/Path/iterdir/Path.home on credential-bearing directories.
+  - fixture: agent-config-snooping
+    description: Reads another agent's private configuration directory
+    skil_rules:
+    - SKIL-BOUNDARY-AGENT-STATE
+    external_rule: AS1
+    external_rules:
+    - AS1
+    suite: static
+    status: FULL
+    notes: .gemini/.continue dirs not covered; does not anchor on config/settings/credentials file access.
+  - fixture: mcp-config-snooping
+    description: Reads/enumerates MCP server configuration
+    skil_rules:
+    - SKIL-BOUNDARY-MCP-CONFIG
+    external_rule: AS2
+    external_rules:
+    - AS2
+    suite: static
+    status: FULL
+    notes: Matches direct mcp.json/mcp_config.json access and MCP server/tool enumeration.
+- id: ASP-11.06
+  name: Peer Skill Isolation
+  domain_id: ASP-11
+  domain: Network, Filesystem & Runtime Boundary Security
+  invariant: Ein Skill darf andere installierte Skills, deren SKILL.md oder interne Ressourcen nicht ohne explizite Cross-Skill-Capability
+    enumerieren oder lesen.
+  detection: Peer-skill path detection, registry access analysis und contract verification.
+  minimum_evidence: peer skill path/identity, read/enumeration und authorization.
+  owasp_agentic:
+  - ASI02
+  - ASI03
+  - ASI05
+  owasp_llm:
+  - LLM02
+  - LLM05
+  - LLM06
+  mitre_atlas:
+  - Escape to Host
+  - Command and Scripting Interpreter
+  - AI Agent Tool Credential Harvesting
+  skil_controls:
+  - SKIL-BOUNDARY-PEER-SKILL
+  skil_status: IMPLEMENTED
+  fixtures:
+  - fixture: peer-skill-enumeration
+    description: Enumerates/reads sibling skills' directories/manifests
+    skil_rules:
+    - SKIL-BOUNDARY-PEER-SKILL
+    external_rule: AS3
+    external_rules:
+    - AS3
+    suite: static
+    status: FULL
+    notes: Covers os.listdir/glob/Path.iterdir on skill directories.
+- id: ASP-11.07
+  name: Container Control-Plane Isolation
+  domain_id: ASP-11
+  domain: Network, Filesystem & Runtime Boundary Security
+  invariant: Docker-/containerd-Sockets, Kubernetes Service Accounts und ähnliche Control-Plane-Interfaces dürfen einem Skill
+    nicht implizit zugänglich sein.
+  detection: Socket/path/env detection, mount analysis und runtime sandbox policy.
+  minimum_evidence: control-plane endpoint, accessible operation und inherited privilege.
+  owasp_agentic:
+  - ASI02
+  - ASI03
+  - ASI05
+  owasp_llm:
+  - LLM02
+  - LLM05
+  - LLM06
+  mitre_atlas:
+  - Escape to Host
+  - Command and Scripting Interpreter
+  - AI Agent Tool Credential Harvesting
+  skil_controls:
+  - SKIL-BOUNDARY-CONTAINER
+  skil_status: IMPLEMENTED
+  fixtures:
+  - fixture: docker-socket-access
+    description: Accesses Docker/container control-plane socket
+    skil_rules:
+    - SKIL-BOUNDARY-CONTAINER
+    external_rule: PE4
+    external_rules:
+    - PE4
+    suite: static
+    status: FULL
+    notes: Covers /var/run/docker.sock, /run/containerd/containerd.sock.
+- id: ASP-11.08
+  name: Host Escape & Privilege-Escalation Prevention
+  domain_id: ASP-11
+  domain: Network, Filesystem & Runtime Boundary Security
+  invariant: Privileged Container, Host Namespaces, SYS_ADMIN, nsenter/unshare, cgroup escape und sudo/root-Eskalation müssen
+    standardmäßig ausgeschlossen sein.
+  detection: Container/IaC manifest analysis, shell AST und capability policy.
+  minimum_evidence: escape primitive, privilege delta und runtime enforcement.
+  owasp_agentic:
+  - ASI02
+  - ASI03
+  - ASI05
+  owasp_llm:
+  - LLM02
+  - LLM05
+  - LLM06
+  mitre_atlas:
+  - Escape to Host
+  - Command and Scripting Interpreter
+  - AI Agent Tool Credential Harvesting
+  skil_controls:
+  - SKIL-BOUNDARY-CONTAINER-ESCAPE
+  - SKIL-SH-002
+  skil_status: IMPLEMENTED
+  fixtures:
+  - fixture: sudo-root-escalation
+    description: Literal shell privilege-escalation commands
+    skil_rules: *id071
+    external_rule: PE2
+    external_rules: *id072
+    suite: static
+    status: FULL
+    notes: Covers sudo, doas, pkexec, su -, chmod u+s/+s.
+  - fixture: container-escape
+    description: Privileged container or host-namespace escape primitive
+    skil_rules:
+    - SKIL-BOUNDARY-CONTAINER-ESCAPE
+    external_rule: PE5
+    external_rules:
+    - PE5
+    suite: static
+    status: FULL
+    notes: Covers --privileged, hostNetwork/PID/IPC, nsenter, unshare, cgroup release_agent.
+  - fixture: container-escape
+    description: 'Privileged: true, hostPath, hostPID, kubectl run --privileged in K8s manifest'
+    skil_rules:
+    - SKIL-BOUNDARY-CONTAINER-ESCAPE
+    external_rule: TM4
+    external_rules:
+    - TM4
+    suite: static
+    status: FULL
+    notes: K8s and Docker privilege-escape signals folded into one rule.
+- id: ASP-12.01
+  name: Resource Budget Bound
+  domain_id: ASP-12
+  domain: Resource, Availability & Failure Containment
+  invariant: CPU, Speicher, Tokens, API-Aufrufe, Geld und externe Ressourcen müssen pro Skill, Request oder Workflow begrenzt
+    sein.
+  detection: Static bound detection plus runtime budgets/meters.
+  minimum_evidence: resource type, configured bound und observed/requested use.
+  owasp_agentic:
+  - ASI02
+  - ASI08
+  - ASI10
+  owasp_llm:
+  - LLM06
+  - LLM10
+  mitre_atlas:
+  - AI Agent Tool Invocation
+  skil_controls:
+  - SKIL-AGENCY-BOUNDS
+  skil_status: IMPLEMENTED
+  fixtures:
+  - fixture: unbounded-resource-code
+    description: Unlimited resource access in code and NL phrasing
+    skil_rules: *id073
+    external_rule: EA4
+    external_rules: *id074
+    suite: static
+    status: FULL
+    notes: Covers code-level float('inf'), math.inf alongside NL unlimited phrasing.
+- id: ASP-12.02
+  name: Output Bound
+  domain_id: ASP-12
+  domain: Resource, Availability & Failure Containment
+  invariant: Generierte oder weitergeleitete Outputs müssen Größen-, Token- und Rate-Limits besitzen.
+  detection: Config/pattern analysis und runtime output metering.
+  minimum_evidence: output channel, limit und attempted amount.
+  owasp_agentic:
+  - ASI02
+  - ASI08
+  - ASI10
+  owasp_llm:
+  - LLM06
+  - LLM10
+  mitre_atlas:
+  - AI Agent Tool Invocation
+  skil_controls:
+  - SKIL-OUTPUT-LIMIT
+  skil_status: IMPLEMENTED
+  fixtures:
+  - fixture: unbounded-output
+    description: No output length/token limit, generate unlimited text
+    skil_rules:
+    - SKIL-OUTPUT-LIMIT
+    - SKIL-RESOURCE-UNLIMITED
+    external_rule: OH3
+    external_rules:
+    - OH3
+    suite: static
+    status: FULL
+    notes: Same float('inf')/math.inf/999999 patterns as EA4 for output bounds.
+- id: ASP-12.03
+  name: Rate & Quota Bound
+  domain_id: ASP-12
+  domain: Resource, Availability & Failure Containment
+  invariant: Tool-, Netzwerk- und Provider-Aufrufe müssen Quoten und Ratenbegrenzungen respektieren.
+  detection: Quota config linting, call counters und rate-policy enforcement.
+  minimum_evidence: operation, window, quota und observed rate.
+  owasp_agentic:
+  - ASI02
+  - ASI08
+  - ASI10
+  owasp_llm:
+  - LLM06
+  - LLM10
+  mitre_atlas:
+  - AI Agent Tool Invocation
+  skil_controls:
+  - SKIL-AGENCY-BOUNDS
+  skil_status: PARTIAL
+  fixtures:
+  - fixture: unbounded-resource-code
+    description: Unlimited resource access in code and NL phrasing
+    skil_rules: *id073
+    external_rule: EA4
+    external_rules: *id074
+    suite: static
+    status: FULL
+    notes: Covers code-level float('inf'), math.inf alongside NL unlimited phrasing.
+- id: ASP-12.04
+  name: Loop & Recursion Bound
+  domain_id: ASP-12
+  domain: Resource, Availability & Failure Containment
+  invariant: Agentische Loops, Planner-Replanning, rekursive Skill-Aufrufe und Retry-Ketten benötigen maximale Tiefe oder
+    eindeutige Terminierung.
+  detection: Workflow graph cycle analysis, recursion counters und termination guards.
+  minimum_evidence: cycle/recursion edge, max depth und termination condition.
+  owasp_agentic:
+  - ASI02
+  - ASI08
+  - ASI10
+  owasp_llm:
+  - LLM06
+  - LLM10
+  mitre_atlas:
+  - AI Agent Tool Invocation
+  skil_controls: []
+  skil_status: NEW
+  fixtures: []
+- id: ASP-12.05
+  name: Cascading Failure Containment
+  domain_id: ASP-12
+  domain: Resource, Availability & Failure Containment
+  invariant: Fehlerhafte Outputs oder Aktionen eines Skills dürfen nicht ungeprüft über abhängige Agenten, Pipelines oder
+    Systeme eskalieren.
+  detection: Dependency graph, trust gates, staged execution und blast-radius tests.
+  minimum_evidence: originating failure, propagation path und containment boundary.
+  owasp_agentic:
+  - ASI02
+  - ASI08
+  - ASI10
+  owasp_llm:
+  - LLM06
+  - LLM10
+  mitre_atlas:
+  - AI Agent Tool Invocation
+  skil_controls: []
+  skil_status: NEW
+  fixtures: []
+- id: ASP-12.06
+  name: Circuit Breaker & Kill-Switch Effectiveness
+  domain_id: ASP-12
+  domain: Resource, Availability & Failure Containment
+  invariant: Bei Anomalien, Budgetüberschreitung oder Policy-Verstoß muss eine deterministische Unterbrechung weitere Aktionen
+    stoppen.
+  detection: Runtime circuit breaker tests, fail-closed policy und stop-signal conformance.
+  minimum_evidence: trigger event, breaker state und subsequent actions.
+  owasp_agentic:
+  - ASI02
+  - ASI08
+  - ASI10
+  owasp_llm:
+  - LLM06
+  - LLM10
+  mitre_atlas:
+  - AI Agent Tool Invocation
+  skil_controls: []
+  skil_status: NEW
+  fixtures: []
+- id: ASP-12.07
+  name: Retry & Backoff Safety
+  domain_id: ASP-12
+  domain: Resource, Availability & Failure Containment
+  invariant: Retries dürfen weder unbegrenzte Last noch wiederholte irreversible Seiteneffekte erzeugen.
+  detection: Retry config analysis, exponential backoff policy und side-effect classification.
+  minimum_evidence: retry policy, action idempotency und attempt count.
+  owasp_agentic:
+  - ASI02
+  - ASI08
+  - ASI10
+  owasp_llm:
+  - LLM06
+  - LLM10
+  mitre_atlas:
+  - AI Agent Tool Invocation
+  skil_controls:
+  - SKIL-AGENCY-BOUNDS
+  skil_status: PARTIAL
+  fixtures:
+  - fixture: unbounded-resource-code
+    description: Unlimited resource access in code and NL phrasing
+    skil_rules: *id073
+    external_rule: EA4
+    external_rules: *id074
+    suite: static
+    status: FULL
+    notes: Covers code-level float('inf'), math.inf alongside NL unlimited phrasing.
+- id: ASP-12.08
+  name: Idempotency & Duplicate-Action Safety
+  domain_id: ASP-12
+  domain: Resource, Availability & Failure Containment
+  invariant: Wiederholte Planner- oder Tool-Aufrufe müssen bei nicht-idempotenten Aktionen durch deduplication keys, transaction
+    boundaries oder confirmation geschützt sein.
+  detection: Side-effect model, idempotency keys und transaction/audit traces.
+  minimum_evidence: action identity, repeated invocation und external effect.
+  owasp_agentic:
+  - ASI02
+  - ASI08
+  - ASI10
+  owasp_llm:
+  - LLM06
+  - LLM10
+  mitre_atlas:
+  - AI Agent Tool Invocation
+  skil_controls: []
+  skil_status: NEW
+  fixtures: []
+- id: ASP-13.01
+  name: Risk Disclosure Integrity
+  domain_id: ASP-13
+  domain: Human-Agent Trust & Safety
+  invariant: Sicherheitsrelevante Seiteneffekte und Risiken dürfen nicht absichtlich verschwiegen oder verharmlost werden.
+  detection: Undisclosed-operation intent, behavior/description diff und high-impact action disclosure check.
+  minimum_evidence: risk/action, expected disclosure und actual disclosure.
+  owasp_agentic:
+  - ASI01
+  - ASI02
+  - ASI09
+  - ASI10
+  owasp_llm:
+  - LLM01
+  - LLM06
+  - LLM09
+  mitre_atlas:
+  - AI Agent Clickbait
+  - LLM Jailbreak
+  skil_controls:
+  - SKIL-INTENT-UNDISCLOSED-OPERATION
+  skil_status: PARTIAL
+  fixtures:
+  - fixture: exfiltration-commands
+    description: Instructions to send/transmit conversation/data to an external sink
+    skil_rules: *id011
+    external_rule: P3
+    external_rules: *id012
+    suite: static
+    status: FULL
+    notes: SKIL-INTENT-EXTERNAL-TRANSFER covers generic conversation/data transmission without a secrecy qualifier.
+  - fixture: undisclosed-operation
+    description: Safety-critical operations with no user-facing disclosure
+    skil_rules: *id075
+    external_rule: SQP-2
+    external_rules: *id076
+    suite: semantic
+    status: FULL
+    notes: SKIL-INTENT-UNDISCLOSED-OPERATION fires on silent/secret framing of safety-critical operations.
+- id: ASP-13.02
+  name: Consent Specificity
+  domain_id: ASP-13
+  domain: Human-Agent Trust & Safety
+  invariant: Zustimmung zu einem Zweck oder einer Aktion darf nicht als Zustimmung zu zusätzlichen Datenzugriffen, Uploads,
+    Retention oder Seiteneffekten interpretiert werden.
+  detection: Consent scope model, action-to-consent binding und runtime policy.
+  minimum_evidence: consented scope versus effective action scope.
+  owasp_agentic:
+  - ASI01
+  - ASI02
+  - ASI09
+  - ASI10
+  owasp_llm:
+  - LLM01
+  - LLM06
+  - LLM09
+  mitre_atlas:
+  - AI Agent Clickbait
+  - LLM Jailbreak
+  skil_controls:
+  - SKIL-AGENCY-APPROVAL
+  skil_status: PARTIAL
+  fixtures:
+  - fixture: autonomous-decision
+    description: Without asking confirmation/auto-approve/proceed without permission
+    skil_rules: *id037
+    external_rule: EA2
+    external_rules: *id038
+    suite: static
+    status: FULL
+    notes: Requires specific high-impact verb paired with without approval.
+- id: ASP-13.03
+  name: Deceptive Risk Framing Resistance
+  domain_id: ASP-13
+  domain: Human-Agent Trust & Safety
+  invariant: Ein Skill darf Berechtigungen oder riskante Aktionen nicht fälschlich als notwendig, harmlos, bereits genehmigt
+    oder alternativlos darstellen.
+  detection: Behavioral manipulation semantics und permission-necessity consistency.
+  minimum_evidence: claim, actual requirement/risk und mismatch.
+  owasp_agentic:
+  - ASI01
+  - ASI02
+  - ASI09
+  - ASI10
+  owasp_llm:
+  - LLM01
+  - LLM06
+  - LLM09
+  mitre_atlas:
+  - AI Agent Clickbait
+  - LLM Jailbreak
+  skil_controls:
+  - SKIL-INTENT-BEHAVIOR-MANIPULATION
+  skil_status: PARTIAL
+  fixtures:
+  - fixture: behavior-manipulation
+    description: Covert behavioral steering / dark-pattern influence on the user
+    skil_rules: *id077
+    external_rule: P4
+    external_rules: *id078
+    suite: static
+    status: FULL
+    notes: Covers biased recommendation steering, silent suppression, trust-then-exploit patterns.
+  - fixture: nl-policy-violations
+    description: LLM flags org-policy violations (e.g. forced language)
+    skil_rules:
+    - SKIL-SEM-POLICY
+    external_rule: SQP-3
+    external_rules:
+    - SQP-3
+    suite: semantic
+    status: FULL
+    notes: Provider-backed semantic control for organization-policy violations (e.g. forced language).
+  - fixture: narrative-deception
+    description: LLM detects multi-step trust-building sequences toward harm
+    skil_rules:
+    - SKIL-SEM-COMPOSITE
+    external_rule: SSD-4
+    external_rules:
+    - SSD-4
+    suite: semantic
+    status: FULL
+    notes: SKIL-SEM-COMPOSITE covers multi-step trust-building. Provider-backed, verified in semantic suite.
+- id: ASP-13.04
+  name: Confirmation UI/Message Integrity
+  domain_id: ASP-13
+  domain: Human-Agent Trust & Safety
+  invariant: Approval-Prompts müssen Aktion, Ziel, Datenklasse und irreversiblen Effekt korrekt darstellen und dürfen keine
+    versteckten Zusatzaktionen bündeln.
+  detection: Action preview generation und structured diff between requested and approved action.
+  minimum_evidence: displayed action versus executed action.
+  owasp_agentic:
+  - ASI01
+  - ASI02
+  - ASI09
+  - ASI10
+  owasp_llm:
+  - LLM01
+  - LLM06
+  - LLM09
+  mitre_atlas:
+  - AI Agent Clickbait
+  - LLM Jailbreak
+  skil_controls:
+  - SKIL-AGENCY-APPROVAL
+  skil_status: PARTIAL
+  fixtures:
+  - fixture: autonomous-decision
+    description: Without asking confirmation/auto-approve/proceed without permission
+    skil_rules: *id037
+    external_rule: EA2
+    external_rules: *id038
+    suite: static
+    status: FULL
+    notes: Requires specific high-impact verb paired with without approval.
+- id: ASP-13.05
+  name: Physical-Harm Operational Safety
+  domain_id: ASP-13
+  domain: Human-Agent Trust & Safety
+  invariant: Skills dürfen keine operationalisierten Anweisungen erzeugen oder enthalten, deren Zweck die konkrete Verursachung
+    physischer Schäden ist.
+  detection: Action-anchored harmful intent rules mit defensivem Kontextfilter und semantic review.
+  minimum_evidence: harm objective, actionable steps und target/context.
+  owasp_agentic:
+  - ASI01
+  - ASI02
+  - ASI09
+  - ASI10
+  owasp_llm:
+  - LLM01
+  - LLM06
+  - LLM09
+  mitre_atlas:
+  - AI Agent Clickbait
+  - LLM Jailbreak
+  skil_controls:
+  - SKIL-ABUSE-PHYSICAL-HARM
+  skil_status: IMPLEMENTED
+  fixtures:
+  - fixture: physical-harm-content
+    description: Actionable operational instructions for causing physical harm
+    skil_rules:
+    - SKIL-ABUSE-PHYSICAL-HARM
+    external_rule: P5
+    external_rules:
+    - P5
+    suite: static
+    status: FULL
+    notes: 'Action-anchored: poison-in-food, bleach+ammonia, self-harm, bomb/explosive construction.'
+- id: ASP-13.06
+  name: Malware & Phishing Objective Safety
+  domain_id: ASP-13
+  domain: Human-Agent Trust & Safety
+  invariant: Ein Skill darf Malware-Konstruktion, Credential-Harvesting-Impersonation oder vergleichbare bösartige Operationsziele
+    nicht als legitimen Zweck verschleiern.
+  detection: Abuse-intent classifiers, code/YARA evidence und behavior composition.
+  minimum_evidence: malicious objective, operational capability und target.
+  owasp_agentic:
+  - ASI01
+  - ASI02
+  - ASI09
+  - ASI10
+  owasp_llm:
+  - LLM01
+  - LLM06
+  - LLM09
+  mitre_atlas:
+  - AI Agent Clickbait
+  - LLM Jailbreak
+  skil_controls:
+  - SKIL-ABUSE-MALWARE
+  - SKIL-ABUSE-PHISHING
+  skil_status: IMPLEMENTED
+  fixtures: []
+- id: ASP-13.07
+  name: Destructive & Recovery-Inhibition Safety
+  domain_id: ASP-13
+  domain: Human-Agent Trust & Safety
+  invariant: Destruktive Aktionen, Backup-Löschung, Recovery-Hemmung und sabotageartige Operationen benötigen strikte Policy
+    und dürfen nicht verdeckt ausgeführt werden.
+  detection: Destructive-intent patterns, filesystem/cloud action classification und approvals.
+  minimum_evidence: destructive operation, recovery impact und authorization.
+  owasp_agentic:
+  - ASI01
+  - ASI02
+  - ASI09
+  - ASI10
+  owasp_llm:
+  - LLM01
+  - LLM06
+  - LLM09
+  mitre_atlas:
+  - AI Agent Clickbait
+  - LLM Jailbreak
+  skil_controls:
+  - SKIL-ABUSE-DESTRUCTION
+  skil_status: IMPLEMENTED
+  fixtures: []
+- id: ASP-13.08
+  name: Security-Control Evasion Safety
+  domain_id: ASP-13
+  domain: Human-Agent Trust & Safety
+  invariant: Ein Skill darf Detection, Logging, EDR, Sandbox, Policy oder Sicherheitsprüfungen nicht mit dem Ziel der Umgehung
+    deaktivieren oder sabotieren.
+  detection: Evasion-intent patterns, control-target classification und runtime telemetry.
+  minimum_evidence: targeted control, evasion operation und intended effect.
+  owasp_agentic:
+  - ASI01
+  - ASI02
+  - ASI09
+  - ASI10
+  owasp_llm:
+  - LLM01
+  - LLM06
+  - LLM09
+  mitre_atlas:
+  - AI Agent Clickbait
+  - LLM Jailbreak
+  skil_controls:
+  - SKIL-ABUSE-EVASION
+  skil_status: IMPLEMENTED
+  fixtures: []
+- id: ASP-14.01
+  name: Action Attribution
+  domain_id: ASP-14
+  domain: Auditability, Observability & Accountability
+  invariant: Jede sicherheitsrelevante Aktion muss auf User/Caller, Agent, Skill-Version, Tool und Parameter zurückführbar
+    sein.
+  detection: Structured audit events, trace IDs und identity binding.
+  minimum_evidence: actor chain, artifact identity, tool call und result.
+  owasp_agentic:
+  - ASI03
+  - ASI07
+  - ASI08
+  - ASI10
+  owasp_llm:
+  - LLM06
+  - LLM09
+  mitre_atlas: []
+  skil_controls: []
+  skil_status: NEW
+  fixtures: []
+- id: ASP-14.02
+  name: Authorization Decision Traceability
+  domain_id: ASP-14
+  domain: Auditability, Observability & Accountability
+  invariant: Für jede privilegierte Aktion muss nachvollziehbar sein, welche Policy, Capability und Approval sie erlaubt oder
+    blockiert hat.
+  detection: Policy decision logs, rule IDs und signed authorization context.
+  minimum_evidence: decision, evaluated policy, inputs und outcome.
+  owasp_agentic:
+  - ASI03
+  - ASI07
+  - ASI08
+  - ASI10
+  owasp_llm:
+  - LLM06
+  - LLM09
+  mitre_atlas: []
+  skil_controls: []
+  skil_status: NEW
+  fixtures: []
+- id: ASP-14.03
+  name: Security Event Completeness
+  domain_id: ASP-14
+  domain: Auditability, Observability & Accountability
+  invariant: High-impact Reads/Writes, Secret-Zugriffe, Netzwerktransfers, Tool-Aufrufe, Persistenz und Policy-Verstöße müssen
+    vollständig observierbar sein.
+  detection: Event coverage matrix, runtime instrumentation und negative coverage tests.
+  minimum_evidence: expected event class versus emitted event.
+  owasp_agentic:
+  - ASI03
+  - ASI07
+  - ASI08
+  - ASI10
+  owasp_llm:
+  - LLM06
+  - LLM09
+  mitre_atlas: []
+  skil_controls:
+  - SKIL-TAINT-LOG
+  skil_status: PARTIAL
+  fixtures: []
+- id: ASP-14.04
+  name: Tamper-Evident Audit Records
+  domain_id: ASP-14
+  domain: Auditability, Observability & Accountability
+  invariant: Auditdaten müssen gegen nachträgliche Manipulation geschützt und mit Zeit, Identität und Artefaktversion korrelierbar
+    sein.
+  detection: Append-only/WORM log, signatures/hashes und trusted timestamps.
+  minimum_evidence: event hash chain/signature und storage policy.
+  owasp_agentic:
+  - ASI03
+  - ASI07
+  - ASI08
+  - ASI10
+  owasp_llm:
+  - LLM06
+  - LLM09
+  mitre_atlas: []
+  skil_controls: []
+  skil_status: NEW
+  fixtures: []
+- id: ASP-14.05
+  name: Artifact & Version Attribution
+  domain_id: ASP-14
+  domain: Auditability, Observability & Accountability
+  invariant: Jedes Finding und Runtime-Event muss den exakten Digest der analysierten beziehungsweise ausgeführten Skill-Version
+    referenzieren.
+  detection: Digest capture at scan/install/runtime und event correlation.
+  minimum_evidence: artifact digest, version und source revision.
+  owasp_agentic:
+  - ASI03
+  - ASI07
+  - ASI08
+  - ASI10
+  owasp_llm:
+  - LLM06
+  - LLM09
+  mitre_atlas: []
+  skil_controls: []
+  skil_status: NEW
+  fixtures: []
+- id: ASP-14.06
+  name: Evidence-Chain Reproducibility
+  domain_id: ASP-14
+  domain: Auditability, Observability & Accountability
+  invariant: Security Findings müssen aus Raw Evidence über Analyzer-Observation und Security-IR bis zur Policy-Entscheidung
+    reproduzierbar sein.
+  detection: Structured finding schema, deterministic analyzer metadata und evidence location.
+  minimum_evidence: raw span/node/path, analyzer, relation und decision.
+  owasp_agentic:
+  - ASI03
+  - ASI07
+  - ASI08
+  - ASI10
+  owasp_llm:
+  - LLM06
+  - LLM09
+  mitre_atlas: []
+  skil_controls:
+  - SKIL-* finding evidence model
+  skil_status: PARTIAL
+  fixtures: []
+- id: ASP-14.07
+  name: Failure & Denial Auditability
+  domain_id: ASP-14
+  domain: Auditability, Observability & Accountability
+  invariant: Abgebrochene, blockierte oder fehlgeschlagene Aktionen müssen mit Ursache und betroffener Policy protokolliert
+    werden, ohne Secrets zu leaken.
+  detection: Fail-closed audit hooks und sensitive-field redaction.
+  minimum_evidence: failure/deny event, rule und redacted context.
+  owasp_agentic:
+  - ASI03
+  - ASI07
+  - ASI08
+  - ASI10
+  owasp_llm:
+  - LLM06
+  - LLM09
+  mitre_atlas: []
+  skil_controls: []
+  skil_status: NEW
+  fixtures: []
+- id: ASP-14.08
+  name: Coverage & Unknown-State Reporting
+  domain_id: ASP-14
+  domain: Auditability, Observability & Accountability
+  invariant: Scanner und Runtime dürfen fehlende Provider, nicht auflösbare Reflection, dynamische Downloads oder nicht beobachtete
+    Pfade nicht als sicher deklarieren.
+  detection: Explicit coverage states, analyzer capability inventory und unresolved-edge reporting.
+  minimum_evidence: verified/partial/runtime-dependent/semantic-only/not-observable state.
+  owasp_agentic:
+  - ASI03
+  - ASI07
+  - ASI08
+  - ASI10
+  owasp_llm:
+  - LLM06
+  - LLM09
+  mitre_atlas: []
+  skil_controls:
+  - Provider coverage reporting
+  skil_status: PARTIAL
+  fixtures: []
+- id: ASP-15.01
+  name: Dependency Pinning
+  domain_id: ASP-15
+  domain: Dependency, Package & Container Supply-Chain Security
+  invariant: Abhängigkeiten müssen auf überprüfbare Versionen, Digests oder Lockfile-Auflösungen gebunden sein.
+  detection: Manifest/lockfile parsing und version-constraint semantics.
+  minimum_evidence: dependency name, requested constraint und resolved version/digest.
+  owasp_agentic:
+  - ASI04
+  - ASI05
+  owasp_llm:
+  - LLM03
+  mitre_atlas:
+  - AI Supply Chain Rug Pull
+  - AI Supply Chain Reputation Inflation
+  skil_controls:
+  - SKIL-DEP-001
+  skil_status: IMPLEMENTED
+  fixtures:
+  - fixture: unpinned-dependencies
+    description: Bare package name or >= range or * in dependency files
+    skil_rules:
+    - SKIL-DEP-001
+    external_rule: SC1
+    external_rules:
+    - SC1
+    suite: static
+    status: FULL
+    notes: Documented in external-control-crosswalk.md.
+  - fixture: unpinned-skill-version
+    description: Manifest version field is wildcard or overly broad range
+    skil_rules:
+    - SKIL-MANIFEST-UNPINNED-VERSION
+    external_rule: RP3
+    external_rules:
+    - RP3
+    suite: static
+    status: FULL
+    notes: Line-scoped regex distinguishes skill version from schema integer version.
+    external_variant: static-manifest
+- id: ASP-15.02
+  name: Known Vulnerability Hygiene
+  domain_id: ASP-15
+  domain: Dependency, Package & Container Supply-Chain Security
+  invariant: Aufgelöste Abhängigkeiten dürfen keine nicht akzeptierten bekannten Vulnerabilities enthalten.
+  detection: SBOM/dependency inventory plus OSV/CVE lookup und policy threshold.
+  minimum_evidence: package ecosystem/name/version, advisory und fix/exception.
+  owasp_agentic:
+  - ASI04
+  - ASI05
+  owasp_llm:
+  - LLM03
+  mitre_atlas:
+  - AI Supply Chain Rug Pull
+  - AI Supply Chain Reputation Inflation
+  skil_controls:
+  - SKIL-DEP-VULN
+  skil_status: PROVIDER_BACKED
+  fixtures:
+  - fixture: vulnerable-dependency
+    description: Known vulnerable dependency via OSV query or static fallback
+    skil_rules:
+    - SKIL-DEP-VULN
+    external_rule: SC4
+    external_rules:
+    - SC4
+    suite: provider
+    status: PROVIDER_BACKED
+    notes: Only runs with --osv/--full; default scan is offline.
+    scan_args: --osv
+    status_note: Runs only with --osv (live OSV query with offline static fallback); excluded from the offline CI static gate,
+      verified in the provider suite.
+- id: ASP-15.03
+  name: Package Identity & Typosquatting Resistance
+  domain_id: ASP-15
+  domain: Dependency, Package & Container Supply-Chain Security
+  invariant: Package-Namen müssen gegen bekannte Namespaces, Homoglyphen und edit-distance-basierte Verwechslungen geprüft
+    werden.
+  detection: Ecosystem-aware canonical names, edit distance, confusables und registry metadata.
+  minimum_evidence: requested package, nearest canonical identity und distance/evidence.
+  owasp_agentic:
+  - ASI04
+  - ASI05
+  owasp_llm:
+  - LLM03
+  mitre_atlas:
+  - AI Supply Chain Rug Pull
+  - AI Supply Chain Reputation Inflation
+  skil_controls:
+  - SKIL-DEP-002
+  - SKIL-UNI-002
+  skil_status: IMPLEMENTED
+  fixtures:
+  - fixture: typosquatting
+    description: Levenshtein edit-distance <=2 against curated popular-package lists
+    skil_rules:
+    - SKIL-DEP-002
+    external_rule: SC6
+    external_rules:
+    - SC6
+    suite: static
+    status: FULL
+    notes: Ecosystem-aware canonical package names.
+  - fixture: obfuscated-code
+    description: exec(base64.b64decode(...)), marshal.loads, decode-then-execute chains
+    skil_rules: *id047
+    external_rule: SC3
+    external_rules: *id048
+    suite: static
+    status: FULL
+    notes: Documented FULL in crosswalk.
+  - fixture: unicode-homoglyph
+    description: Homoglyph/RTL/invisible/mixed-script in tool name/triggers/parameter names
+    skil_rules: *id067
+    external_rule: TP2
+    external_rules: *id068
+    suite: static
+    status: FULL
+    notes: Confusable hostname tokens, bidi overrides, invisible chars in identifiers.
+- id: ASP-15.04
+  name: Dependency Maintenance & Reputation
+  domain_id: ASP-15
+  domain: Dependency, Package & Container Supply-Chain Security
+  invariant: Abandoned, übernommen oder reputationsschwache Dependencies müssen als erhöhtes Supply-Chain-Risiko bewertet
+    werden.
+  detection: Maintainer/release recency evidence, curated reputation und ownership change signals.
+  minimum_evidence: package, maintenance evidence und risk rationale.
+  owasp_agentic:
+  - ASI04
+  - ASI05
+  owasp_llm:
+  - LLM03
+  mitre_atlas:
+  - AI Supply Chain Rug Pull
+  - AI Supply Chain Reputation Inflation
+  skil_controls:
+  - SKIL-DEP-ABANDONED
+  skil_status: PROVIDER_BACKED
+  fixtures:
+  - fixture: abandoned-dependency
+    description: Known-abandoned PyPI/npm packages
+    skil_rules:
+    - SKIL-DEP-ABANDONED
+    external_rule: SC5
+    external_rules:
+    - SC5
+    suite: static
+    status: FULL
+    notes: skil seed has 27 entries vs ~35 in reference scanner.
+- id: ASP-15.05
+  name: Dependency Namespace/Confusion Resistance
+  domain_id: ASP-15
+  domain: Dependency, Package & Container Supply-Chain Security
+  invariant: Interne und öffentliche Package-Namespaces dürfen keine ungewollte Auflösung auf attacker-controlled Pakete ermöglichen.
+  detection: Registry/source priority analysis, namespace ownership und package source pinning.
+  minimum_evidence: package name, configured registries und actual resolution source.
+  owasp_agentic:
+  - ASI04
+  - ASI05
+  owasp_llm:
+  - LLM03
+  mitre_atlas:
+  - AI Supply Chain Rug Pull
+  - AI Supply Chain Reputation Inflation
+  skil_controls: []
+  skil_status: NEW
+  fixtures: []
+- id: ASP-15.06
+  name: Lockfile Integrity
+  domain_id: ASP-15
+  domain: Dependency, Package & Container Supply-Chain Security
+  invariant: Lockfiles und resolved dependency graphs müssen Teil der geprüften Artefaktintegrität sein und dürfen nicht zur
+    Laufzeit stillschweigend neu aufgelöst werden.
+  detection: Lockfile presence/digest, reproducible resolution checks und artifact signature coverage.
+  minimum_evidence: lock digest, resolved graph und execution graph.
+  owasp_agentic:
+  - ASI04
+  - ASI05
+  owasp_llm:
+  - LLM03
+  mitre_atlas:
+  - AI Supply Chain Rug Pull
+  - AI Supply Chain Reputation Inflation
+  skil_controls: []
+  skil_status: NEW
+  fixtures: []
+- id: ASP-15.07
+  name: Remote Script & Runtime Dependency Integrity
+  domain_id: ASP-15
+  domain: Dependency, Package & Container Supply-Chain Security
+  invariant: Zur Laufzeit geladene Skripte, Plugins oder Assets müssen pinbar, verifizierbar und innerhalb der erlaubten Artifact
+    Closure liegen.
+  detection: Remote fetch AST/shell analysis, URL/digest pinning und sandbox download policy.
+  minimum_evidence: remote URI, expected digest/version und execution sink.
+  owasp_agentic:
+  - ASI04
+  - ASI05
+  owasp_llm:
+  - LLM03
+  mitre_atlas:
+  - AI Supply Chain Rug Pull
+  - AI Supply Chain Reputation Inflation
+  skil_controls:
+  - SKIL-SH-001
+  skil_status: PARTIAL
+  fixtures:
+  - fixture: external-script-fetch
+    description: curl | sh, wget | python, eval(fetch(...)) with trusted-domain allowlist
+    skil_rules: *id045
+    external_rule: SC2
+    external_rules: *id046
+    suite: static
+    status: FULL
+    notes: Documented FULL in crosswalk.
+- id: ASP-15.08
+  name: Container Image Trust
+  domain_id: ASP-15
+  domain: Dependency, Package & Container Supply-Chain Security
+  invariant: Container Images müssen vertrauenswürdige Registries, immutable Digests/zulässige Tags und aktivierte Content-Trust-/Verification-Mechanismen
+    verwenden.
+  detection: Image reference parsing, tag/digest policy und trust flag analysis.
+  minimum_evidence: image identity, registry, tag/digest und trust setting.
+  owasp_agentic:
+  - ASI04
+  - ASI05
+  owasp_llm:
+  - LLM03
+  mitre_atlas:
+  - AI Supply Chain Rug Pull
+  - AI Supply Chain Reputation Inflation
+  skil_controls:
+  - SKIL-CONTAINER-TRUST
+  - SKIL-BOUNDARY-MUTABLE-IMAGE
+  skil_status: IMPLEMENTED
+  fixtures:
+  - fixture: untrusted-container-image
+    description: --disable-content-trust / DOCKER_CONTENT_TRUST=0 / --insecure-registry
+    skil_rules: *id079
+    external_rule: SC7
+    external_rules: *id080
+    suite: static
+    status: FULL
+    notes: Documented FULL in crosswalk.
+  - fixture: unpinned-mcp-server
+    description: npx/uvx/pip install/docker pull without version pin or digest
+    skil_rules: *id063
+    external_rule: RP1
+    external_rules: *id064
+    suite: static
+    status: FULL
+    notes: Documented FULL in crosswalk.

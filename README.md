@@ -168,7 +168,8 @@ and `.skilignore` itself remains part of the artifact manifest.
 - bounded parallel, deterministic multi-skill collection scanning and a
   confined MCP scanner service over stdio or bearer-authenticated loopback HTTP
 - a live differential test harness against an external AI-skill security
-  scanner: an 86-property corpus of positive/negative fixtures with CI gates,
+  scanner: a 120-property corpus (173 fixture entries, keyed to the ASPS v1.0
+  taxonomy in `compat/asps/`) of positive/negative fixtures with CI gates,
   an auto-generated control crosswalk, and a property-level feature-parity
   document showing zero properties detected only by the external scanner
 

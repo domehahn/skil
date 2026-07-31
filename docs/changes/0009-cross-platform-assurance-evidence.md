@@ -26,10 +26,11 @@ Owner: platform-engineering
 | Semantic provider | manually approved `semantic-provider-smoke` workflow |
 | Release integrity | native Linux/macOS/Windows build matrix, SBOM attestations, transport re-verification, checksums |
 
-The full Windows CGO build is pinned to `windows-2022`, whose hosted image
-retains MinGW; the separate AppContainer integration test also runs on
-`windows-latest`. macOS jobs use `macos-15` rather than the announced
-deprecating macOS-14 image.
+Windows jobs run on `windows-latest` (Windows Server 2025): the AppContainer
+integration test and the cross-platform `assure` gate both require the same
+isolation environment, and `windows-2022` (Windows Server 2022) does not
+reliably start AppContainer adapter processes. macOS jobs use `macos-15`
+rather than the announced deprecating macOS-14 image.
 
 ## Rollback
 

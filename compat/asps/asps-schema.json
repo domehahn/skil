@@ -1,0 +1,249 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/domehahn/skil/blob/main/compat/asps/asps-schema.json",
+  "title": "ASPS Registry Schema",
+  "description": "Machine-readable registry for the Agent Skill Security Properties Specification (ASPS).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "specification",
+    "acronym",
+    "status",
+    "snapshot",
+    "property_count",
+    "domain_count",
+    "domains",
+    "properties",
+    "legacy_catalog_migration",
+    "references"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "specification": {
+      "const": "Agent Skill Security Properties Specification"
+    },
+    "acronym": {
+      "const": "ASPS"
+    },
+    "status": {
+      "enum": ["proposed", "accepted", "deprecated"]
+    },
+    "snapshot": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "property_count": {
+      "type": "integer",
+      "const": 120
+    },
+    "domain_count": {
+      "type": "integer",
+      "const": 15
+    },
+    "domains": {
+      "type": "array",
+      "minItems": 15,
+      "maxItems": 15,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/domain"
+      }
+    },
+    "properties": {
+      "type": "array",
+      "minItems": 120,
+      "maxItems": 120,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/securityProperty"
+      }
+    },
+    "legacy_catalog_migration": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/legacyMigration"
+      }
+    },
+    "references": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/reference"
+      }
+    }
+  },
+  "$defs": {
+    "domain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "purpose", "owasp_agentic", "owasp_llm", "mitre"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^ASP-[0-9]{2}$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "purpose": {
+          "type": "string",
+          "minLength": 1
+        },
+        "owasp_agentic": {
+          "$ref": "#/$defs/owaspAgenticList"
+        },
+        "owasp_llm": {
+          "$ref": "#/$defs/owaspLlmList"
+        },
+        "mitre": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "securityProperty": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "domain_id",
+        "domain",
+        "name",
+        "invariant",
+        "detection",
+        "minimum_evidence",
+        "owasp_agentic",
+        "owasp_llm",
+        "mitre_atlas",
+        "skil_controls",
+        "skil_status"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^ASP-[0-9]{2}\\.[0-9]{2}$"
+        },
+        "domain_id": {
+          "type": "string",
+          "pattern": "^ASP-[0-9]{2}$"
+        },
+        "domain": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "invariant": {
+          "type": "string",
+          "minLength": 1
+        },
+        "detection": {
+          "type": "string",
+          "minLength": 1
+        },
+        "minimum_evidence": {
+          "type": "string",
+          "minLength": 1
+        },
+        "owasp_agentic": {
+          "$ref": "#/$defs/owaspAgenticList"
+        },
+        "owasp_llm": {
+          "$ref": "#/$defs/owaspLlmList"
+        },
+        "mitre_atlas": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "skil_controls": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "skil_status": {
+          "enum": ["IMPLEMENTED", "PARTIAL", "NEW", "PROVIDER_BACKED"]
+        }
+      }
+    },
+    "legacyMigration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["legacy_name", "target", "classification"],
+      "properties": {
+        "legacy_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target": {
+          "type": "string",
+          "pattern": "^ASP-[0-9]{2}\\.[0-9]{2}(/ASP-[0-9]{2}\\.[0-9]{2})*$"
+        },
+        "classification": {
+          "enum": [
+            "PROPERTY",
+            "SUBPROPERTY",
+            "PROPERTY_COMPOSITION",
+            "PROPERTY_SPLIT",
+            "MECHANISM",
+            "MECHANISM_FAMILY",
+            "EVIDENCE_SOURCE"
+          ]
+        }
+      }
+    },
+    "reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title", "organization", "url"],
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "organization": {
+          "type": "string",
+          "minLength": 1
+        },
+        "url": {
+          "type": "string",
+          "format": "uri"
+        }
+      }
+    },
+    "owaspAgenticList": {
+      "type": "array",
+      "uniqueItems": true,
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "pattern": "^ASI(0[1-9]|10)$"
+      }
+    },
+    "owaspLlmList": {
+      "type": "array",
+      "uniqueItems": true,
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "pattern": "^LLM(01|02|03|04|05|06|07|08|09|10)$"
+      }
+    }
+  }
+}

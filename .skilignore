@@ -1,4 +1,5 @@
 # Generated local artifacts are not part of the source artifact.
 bin/**
+skil
 coverage.out
 *.sarif

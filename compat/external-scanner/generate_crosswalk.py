@@ -24,9 +24,9 @@ def load_properties(path: str) -> list[dict]:
     return data["properties"]
 
 
-def analyzer_for(prop: dict) -> str:
+def analyzer_for(fixture: dict) -> str:
     """Mirror compat_test.go analyzerLabel exactly."""
-    rules = prop.get("skil_rules", [])
+    rules = fixture.get("skil_rules", [])
     for r in rules:
         if "MCP" in r:
             return "MCP"
@@ -46,10 +46,10 @@ def analyzer_for(prop: dict) -> str:
     return "Pattern"
 
 
-def external_label(prop: dict) -> str:
-    ext = prop.get("external_rule", "")
-    variant = prop.get("external_variant", "")
-    suite = prop.get("suite", "static")
+def external_label(fixture: dict) -> str:
+    ext = fixture.get("external_rule", "")
+    variant = fixture.get("external_variant", "")
+    suite = fixture.get("suite", "static")
     label = ext
     if variant:
         label = f"{ext} · {variant}"
@@ -62,19 +62,28 @@ def external_label(prop: dict) -> str:
 
 def generate_table(properties: list[dict]) -> str:
     lines = [
-        "| External ID | Reference behavior | Native equivalent | Coverage | Analyzer | Notes |",
-        "|---|---|---|---|---|---|",
+        "| ASP Property | External ID | Reference behavior | Native equivalent | Coverage | Analyzer | Notes |",
+        "|---|---|---|---|---|---|---|",
     ]
-    for prop in sorted(properties, key=lambda p: p["external_rule"]):
-        ext_id = external_label(prop)
-        behavior = prop["description"]
-        natives = ", ".join(prop["skil_rules"])
-        status = prop.get("status", "")
-        analyzer = analyzer_for(prop)
-        note = prop.get("notes", "")
-        if prop.get("status_note"):
-            note = (note + " " if note else "") + prop["status_note"]
-        lines.append(f"| {ext_id} | {behavior} | `{natives}` | {status} | {analyzer} | {note} |")
+    entries = []
+    for prop in properties:
+        for fixture in prop["fixtures"]:
+            note = fixture.get("notes", "")
+            if fixture.get("status_note"):
+                note = (note + " " if note else "") + fixture["status_note"]
+            entries.append({
+                "asp": prop["id"],
+                "base": fixture["external_rule"],
+                "ext": external_label(fixture),
+                "behavior": fixture["description"],
+                "natives": ", ".join(fixture["skil_rules"]),
+                "status": fixture.get("status", ""),
+                "analyzer": analyzer_for(fixture),
+                "notes": note,
+            })
+    entries.sort(key=lambda e: (e["asp"], e["base"]))
+    for e in entries:
+        lines.append(f"| {e['asp']} | {e['ext']} | {e['behavior']} | `{e['natives']}` | {e['status']} | {e['analyzer']} | {e['notes']} |")
     return "\n".join(lines) + "\n"
 
 

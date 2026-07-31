@@ -30,8 +30,8 @@ jobs:
     timeout-minutes: 10
     environment: semantic-provider-smoke
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache: true
@@ -54,7 +54,7 @@ jobs:
             --semantic-api-key-env SKIL_SMOKE_API_KEY \
             --format json --output semantic-provider-proof.json
           grep -q '"semantic-provider": "completed"' semantic-provider-proof.json
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: semantic-provider-proof
           path: semantic-provider-proof.json

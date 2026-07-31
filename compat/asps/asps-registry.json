@@ -1,0 +1,3951 @@
+{
+  "schema_version": "1.0.0",
+  "specification": "Agent Skill Security Properties Specification",
+  "acronym": "ASPS",
+  "status": "proposed",
+  "snapshot": "2026-07-31",
+  "property_count": 120,
+  "domain_count": 15,
+  "domains": [
+    {
+      "id": "ASP-01",
+      "name": "Instruction & Goal Integrity",
+      "purpose": "Schützt Instruktionshierarchie, autorisierten Auftrag und semantische Steuerung des Agenten.",
+      "owasp_agentic": [
+        "ASI01",
+        "ASI09",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM01",
+        "LLM06",
+        "LLM07"
+      ],
+      "mitre": [
+        "LLM Prompt Injection",
+        "LLM Jailbreak",
+        "AI Agent Context Poisoning",
+        "Modify AI Agent Configuration"
+      ]
+    },
+    {
+      "id": "ASP-02",
+      "name": "Discovery, Metadata & Selection Integrity",
+      "purpose": "Schützt Admission, Retrieval und Planner-Auswahl vor Metadaten-, Ranking- und Reputationsmanipulation.",
+      "owasp_agentic": [
+        "ASI01",
+        "ASI04",
+        "ASI09"
+      ],
+      "owasp_llm": [
+        "LLM01",
+        "LLM03",
+        "LLM06",
+        "LLM09"
+      ],
+      "mitre": [
+        "AI Supply Chain Reputation Inflation",
+        "AI Supply Chain Rug Pull",
+        "Prompt Infiltration via Public-Facing Application"
+      ]
+    },
+    {
+      "id": "ASP-03",
+      "name": "Data Confidentiality & Privacy",
+      "purpose": "Begrenzt Zugriff, Nutzung, Speicherung und Übertragung sensitiver Daten auf den legitim benötigten Umfang.",
+      "owasp_agentic": [
+        "ASI01",
+        "ASI02",
+        "ASI03",
+        "ASI06",
+        "ASI07"
+      ],
+      "owasp_llm": [
+        "LLM02",
+        "LLM06",
+        "LLM07"
+      ],
+      "mitre": [
+        "Exfiltration via AI Agent Tool Invocation",
+        "Extract LLM System Prompt",
+        "AI Agent Tool Credential Harvesting"
+      ]
+    },
+    {
+      "id": "ASP-04",
+      "name": "Identity, Authorization & Consent",
+      "purpose": "Sichert nicht-menschliche Identitäten, Berechtigungen, Delegation, Token-Grenzen und Zustimmung.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI03",
+        "ASI07"
+      ],
+      "owasp_llm": [
+        "LLM02",
+        "LLM06"
+      ],
+      "mitre": [
+        "Valid Accounts",
+        "AI Agent Tool Credential Harvesting",
+        "Modify AI Agent Configuration"
+      ]
+    },
+    {
+      "id": "ASP-05",
+      "name": "Tool, Capability & Agency Safety",
+      "purpose": "Begrenzt Tool-Nutzung, Parameter, Komposition und autonome Seiteneffekte.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI03",
+        "ASI05",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM05",
+        "LLM06"
+      ],
+      "mitre": [
+        "AI Agent Tool Invocation",
+        "Command and Scripting Interpreter",
+        "Escape to Host"
+      ]
+    },
+    {
+      "id": "ASP-06",
+      "name": "Code Execution & Information-Flow Safety",
+      "purpose": "Schützt Interpreter-, Prozess-, Shell- und Output-Grenzen und erzwingt nachvollziehbaren Datenfluss.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI05"
+      ],
+      "owasp_llm": [
+        "LLM03",
+        "LLM05",
+        "LLM06"
+      ],
+      "mitre": [
+        "Command and Scripting Interpreter",
+        "Escape to Host",
+        "LLM Prompt Obfuscation"
+      ]
+    },
+    {
+      "id": "ASP-07",
+      "name": "Memory, State & Persistence Integrity",
+      "purpose": "Schützt persistente und temporäre Zustände vor Vergiftung, Übernahme, Überfüllung und unerlaubter Lebensdauer.",
+      "owasp_agentic": [
+        "ASI06",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM01",
+        "LLM04",
+        "LLM06"
+      ],
+      "mitre": [
+        "AI Agent Context Poisoning",
+        "Modify AI Agent Configuration",
+        "LLM Prompt Self-Replication"
+      ]
+    },
+    {
+      "id": "ASP-08",
+      "name": "Inter-Agent & Delegation Security",
+      "purpose": "Sichert Agent-zu-Agent-Kommunikation, Delegation und zusammengesetzte Workflows.",
+      "owasp_agentic": [
+        "ASI03",
+        "ASI07",
+        "ASI08",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM02",
+        "LLM05",
+        "LLM06"
+      ],
+      "mitre": [
+        "AI Agent Tool Invocation",
+        "AI Agent Tool Data Poisoning",
+        "AI Agent Tool Poisoning"
+      ]
+    },
+    {
+      "id": "ASP-09",
+      "name": "Supply Chain, Provenance & Artifact Integrity",
+      "purpose": "Sichert Publisher, Signatur, Version, Update und Review-to-Execution-Kontinuität des Skill-Artefakts.",
+      "owasp_agentic": [
+        "ASI04",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM03"
+      ],
+      "mitre": [
+        "AI Supply Chain Rug Pull",
+        "AI Supply Chain Reputation Inflation"
+      ]
+    },
+    {
+      "id": "ASP-10",
+      "name": "MCP & Integration Protocol Security",
+      "purpose": "Überträgt Skill-Sicherheitsinvarianten auf MCP-Metadaten, Tool-Identitäten, OAuth und lokale Integrationen.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI03",
+        "ASI04",
+        "ASI07"
+      ],
+      "owasp_llm": [
+        "LLM03",
+        "LLM05",
+        "LLM06"
+      ],
+      "mitre": [
+        "AI Agent Tool Poisoning",
+        "AI Agent Tool Data Poisoning",
+        "AI Agent Tool Credential Harvesting"
+      ]
+    },
+    {
+      "id": "ASP-11",
+      "name": "Network, Filesystem & Runtime Boundary Security",
+      "purpose": "Schützt Host-, Netzwerk-, Container- und Nachbar-Skill-Grenzen.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI03",
+        "ASI05"
+      ],
+      "owasp_llm": [
+        "LLM02",
+        "LLM05",
+        "LLM06"
+      ],
+      "mitre": [
+        "Escape to Host",
+        "Command and Scripting Interpreter",
+        "AI Agent Tool Credential Harvesting"
+      ]
+    },
+    {
+      "id": "ASP-12",
+      "name": "Resource, Availability & Failure Containment",
+      "purpose": "Begrenzt Kosten, Endlosschleifen, Ressourcenverbrauch und kaskadierende Fehlwirkungen.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI08",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM06",
+        "LLM10"
+      ],
+      "mitre": [
+        "AI Agent Tool Invocation"
+      ]
+    },
+    {
+      "id": "ASP-13",
+      "name": "Human-Agent Trust & Safety",
+      "purpose": "Schützt Nutzer vor Täuschung, Consent-Laundering, gefährlichen Operationszielen und unkritischem Vertrauen in Agentenausgaben.",
+      "owasp_agentic": [
+        "ASI01",
+        "ASI02",
+        "ASI09",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM01",
+        "LLM06",
+        "LLM09"
+      ],
+      "mitre": [
+        "AI Agent Clickbait",
+        "LLM Jailbreak"
+      ]
+    },
+    {
+      "id": "ASP-14",
+      "name": "Auditability, Observability & Accountability",
+      "purpose": "Macht Skill-Entscheidungen und Wirkungen sicherheitsrelevant nachvollziehbar, ohne private Chain-of-Thought zu verlangen.",
+      "owasp_agentic": [
+        "ASI03",
+        "ASI07",
+        "ASI08",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM06",
+        "LLM09"
+      ],
+      "mitre": []
+    },
+    {
+      "id": "ASP-15",
+      "name": "Dependency, Package & Container Supply-Chain Security",
+      "purpose": "Behandelt klassische Software-Supply-Chain-Risiken innerhalb von Skills als eigenständige Properties statt als Analyzer-Namen.",
+      "owasp_agentic": [
+        "ASI04",
+        "ASI05"
+      ],
+      "owasp_llm": [
+        "LLM03"
+      ],
+      "mitre": [
+        "AI Supply Chain Rug Pull",
+        "AI Supply Chain Reputation Inflation"
+      ]
+    }
+  ],
+  "properties": [
+    {
+      "id": "ASP-01.01",
+      "domain_id": "ASP-01",
+      "domain": "Instruction & Goal Integrity",
+      "name": "Instruction Hierarchy Preservation",
+      "invariant": "Höher priorisierte System-, Developer- und Policy-Instruktionen dürfen durch Skill-Inhalte weder explizit noch semantisch überschrieben, entwertet oder ersetzt werden.",
+      "detection": "Pattern-/Intent-Analyse mit Negationsscope; semantische Residualanalyse; Runtime-Policy.",
+      "minimum_evidence": "Override-Operation, Target, Modalität, Scope und Kontext.",
+      "owasp_agentic": [
+        "ASI01",
+        "ASI09",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM01",
+        "LLM06",
+        "LLM07"
+      ],
+      "mitre_atlas": [
+        "LLM Prompt Injection",
+        "LLM Jailbreak",
+        "AI Agent Context Poisoning",
+        "Modify AI Agent Configuration"
+      ],
+      "skil_controls": [
+        "SKIL-PI-001"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-01.02",
+      "domain_id": "ASP-01",
+      "domain": "Instruction & Goal Integrity",
+      "name": "Role & Context Integrity",
+      "invariant": "Ein Skill darf weder eine privilegiertere Rolle vortäuschen noch untrusted Inhalt in einen höher vertrauenswürdigen Kontext umklassifizieren.",
+      "detection": "Rollen-/Kontext-Token-Erkennung, semantische Rollenrelation, Trust-Label-Propagation.",
+      "minimum_evidence": "Actor, beanspruchte Rolle, ursprüngliche Trust-Klasse und Kontextwechsel.",
+      "owasp_agentic": [
+        "ASI01",
+        "ASI09",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM01",
+        "LLM06",
+        "LLM07"
+      ],
+      "mitre_atlas": [
+        "LLM Prompt Injection",
+        "LLM Jailbreak",
+        "AI Agent Context Poisoning",
+        "Modify AI Agent Configuration"
+      ],
+      "skil_controls": [
+        "SKIL-PI-002",
+        "SKIL-PI-003"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-01.03",
+      "domain_id": "ASP-01",
+      "domain": "Instruction & Goal Integrity",
+      "name": "Refusal Preservation",
+      "invariant": "Ein Skill darf die Fähigkeit des Agenten, unzulässige oder nicht verifizierbare Aktionen abzulehnen, nicht generell unterdrücken.",
+      "detection": "Intent- und Modalitätsanalyse für REFUSE/COMPLY.",
+      "minimum_evidence": "actor=AGENT; action=REFUSE; permission=FORBIDDEN bzw. unconditional compliance.",
+      "owasp_agentic": [
+        "ASI01",
+        "ASI09",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM01",
+        "LLM06",
+        "LLM07"
+      ],
+      "mitre_atlas": [
+        "LLM Prompt Injection",
+        "LLM Jailbreak",
+        "AI Agent Context Poisoning",
+        "Modify AI Agent Configuration"
+      ],
+      "skil_controls": [
+        "SKIL-INTENT-REFUSAL"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-01.04",
+      "domain_id": "ASP-01",
+      "domain": "Instruction & Goal Integrity",
+      "name": "Warning & Safety-Context Preservation",
+      "invariant": "Ein Skill darf notwendige Warnungen, Caveats oder sicherheitsrelevante Hinweise nicht pauschal unterdrücken.",
+      "detection": "Intent-Analyse für Suppression-Verben und Safety-Objekte.",
+      "minimum_evidence": "Suppression-Intent, Safety-Objekt, Scope und Kontext.",
+      "owasp_agentic": [
+        "ASI01",
+        "ASI09",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM01",
+        "LLM06",
+        "LLM07"
+      ],
+      "mitre_atlas": [
+        "LLM Prompt Injection",
+        "LLM Jailbreak",
+        "AI Agent Context Poisoning",
+        "Modify AI Agent Configuration"
+      ],
+      "skil_controls": [
+        "SKIL-INTENT-WARNING"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-01.05",
+      "domain_id": "ASP-01",
+      "domain": "Instruction & Goal Integrity",
+      "name": "Guardrail Integrity",
+      "invariant": "Ein Skill darf Sicherheitsrichtlinien, Guardrails oder Policy-Enforcement nicht als unwirksam, optional oder deaktivierbar deklarieren.",
+      "detection": "Guardrail-Nullification-Patterns plus semantische Policy-Relation.",
+      "minimum_evidence": "Guardrail/Policy als Target, Nullification-Operation und Reichweite.",
+      "owasp_agentic": [
+        "ASI01",
+        "ASI09",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM01",
+        "LLM06",
+        "LLM07"
+      ],
+      "mitre_atlas": [
+        "LLM Prompt Injection",
+        "LLM Jailbreak",
+        "AI Agent Context Poisoning",
+        "Modify AI Agent Configuration"
+      ],
+      "skil_controls": [
+        "SKIL-INTENT-GUARDRAIL",
+        "SKIL-GUARDRAIL-I18N-001"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-01.06",
+      "domain_id": "ASP-01",
+      "domain": "Instruction & Goal Integrity",
+      "name": "Hidden Instruction Resistance",
+      "invariant": "Instruktionen dürfen nicht durch unsichtbare Unicode-Zeichen, Bidi-Steuerung, Kommentar-/Rendering-Differenzen oder Darstellungsasymmetrien verborgen werden.",
+      "detection": "Unicode-Codepoint-, Bidi-, Markdown/HTML- und Render-vs-Raw-Analyse.",
+      "minimum_evidence": "Raw codepoints/markup, versteckte Instruktionsspanne und Render-Differenz.",
+      "owasp_agentic": [
+        "ASI01",
+        "ASI09",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM01",
+        "LLM06",
+        "LLM07"
+      ],
+      "mitre_atlas": [
+        "LLM Prompt Injection",
+        "LLM Jailbreak",
+        "AI Agent Context Poisoning",
+        "Modify AI Agent Configuration"
+      ],
+      "skil_controls": [
+        "SKIL-UNI-001",
+        "SKIL-UNI-003"
+      ],
+      "skil_status": "PARTIAL"
+    },
+    {
+      "id": "ASP-01.07",
+      "domain_id": "ASP-01",
+      "domain": "Instruction & Goal Integrity",
+      "name": "Covert Behavioral Steering Resistance",
+      "invariant": "Ein Skill darf Nutzer- oder Agentenentscheidungen nicht verdeckt zugunsten fremder Ziele oder Sicherheitsabsenkungen steuern.",
+      "detection": "Intent-Analyse für biased recommendation, concealment, trust-then-exploit und safety-deprioritization.",
+      "minimum_evidence": "Steering-Ziel, Begünstigter und manipulierte Entscheidung.",
+      "owasp_agentic": [
+        "ASI01",
+        "ASI09",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM01",
+        "LLM06",
+        "LLM07"
+      ],
+      "mitre_atlas": [
+        "LLM Prompt Injection",
+        "LLM Jailbreak",
+        "AI Agent Context Poisoning",
+        "Modify AI Agent Configuration"
+      ],
+      "skil_controls": [
+        "SKIL-INTENT-BEHAVIOR-MANIPULATION"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-01.08",
+      "domain_id": "ASP-01",
+      "domain": "Instruction & Goal Integrity",
+      "name": "Goal & Scope Integrity",
+      "invariant": "Der effektive Skill-Auftrag und daraus abgeleitete Subziele müssen innerhalb des autorisierten Scopes bleiben.",
+      "detection": "Contract-vs-Behavior-Diff, semantische Goal-Relation und Runtime-Capability-Checks.",
+      "minimum_evidence": "declared_goal, effective_goal, zusätzliche Operation und fehlende Autorisierung.",
+      "owasp_agentic": [
+        "ASI01",
+        "ASI09",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM01",
+        "LLM06",
+        "LLM07"
+      ],
+      "mitre_atlas": [
+        "LLM Prompt Injection",
+        "LLM Jailbreak",
+        "AI Agent Context Poisoning",
+        "Modify AI Agent Configuration"
+      ],
+      "skil_controls": [
+        "SKIL-INTENT-SCOPE"
+      ],
+      "skil_status": "PARTIAL"
+    },
+    {
+      "id": "ASP-02.01",
+      "domain_id": "ASP-02",
+      "domain": "Discovery, Metadata & Selection Integrity",
+      "name": "Metadata Authenticity",
+      "invariant": "Name, Beschreibung, Eigentümer-, Herkunfts- und Vertrauensmetadaten müssen nachweisbar zum tatsächlich geladenen Skill-Artefakt gehören.",
+      "detection": "Schema-Validierung, Signatur-/Provenance-Bindung, Registry-Abgleich.",
+      "minimum_evidence": "Metadatenwert, Artefakt-Digest, Publisher-Identität und Bindungsnachweis.",
+      "owasp_agentic": [
+        "ASI01",
+        "ASI04",
+        "ASI09"
+      ],
+      "owasp_llm": [
+        "LLM01",
+        "LLM03",
+        "LLM06",
+        "LLM09"
+      ],
+      "mitre_atlas": [
+        "AI Supply Chain Reputation Inflation",
+        "AI Supply Chain Rug Pull",
+        "Prompt Infiltration via Public-Facing Application"
+      ],
+      "skil_controls": [],
+      "skil_status": "NEW"
+    },
+    {
+      "id": "ASP-02.02",
+      "domain_id": "ASP-02",
+      "domain": "Discovery, Metadata & Selection Integrity",
+      "name": "Description–Behavior Consistency",
+      "invariant": "Die semantische Beschreibung eines Skills muss seine sicherheitsrelevanten Operationen, Datenflüsse und Capabilities angemessen widerspiegeln.",
+      "detection": "Capability-Extraktion plus semantischer Vergleich von Beschreibung und Workflow/Code.",
+      "minimum_evidence": "description claims, observed capabilities und Mismatch.",
+      "owasp_agentic": [
+        "ASI01",
+        "ASI04",
+        "ASI09"
+      ],
+      "owasp_llm": [
+        "LLM01",
+        "LLM03",
+        "LLM06",
+        "LLM09"
+      ],
+      "mitre_atlas": [
+        "AI Supply Chain Reputation Inflation",
+        "AI Supply Chain Rug Pull",
+        "Prompt Infiltration via Public-Facing Application"
+      ],
+      "skil_controls": [
+        "SKIL-MCP-006",
+        "SKIL-INTENT-DESCRIPTION",
+        "SKIL-INTENT-IMPLEMENTATION"
+      ],
+      "skil_status": "PARTIAL"
+    },
+    {
+      "id": "ASP-02.03",
+      "domain_id": "ASP-02",
+      "domain": "Discovery, Metadata & Selection Integrity",
+      "name": "Trigger Specificity",
+      "invariant": "Aktivierungskriterien müssen hinreichend spezifisch sein und dürfen nicht nahezu jeden Request matchen.",
+      "detection": "Strukturelle Trigger-Auswertung, Stopword-/Längenregeln, semantische Spezifität.",
+      "minimum_evidence": "Triggerwert, Matching-Breite und Konfliktmenge.",
+      "owasp_agentic": [
+        "ASI01",
+        "ASI04",
+        "ASI09"
+      ],
+      "owasp_llm": [
+        "LLM01",
+        "LLM03",
+        "LLM06",
+        "LLM09"
+      ],
+      "mitre_atlas": [
+        "AI Supply Chain Reputation Inflation",
+        "AI Supply Chain Rug Pull",
+        "Prompt Infiltration via Public-Facing Application"
+      ],
+      "skil_controls": [
+        "SKIL-TRIGGER-GENERIC",
+        "SKIL-TA-001"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-02.04",
+      "domain_id": "ASP-02",
+      "domain": "Discovery, Metadata & Selection Integrity",
+      "name": "Trigger Shadowing Resistance",
+      "invariant": "Ein Skill darf keine Built-in-Kommandos, anderen Skills oder Kontrollpfade durch kollidierende Trigger abfangen oder ersetzen.",
+      "detection": "Set-Membership gegen reservierte Trigger, Namespace-Analyse, Registry-Diff.",
+      "minimum_evidence": "Trigger, kollidierende Identität und Routingpriorität.",
+      "owasp_agentic": [
+        "ASI01",
+        "ASI04",
+        "ASI09"
+      ],
+      "owasp_llm": [
+        "LLM01",
+        "LLM03",
+        "LLM06",
+        "LLM09"
+      ],
+      "mitre_atlas": [
+        "AI Supply Chain Reputation Inflation",
+        "AI Supply Chain Rug Pull",
+        "Prompt Infiltration via Public-Facing Application"
+      ],
+      "skil_controls": [
+        "SKIL-TRIGGER-SHADOW"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-02.05",
+      "domain_id": "ASP-02",
+      "domain": "Discovery, Metadata & Selection Integrity",
+      "name": "Retrieval Keyword-Stuffing Resistance",
+      "invariant": "Skill-Metadaten dürfen semantisches Retrieval nicht durch künstliche Keyword-Dichte manipulieren.",
+      "detection": "Term-Density, Repetition Metrics, embedding-vs-content consistency, adversarial retrieval tests.",
+      "minimum_evidence": "überrepräsentierte Tokens, Ranking-Delta und funktionale Entsprechung.",
+      "owasp_agentic": [
+        "ASI01",
+        "ASI04",
+        "ASI09"
+      ],
+      "owasp_llm": [
+        "LLM01",
+        "LLM03",
+        "LLM06",
+        "LLM09"
+      ],
+      "mitre_atlas": [
+        "AI Supply Chain Reputation Inflation",
+        "AI Supply Chain Rug Pull",
+        "Prompt Infiltration via Public-Facing Application"
+      ],
+      "skil_controls": [],
+      "skil_status": "NEW"
+    },
+    {
+      "id": "ASP-02.06",
+      "domain_id": "ASP-02",
+      "domain": "Discovery, Metadata & Selection Integrity",
+      "name": "Semantic Camouflage Resistance",
+      "invariant": "Riskantes Verhalten darf sich nicht allein durch semantisch passende, aber verharmlosende Beschreibung als legitimer Kandidat tarnen.",
+      "detection": "Metadata-to-workflow consistency, capability diff und anomaly scoring.",
+      "minimum_evidence": "Retrieval-Relevanz bei gleichzeitigem Behavior-Mismatch.",
+      "owasp_agentic": [
+        "ASI01",
+        "ASI04",
+        "ASI09"
+      ],
+      "owasp_llm": [
+        "LLM01",
+        "LLM03",
+        "LLM06",
+        "LLM09"
+      ],
+      "mitre_atlas": [
+        "AI Supply Chain Reputation Inflation",
+        "AI Supply Chain Rug Pull",
+        "Prompt Infiltration via Public-Facing Application"
+      ],
+      "skil_controls": [
+        "SKIL-SEM-SECURITY",
+        "SKIL-INTENT-DESCRIPTION"
+      ],
+      "skil_status": "PARTIAL"
+    },
+    {
+      "id": "ASP-02.07",
+      "domain_id": "ASP-02",
+      "domain": "Discovery, Metadata & Selection Integrity",
+      "name": "Sybil & Reputation Manipulation Resistance",
+      "invariant": "Clone-Skills, Publisher-Sybil-Identitäten oder erfundene Vertrauenssignale dürfen Ranking und Auswahl nicht künstlich dominieren.",
+      "detection": "Near-duplicate clustering, publisher graph analysis, signed reputation provenance und diversity filtering.",
+      "minimum_evidence": "Clone-Cluster, Publisher-Beziehungen, Reputationsevidence und Ranking-Effekt.",
+      "owasp_agentic": [
+        "ASI01",
+        "ASI04",
+        "ASI09"
+      ],
+      "owasp_llm": [
+        "LLM01",
+        "LLM03",
+        "LLM06",
+        "LLM09"
+      ],
+      "mitre_atlas": [
+        "AI Supply Chain Reputation Inflation",
+        "AI Supply Chain Rug Pull",
+        "Prompt Infiltration via Public-Facing Application"
+      ],
+      "skil_controls": [],
+      "skil_status": "NEW"
+    },
+    {
+      "id": "ASP-02.08",
+      "domain_id": "ASP-02",
+      "domain": "Discovery, Metadata & Selection Integrity",
+      "name": "Planner Selection Integrity",
+      "invariant": "Der Planner darf Skills nur anhand verifizierter Metadaten, Capabilities und Vertrauenssignale auswählen; Fake Recommendations und Permission Deception dürfen die Auswahl nicht dominieren.",
+      "detection": "Metadata sanitization, planner adversarial tests, permission consistency, trust-aware reranking.",
+      "minimum_evidence": "Candidate set, Planner-Entscheidung und manipulierendes Metadatum.",
+      "owasp_agentic": [
+        "ASI01",
+        "ASI04",
+        "ASI09"
+      ],
+      "owasp_llm": [
+        "LLM01",
+        "LLM03",
+        "LLM06",
+        "LLM09"
+      ],
+      "mitre_atlas": [
+        "AI Supply Chain Reputation Inflation",
+        "AI Supply Chain Rug Pull",
+        "Prompt Infiltration via Public-Facing Application"
+      ],
+      "skil_controls": [
+        "SKIL-INTENT-DESCRIPTION",
+        "SKIL-CAP-DECLARATION-MISSING"
+      ],
+      "skil_status": "PARTIAL"
+    },
+    {
+      "id": "ASP-03.01",
+      "domain_id": "ASP-03",
+      "domain": "Data Confidentiality & Privacy",
+      "name": "Secret & Environment Harvesting Protection",
+      "invariant": "Secrets, Tokens und sensitive Environment-Variablen dürfen nur bei explizit autorisiertem Zweck und Scope gelesen werden.",
+      "detection": "Credential pattern detection, AST env access, capability verification, secret-source taint.",
+      "minimum_evidence": "konkrete Secret-Quelle, Read-Operation, Zweck und downstream flow.",
+      "owasp_agentic": [
+        "ASI01",
+        "ASI02",
+        "ASI03",
+        "ASI06",
+        "ASI07"
+      ],
+      "owasp_llm": [
+        "LLM02",
+        "LLM06",
+        "LLM07"
+      ],
+      "mitre_atlas": [
+        "Exfiltration via AI Agent Tool Invocation",
+        "Extract LLM System Prompt",
+        "AI Agent Tool Credential Harvesting"
+      ],
+      "skil_controls": [
+        "SKIL-SEC-001",
+        "SKIL-TAINT-NETWORK"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-03.02",
+      "domain_id": "ASP-03",
+      "domain": "Data Confidentiality & Privacy",
+      "name": "Credential File Protection",
+      "invariant": "Credential-bearing Dateien und Stores dürfen nicht opportunistisch gesucht, gelesen, kopiert oder exportiert werden.",
+      "detection": "Pfadklassifikation, Filesystem AST/pattern analysis und defensive context suppression.",
+      "minimum_evidence": "Credential-Pfad, Operation, Scope und Verwendungsziel.",
+      "owasp_agentic": [
+        "ASI01",
+        "ASI02",
+        "ASI03",
+        "ASI06",
+        "ASI07"
+      ],
+      "owasp_llm": [
+        "LLM02",
+        "LLM06",
+        "LLM07"
+      ],
+      "mitre_atlas": [
+        "Exfiltration via AI Agent Tool Invocation",
+        "Extract LLM System Prompt",
+        "AI Agent Tool Credential Harvesting"
+      ],
+      "skil_controls": [
+        "SKIL-SEC-001"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-03.03",
+      "domain_id": "ASP-03",
+      "domain": "Data Confidentiality & Privacy",
+      "name": "Conversation & Context Confidentiality",
+      "invariant": "Konversationsverlauf, Agentenstatus, Memory und Session-Kontext dürfen nicht ohne Zweckbindung offengelegt oder übertragen werden.",
+      "detection": "Context-object classification, exfil intent, taint and sink analysis.",
+      "minimum_evidence": "Context source, Transformation, Sink und Authorization.",
+      "owasp_agentic": [
+        "ASI01",
+        "ASI02",
+        "ASI03",
+        "ASI06",
+        "ASI07"
+      ],
+      "owasp_llm": [
+        "LLM02",
+        "LLM06",
+        "LLM07"
+      ],
+      "mitre_atlas": [
+        "Exfiltration via AI Agent Tool Invocation",
+        "Extract LLM System Prompt",
+        "AI Agent Tool Credential Harvesting"
+      ],
+      "skil_controls": [
+        "SKIL-EX-001",
+        "SKIL-INTENT-EXTERNAL-TRANSFER"
+      ],
+      "skil_status": "PARTIAL"
+    },
+    {
+      "id": "ASP-03.04",
+      "domain_id": "ASP-03",
+      "domain": "Data Confidentiality & Privacy",
+      "name": "Privileged Instruction Confidentiality",
+      "invariant": "System-/Developer-Prompts und interne Instruktionen dürfen weder direkt, indirekt noch über Tools extrahiert werden.",
+      "detection": "Direct/indirect leakage patterns, transform-aware semantic analysis und prompt-source taint.",
+      "minimum_evidence": "privileged prompt source, extraction operation, transform und sink.",
+      "owasp_agentic": [
+        "ASI01",
+        "ASI02",
+        "ASI03",
+        "ASI06",
+        "ASI07"
+      ],
+      "owasp_llm": [
+        "LLM02",
+        "LLM06",
+        "LLM07"
+      ],
+      "mitre_atlas": [
+        "Exfiltration via AI Agent Tool Invocation",
+        "Extract LLM System Prompt",
+        "AI Agent Tool Credential Harvesting"
+      ],
+      "skil_controls": [
+        "SKIL-PL-001",
+        "SKIL-PROMPT-INDIRECT-LEAK"
+      ],
+      "skil_status": "PARTIAL"
+    },
+    {
+      "id": "ASP-03.05",
+      "domain_id": "ASP-03",
+      "domain": "Data Confidentiality & Privacy",
+      "name": "External Data Exfiltration Prevention",
+      "invariant": "Sensitive Daten dürfen keine nicht autorisierten externen Netzwerk-, Tool- oder Logging-Sinks erreichen.",
+      "detection": "Source/sink taint, URL/domain classification, network AST und intent analysis.",
+      "minimum_evidence": "Source→Propagation→Sink-Pfad sowie Destination trust.",
+      "owasp_agentic": [
+        "ASI01",
+        "ASI02",
+        "ASI03",
+        "ASI06",
+        "ASI07"
+      ],
+      "owasp_llm": [
+        "LLM02",
+        "LLM06",
+        "LLM07"
+      ],
+      "mitre_atlas": [
+        "Exfiltration via AI Agent Tool Invocation",
+        "Extract LLM System Prompt",
+        "AI Agent Tool Credential Harvesting"
+      ],
+      "skil_controls": [
+        "SKIL-EX-001",
+        "SKIL-NET-001",
+        "SKIL-TAINT-NETWORK",
+        "SKIL-INTENT-EXTERNAL-TRANSFER"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-03.06",
+      "domain_id": "ASP-03",
+      "domain": "Data Confidentiality & Privacy",
+      "name": "Cloud/Object-Storage Exfiltration Prevention",
+      "invariant": "Uploads in S3-, GCS-, Azure- oder vergleichbare Stores müssen explizit autorisierte Daten und Ziele betreffen.",
+      "detection": "Cloud CLI/SDK recognition, bucket/container classification und taint.",
+      "minimum_evidence": "Upload call, Ziel, Source-Daten und Authorization evidence.",
+      "owasp_agentic": [
+        "ASI01",
+        "ASI02",
+        "ASI03",
+        "ASI06",
+        "ASI07"
+      ],
+      "owasp_llm": [
+        "LLM02",
+        "LLM06",
+        "LLM07"
+      ],
+      "mitre_atlas": [
+        "Exfiltration via AI Agent Tool Invocation",
+        "Extract LLM System Prompt",
+        "AI Agent Tool Credential Harvesting"
+      ],
+      "skil_controls": [
+        "SKIL-BOUNDARY-CLOUD-EXFIL",
+        "SKIL-BOUNDARY-CLOUD-SDK-UPLOAD"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-03.07",
+      "domain_id": "ASP-03",
+      "domain": "Data Confidentiality & Privacy",
+      "name": "Data Minimization",
+      "invariant": "Ein Skill darf nur Datenklassen und Datenbereiche lesen, die für seinen deklarierten Zweck erforderlich sind.",
+      "detection": "Contract-to-observed-read comparison, data/path scopes und runtime access policy.",
+      "minimum_evidence": "required data set versus observed access set.",
+      "owasp_agentic": [
+        "ASI01",
+        "ASI02",
+        "ASI03",
+        "ASI06",
+        "ASI07"
+      ],
+      "owasp_llm": [
+        "LLM02",
+        "LLM06",
+        "LLM07"
+      ],
+      "mitre_atlas": [
+        "Exfiltration via AI Agent Tool Invocation",
+        "Extract LLM System Prompt",
+        "AI Agent Tool Credential Harvesting"
+      ],
+      "skil_controls": [],
+      "skil_status": "NEW"
+    },
+    {
+      "id": "ASP-03.08",
+      "domain_id": "ASP-03",
+      "domain": "Data Confidentiality & Privacy",
+      "name": "Purpose & Retention Bound",
+      "invariant": "Erhobene Daten dürfen weder für neue Zwecke umgewidmet noch länger oder persistenter gespeichert werden als autorisiert.",
+      "detection": "Data lineage labels, state-write analysis, retention metadata und runtime policy.",
+      "minimum_evidence": "data class, original purpose, new purpose/store und retention lifetime.",
+      "owasp_agentic": [
+        "ASI01",
+        "ASI02",
+        "ASI03",
+        "ASI06",
+        "ASI07"
+      ],
+      "owasp_llm": [
+        "LLM02",
+        "LLM06",
+        "LLM07"
+      ],
+      "mitre_atlas": [
+        "Exfiltration via AI Agent Tool Invocation",
+        "Extract LLM System Prompt",
+        "AI Agent Tool Credential Harvesting"
+      ],
+      "skil_controls": [
+        "SKIL-MP-001",
+        "SKIL-PERSISTENCE-STARTUP"
+      ],
+      "skil_status": "PARTIAL"
+    },
+    {
+      "id": "ASP-04.01",
+      "domain_id": "ASP-04",
+      "domain": "Identity, Authorization & Consent",
+      "name": "Least-Privilege Permission Bound",
+      "invariant": "Deklarierte und effektive Berechtigungen müssen auf die minimal für den Skill-Zweck erforderliche Menge beschränkt sein.",
+      "detection": "Permission schema analysis, capability observation und contract verification.",
+      "minimum_evidence": "requested permissions, observed needs, excess set.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI03",
+        "ASI07"
+      ],
+      "owasp_llm": [
+        "LLM02",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "Valid Accounts",
+        "AI Agent Tool Credential Harvesting",
+        "Modify AI Agent Configuration"
+      ],
+      "skil_controls": [
+        "SKIL-AGENCY-TOOLS",
+        "SKIL-MCP-001"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-04.02",
+      "domain_id": "ASP-04",
+      "domain": "Identity, Authorization & Consent",
+      "name": "Underdeclared Capability Detection",
+      "invariant": "Jede tatsächlich genutzte sicherheitsrelevante Capability muss im überprüften Skill-Vertrag oder Manifest enthalten sein.",
+      "detection": "Observed-capability extraction plus set difference against declarations.",
+      "minimum_evidence": "observed capability minus declared capability.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI03",
+        "ASI07"
+      ],
+      "owasp_llm": [
+        "LLM02",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "Valid Accounts",
+        "AI Agent Tool Credential Harvesting",
+        "Modify AI Agent Configuration"
+      ],
+      "skil_controls": [
+        "SKIL-CAP-DECLARATION-MISSING",
+        "SKIL-CAP-001"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-04.03",
+      "domain_id": "ASP-04",
+      "domain": "Identity, Authorization & Consent",
+      "name": "Overdeclared Capability Minimization",
+      "invariant": "Deklarierte Capabilities ohne nachvollziehbare Nutzung oder Zweckbezug müssen entfernt oder separat gerechtfertigt werden.",
+      "detection": "Reverse capability diff, usage observations und reviewer-approved exceptions.",
+      "minimum_evidence": "declared capability minus justified/observed capability.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI03",
+        "ASI07"
+      ],
+      "owasp_llm": [
+        "LLM02",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "Valid Accounts",
+        "AI Agent Tool Credential Harvesting",
+        "Modify AI Agent Configuration"
+      ],
+      "skil_controls": [
+        "SKIL-CAP-001"
+      ],
+      "skil_status": "PARTIAL"
+    },
+    {
+      "id": "ASP-04.04",
+      "domain_id": "ASP-04",
+      "domain": "Identity, Authorization & Consent",
+      "name": "Approval & Confirmation Integrity",
+      "invariant": "High-impact Aktionen dürfen erforderliche Approval-Gates nicht umgehen, auto-approven oder durch generische Vorabzustimmung legitimieren.",
+      "detection": "Intent patterns, action classification und runtime pre-action policy.",
+      "minimum_evidence": "high-impact action, required approval, actual approval state.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI03",
+        "ASI07"
+      ],
+      "owasp_llm": [
+        "LLM02",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "Valid Accounts",
+        "AI Agent Tool Credential Harvesting",
+        "Modify AI Agent Configuration"
+      ],
+      "skil_controls": [
+        "SKIL-AGENCY-APPROVAL"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-04.05",
+      "domain_id": "ASP-04",
+      "domain": "Identity, Authorization & Consent",
+      "name": "Credential Scope Minimization",
+      "invariant": "Tokens und Service-Identitäten müssen kleinste notwendige Scopes, Rollen und Ressourcenbereiche tragen.",
+      "detection": "OAuth/IAM scope analysis, policy linting und requested-vs-required comparison.",
+      "minimum_evidence": "token scopes/roles, required operation set und excess privileges.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI03",
+        "ASI07"
+      ],
+      "owasp_llm": [
+        "LLM02",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "Valid Accounts",
+        "AI Agent Tool Credential Harvesting",
+        "Modify AI Agent Configuration"
+      ],
+      "skil_controls": [],
+      "skil_status": "NEW"
+    },
+    {
+      "id": "ASP-04.06",
+      "domain_id": "ASP-04",
+      "domain": "Identity, Authorization & Consent",
+      "name": "Token Audience & Resource Binding",
+      "invariant": "Credentials dürfen nur an der Resource verwendet werden, für die sie ausgestellt und vorgesehen wurden.",
+      "detection": "JWT/audience/resource validation und downstream call correlation.",
+      "minimum_evidence": "issuer, audience/resource, recipient service und mismatch.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI03",
+        "ASI07"
+      ],
+      "owasp_llm": [
+        "LLM02",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "Valid Accounts",
+        "AI Agent Tool Credential Harvesting",
+        "Modify AI Agent Configuration"
+      ],
+      "skil_controls": [],
+      "skil_status": "NEW"
+    },
+    {
+      "id": "ASP-04.07",
+      "domain_id": "ASP-04",
+      "domain": "Identity, Authorization & Consent",
+      "name": "Credential Non-Transferability",
+      "invariant": "User- oder upstream-issued Tokens dürfen nicht ungeprüft an andere Dienste oder MCP-Backends durchgereicht werden.",
+      "detection": "Token-passthrough detection, credential taint und proxy boundary analysis.",
+      "minimum_evidence": "credential source, intermediary, downstream sink und fehlende exchange/binding.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI03",
+        "ASI07"
+      ],
+      "owasp_llm": [
+        "LLM02",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "Valid Accounts",
+        "AI Agent Tool Credential Harvesting",
+        "Modify AI Agent Configuration"
+      ],
+      "skil_controls": [],
+      "skil_status": "NEW"
+    },
+    {
+      "id": "ASP-04.08",
+      "domain_id": "ASP-04",
+      "domain": "Identity, Authorization & Consent",
+      "name": "Revocation & Stop Enforcement",
+      "invariant": "Entzogene Capabilities, Credentials oder Nutzerfreigaben müssen wirksam unbrauchbar sein; Stop-/Shutdown-Signale müssen zuverlässig greifen.",
+      "detection": "Runtime policy, revocation tests, emergency-stop conformance und post-revoke trace validation.",
+      "minimum_evidence": "revocation event followed by denied/allowed subsequent action.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI03",
+        "ASI07"
+      ],
+      "owasp_llm": [
+        "LLM02",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "Valid Accounts",
+        "AI Agent Tool Credential Harvesting",
+        "Modify AI Agent Configuration"
+      ],
+      "skil_controls": [],
+      "skil_status": "NEW"
+    },
+    {
+      "id": "ASP-05.01",
+      "domain_id": "ASP-05",
+      "domain": "Tool, Capability & Agency Safety",
+      "name": "Restricted Tool Surface",
+      "invariant": "Ein Skill darf nicht pauschal alle verfügbaren Tools oder Wildcards erhalten, wenn eine kleinere Tool-Menge genügt.",
+      "detection": "Manifest/MCP wildcard checks, natural-language agency patterns und runtime allowlists.",
+      "minimum_evidence": "declared tool set, required tool set, wildcard/broad grant.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI03",
+        "ASI05",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM05",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "AI Agent Tool Invocation",
+        "Command and Scripting Interpreter",
+        "Escape to Host"
+      ],
+      "skil_controls": [
+        "SKIL-AGENCY-TOOLS",
+        "SKIL-MCP-001"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-05.02",
+      "domain_id": "ASP-05",
+      "domain": "Tool, Capability & Agency Safety",
+      "name": "Tool Parameter Safety",
+      "invariant": "Tool-Parameter müssen typisiert, validiert und gegen Injection, Force-Flags, Path Traversal und semantischen Missbrauch geschützt sein.",
+      "detection": "Schema checks, AST/taint, argument semantics und MCP parameter analysis.",
+      "minimum_evidence": "tool, parameter, source, validator und dangerous semantic.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI03",
+        "ASI05",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM05",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "AI Agent Tool Invocation",
+        "Command and Scripting Interpreter",
+        "Escape to Host"
+      ],
+      "skil_controls": [
+        "SKIL-PY-002",
+        "SKIL-TAINT-EXECUTION",
+        "SKIL-MCP-004"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-05.03",
+      "domain_id": "ASP-05",
+      "domain": "Tool, Capability & Agency Safety",
+      "name": "Tool Chaining Safety",
+      "invariant": "Eine Sequenz einzeln zulässiger Tools darf keine kombinierte Wirkung erzeugen, die Policy- oder Trust-Grenzen umgeht.",
+      "detection": "Shell AST, workflow graph analysis, composite policy und multi-step taint.",
+      "minimum_evidence": "ordered tool chain, intermediate artifacts und final privileged sink.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI03",
+        "ASI05",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM05",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "AI Agent Tool Invocation",
+        "Command and Scripting Interpreter",
+        "Escape to Host"
+      ],
+      "skil_controls": [
+        "SKIL-SH-001"
+      ],
+      "skil_status": "PARTIAL"
+    },
+    {
+      "id": "ASP-05.04",
+      "domain_id": "ASP-05",
+      "domain": "Tool, Capability & Agency Safety",
+      "name": "High-Impact Action Gating",
+      "invariant": "Delete, deploy, publish, send, purchase, privilege change und vergleichbare Aktionen benötigen kontextabhängige Bestätigung oder deterministische Policy.",
+      "detection": "Action taxonomy, runtime approval gate und irreversible-effect classifier.",
+      "minimum_evidence": "impact class, action parameters und gate decision.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI03",
+        "ASI05",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM05",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "AI Agent Tool Invocation",
+        "Command and Scripting Interpreter",
+        "Escape to Host"
+      ],
+      "skil_controls": [
+        "SKIL-AGENCY-APPROVAL"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-05.05",
+      "domain_id": "ASP-05",
+      "domain": "Tool, Capability & Agency Safety",
+      "name": "Safe Defaults",
+      "invariant": "Security-relevante Defaults müssen fail-closed sein und TLS, AuthN/AuthZ, Validierung und Schutzmechanismen standardmäßig aktiv lassen.",
+      "detection": "Config/pattern analysis, insecure flag detection und policy templates.",
+      "minimum_evidence": "default value/flag, affected control und secure alternative.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI03",
+        "ASI05",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM05",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "AI Agent Tool Invocation",
+        "Command and Scripting Interpreter",
+        "Escape to Host"
+      ],
+      "skil_controls": [
+        "SKIL-TRANSPORT-INSECURE"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-05.06",
+      "domain_id": "ASP-05",
+      "domain": "Tool, Capability & Agency Safety",
+      "name": "Capability Scope Confinement",
+      "invariant": "Eine Capability darf nur auf explizit erlaubte Ziele, Pfade, Hosts, Befehle, Tools und Datenklassen wirken.",
+      "detection": "Contract scopes, allowlist matching und runtime policy evaluation.",
+      "minimum_evidence": "capability, target, allowed domain und actual target.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI03",
+        "ASI05",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM05",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "AI Agent Tool Invocation",
+        "Command and Scripting Interpreter",
+        "Escape to Host"
+      ],
+      "skil_controls": [
+        "SKIL-CAP-001"
+      ],
+      "skil_status": "PARTIAL"
+    },
+    {
+      "id": "ASP-05.07",
+      "domain_id": "ASP-05",
+      "domain": "Tool, Capability & Agency Safety",
+      "name": "Side-Effect Disclosure",
+      "invariant": "Sicherheitsrelevante externe Seiteneffekte müssen in Beschreibung/Contract sichtbar und vor Ausführung nachvollziehbar sein.",
+      "detection": "Behavior extraction versus metadata/contract diff; explicit silent/covert intent detection.",
+      "minimum_evidence": "observed side effect, disclosure location und mismatch.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI03",
+        "ASI05",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM05",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "AI Agent Tool Invocation",
+        "Command and Scripting Interpreter",
+        "Escape to Host"
+      ],
+      "skil_controls": [
+        "SKIL-INTENT-UNDISCLOSED-OPERATION"
+      ],
+      "skil_status": "PARTIAL"
+    },
+    {
+      "id": "ASP-05.08",
+      "domain_id": "ASP-05",
+      "domain": "Tool, Capability & Agency Safety",
+      "name": "Autonomy Bound",
+      "invariant": "Retry, Rekursion, Delegation, selbständige Folgeaktionen und Entscheidungsfreiheit müssen explizite Grenzen besitzen.",
+      "detection": "Resource/agency rule analysis, workflow graph bounds und runtime budgets.",
+      "minimum_evidence": "autonomous loop/action, bound und termination condition.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI03",
+        "ASI05",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM05",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "AI Agent Tool Invocation",
+        "Command and Scripting Interpreter",
+        "Escape to Host"
+      ],
+      "skil_controls": [
+        "SKIL-AGENCY-BOUNDS"
+      ],
+      "skil_status": "PARTIAL"
+    },
+    {
+      "id": "ASP-06.01",
+      "domain_id": "ASP-06",
+      "domain": "Code Execution & Information-Flow Safety",
+      "name": "Dynamic Execution Control",
+      "invariant": "Dynamisch erzeugte oder untrusted Strings dürfen nicht ungeprüft exec/eval/compile/Reflection oder äquivalente Interpreter-Sinks erreichen.",
+      "detection": "Language AST, call resolution, constant propagation und taint.",
+      "minimum_evidence": "source expression, propagation path und execution sink.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI05"
+      ],
+      "owasp_llm": [
+        "LLM03",
+        "LLM05",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "Command and Scripting Interpreter",
+        "Escape to Host",
+        "LLM Prompt Obfuscation"
+      ],
+      "skil_controls": [
+        "SKIL-PY-001",
+        "SKIL-PY-004",
+        "SKIL-PY-REFLECT-EXEC"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-06.02",
+      "domain_id": "ASP-06",
+      "domain": "Code Execution & Information-Flow Safety",
+      "name": "Process Execution Control",
+      "invariant": "Subprozesse müssen über sichere argv-Semantik, explizite Programme und validierte Parameter gestartet werden.",
+      "detection": "Python/JS AST, subprocess API classification und taint.",
+      "minimum_evidence": "process API, executable, argv source und shell mode.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI05"
+      ],
+      "owasp_llm": [
+        "LLM03",
+        "LLM05",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "Command and Scripting Interpreter",
+        "Escape to Host",
+        "LLM Prompt Obfuscation"
+      ],
+      "skil_controls": [
+        "SKIL-PY-002",
+        "SKIL-JS-001",
+        "SKIL-TAINT-EXECUTION"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-06.03",
+      "domain_id": "ASP-06",
+      "domain": "Code Execution & Information-Flow Safety",
+      "name": "Shell Execution Safety",
+      "invariant": "Shell-Syntax aus externen Quellen, Remote-Script-Pipelines und gefährliche Operatoren dürfen keine unkontrollierte Codeausführung ermöglichen.",
+      "detection": "Tree-sitter Bash AST, pipeline graph und remote source classification.",
+      "minimum_evidence": "shell node, command chain, remote source und sink.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI05"
+      ],
+      "owasp_llm": [
+        "LLM03",
+        "LLM05",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "Command and Scripting Interpreter",
+        "Escape to Host",
+        "LLM Prompt Obfuscation"
+      ],
+      "skil_controls": [
+        "SKIL-SH-001",
+        "SKIL-SH-002"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-06.04",
+      "domain_id": "ASP-06",
+      "domain": "Code Execution & Information-Flow Safety",
+      "name": "Unsafe Deserialization Control",
+      "invariant": "Untrusted serialisierte Daten dürfen keine Deserialisierer erreichen, die Objektkonstruktion oder Codeausführung auslösen können.",
+      "detection": "AST call classification plus source taint.",
+      "minimum_evidence": "deserializer, input source und trust label.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI05"
+      ],
+      "owasp_llm": [
+        "LLM03",
+        "LLM05",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "Command and Scripting Interpreter",
+        "Escape to Host",
+        "LLM Prompt Obfuscation"
+      ],
+      "skil_controls": [
+        "SKIL-PY-003"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-06.05",
+      "domain_id": "ASP-06",
+      "domain": "Code Execution & Information-Flow Safety",
+      "name": "Generated Output Execution Control",
+      "invariant": "LLM-, Tool- oder Agent-Output darf nicht ohne Validierung als Code, Shell, SQL, Template oder aktive Sprache interpretiert werden.",
+      "detection": "Output-source classification, taint to interpreter sinks, improper output patterns.",
+      "minimum_evidence": "generated output source, transformation und active sink.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI05"
+      ],
+      "owasp_llm": [
+        "LLM03",
+        "LLM05",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "Command and Scripting Interpreter",
+        "Escape to Host",
+        "LLM Prompt Obfuscation"
+      ],
+      "skil_controls": [
+        "SKIL-OUTPUT-EXECUTION",
+        "SKIL-TAINT-EXECUTION"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-06.06",
+      "domain_id": "ASP-06",
+      "domain": "Code Execution & Information-Flow Safety",
+      "name": "Cross-Context Output Validation",
+      "invariant": "Output aus einem niedrigeren Trust-Kontext muss vor Übernahme in Systemprompt, trusted memory, Planner oder anderen Agentenkontext validiert werden.",
+      "detection": "Trust-label propagation, boundary rules und structured context sinks.",
+      "minimum_evidence": "source context trust, target context trust und validation/declassification.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI05"
+      ],
+      "owasp_llm": [
+        "LLM03",
+        "LLM05",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "Command and Scripting Interpreter",
+        "Escape to Host",
+        "LLM Prompt Obfuscation"
+      ],
+      "skil_controls": [
+        "SKIL-OUTPUT-BOUNDARY"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-06.07",
+      "domain_id": "ASP-06",
+      "domain": "Code Execution & Information-Flow Safety",
+      "name": "Information-Flow Integrity",
+      "invariant": "Sensitive oder untrusted Daten dürfen nur über erlaubte Transformationen und Declassifier zu sicherheitsrelevanten Sinks gelangen.",
+      "detection": "Interprocedural taint/dataflow, CFG/SSA, function summaries und sink-specific sanitizers.",
+      "minimum_evidence": "complete source→propagation→sanitizer→sink path.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI05"
+      ],
+      "owasp_llm": [
+        "LLM03",
+        "LLM05",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "Command and Scripting Interpreter",
+        "Escape to Host",
+        "LLM Prompt Obfuscation"
+      ],
+      "skil_controls": [
+        "SKIL-TAINT-NETWORK",
+        "SKIL-TAINT-EXECUTION",
+        "SKIL-TAINT-FILESYSTEM-WRITE",
+        "SKIL-TAINT-LOG"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-06.08",
+      "domain_id": "ASP-06",
+      "domain": "Code Execution & Information-Flow Safety",
+      "name": "Obfuscated & Malicious Payload Safety",
+      "invariant": "Obfuscation, encoded execution, Malware-Signaturen und selbstentpackende Payloads dürfen Prüfung und Runtime-Grenzen nicht umgehen.",
+      "detection": "Entropy/encoding detection, decoded-content scan, YARA, sandbox/detonation und OS-boundary monitoring.",
+      "minimum_evidence": "encoded/packed artifact, decoded behavior oder runtime effect.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI05"
+      ],
+      "owasp_llm": [
+        "LLM03",
+        "LLM05",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "Command and Scripting Interpreter",
+        "Escape to Host",
+        "LLM Prompt Obfuscation"
+      ],
+      "skil_controls": [
+        "SKIL-OBF-001",
+        "SKIL-YARA-*"
+      ],
+      "skil_status": "PARTIAL"
+    },
+    {
+      "id": "ASP-07.01",
+      "domain_id": "ASP-07",
+      "domain": "Memory, State & Persistence Integrity",
+      "name": "Memory Poisoning Resistance",
+      "invariant": "Untrusted Instruktionen dürfen nicht als langfristig vertrauenswürdige Erinnerung oder Verhaltensregel persistiert werden.",
+      "detection": "Memory-write intent, trust labels, persistent-state policy und semantic content classification.",
+      "minimum_evidence": "untrusted source, memory write und persistence scope.",
+      "owasp_agentic": [
+        "ASI06",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM01",
+        "LLM04",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "AI Agent Context Poisoning",
+        "Modify AI Agent Configuration",
+        "LLM Prompt Self-Replication"
+      ],
+      "skil_controls": [
+        "SKIL-MP-001"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-07.02",
+      "domain_id": "ASP-07",
+      "domain": "Memory, State & Persistence Integrity",
+      "name": "Context Stuffing Resistance",
+      "invariant": "Ein Skill darf Kontextfenster nicht absichtlich mit Füll-, Wiederholungs- oder Verdrängungsinhalt dominieren.",
+      "detection": "Repetition metrics, token budget analysis und displacement intent.",
+      "minimum_evidence": "content volume/repetition, displacement signal und affected context.",
+      "owasp_agentic": [
+        "ASI06",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM01",
+        "LLM04",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "AI Agent Context Poisoning",
+        "Modify AI Agent Configuration",
+        "LLM Prompt Self-Replication"
+      ],
+      "skil_controls": [
+        "SKIL-MEMORY-SATURATION"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-07.03",
+      "domain_id": "ASP-07",
+      "domain": "Memory, State & Persistence Integrity",
+      "name": "State Manipulation Resistance",
+      "invariant": "Ein Skill darf Agentenstatus, Konfiguration, gespeicherte Ziele oder Memory nicht außerhalb autorisierter State-APIs und Scopes verändern.",
+      "detection": "State sink detection, config diff, persistence boundary und authorization.",
+      "minimum_evidence": "state object, mutation, actor und authorization.",
+      "owasp_agentic": [
+        "ASI06",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM01",
+        "LLM04",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "AI Agent Context Poisoning",
+        "Modify AI Agent Configuration",
+        "LLM Prompt Self-Replication"
+      ],
+      "skil_controls": [
+        "SKIL-MP-001",
+        "SKIL-AGENT-SELF-MODIFY"
+      ],
+      "skil_status": "PARTIAL"
+    },
+    {
+      "id": "ASP-07.04",
+      "domain_id": "ASP-07",
+      "domain": "Memory, State & Persistence Integrity",
+      "name": "Self-Modification Control",
+      "invariant": "Ein Skill darf eigene Instruktionen, Code, Policy oder Manifest nur über autorisierte, versionierte und erneut geprüfte Update-Pfade verändern.",
+      "detection": "Self-reference/write detection, artifact diff und update pipeline verification.",
+      "minimum_evidence": "self-targeted write, changed artifact und revalidation state.",
+      "owasp_agentic": [
+        "ASI06",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM01",
+        "LLM04",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "AI Agent Context Poisoning",
+        "Modify AI Agent Configuration",
+        "LLM Prompt Self-Replication"
+      ],
+      "skil_controls": [
+        "SKIL-AGENT-SELF-MODIFY"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-07.05",
+      "domain_id": "ASP-07",
+      "domain": "Memory, State & Persistence Integrity",
+      "name": "Persistence Authorization",
+      "invariant": "Cron, startup services, shell profiles, autorun, background daemons und ähnliche Persistenz müssen explizit deklariert und genehmigt sein.",
+      "detection": "Shell/code/config patterns, startup mechanism inventory und contract diff.",
+      "minimum_evidence": "persistence mechanism, target und approval.",
+      "owasp_agentic": [
+        "ASI06",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM01",
+        "LLM04",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "AI Agent Context Poisoning",
+        "Modify AI Agent Configuration",
+        "LLM Prompt Self-Replication"
+      ],
+      "skil_controls": [
+        "SKIL-PERSISTENCE-STARTUP"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-07.06",
+      "domain_id": "ASP-07",
+      "domain": "Memory, State & Persistence Integrity",
+      "name": "State Ownership Isolation",
+      "invariant": "State handles, files, memory partitions und session-scoped Objekte müssen an die richtige Nutzer-/Agent-/Skill-Identität gebunden bleiben.",
+      "detection": "Ownership/access-control checks, state-handle binding und multi-tenant tests.",
+      "minimum_evidence": "state identifier, owner identity, caller identity und decision.",
+      "owasp_agentic": [
+        "ASI06",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM01",
+        "LLM04",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "AI Agent Context Poisoning",
+        "Modify AI Agent Configuration",
+        "LLM Prompt Self-Replication"
+      ],
+      "skil_controls": [],
+      "skil_status": "NEW"
+    },
+    {
+      "id": "ASP-07.07",
+      "domain_id": "ASP-07",
+      "domain": "Memory, State & Persistence Integrity",
+      "name": "Memory Provenance & Trust Labels",
+      "invariant": "Persistierter Kontext muss Herkunft, Trust-Level und Revalidierungszustand behalten, sodass untrusted Erinnerung später nicht als Systemwissen erscheint.",
+      "detection": "Metadata labels, provenance chain und memory retrieval policy.",
+      "minimum_evidence": "memory item, origin, trust label und consumer context.",
+      "owasp_agentic": [
+        "ASI06",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM01",
+        "LLM04",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "AI Agent Context Poisoning",
+        "Modify AI Agent Configuration",
+        "LLM Prompt Self-Replication"
+      ],
+      "skil_controls": [],
+      "skil_status": "NEW"
+    },
+    {
+      "id": "ASP-07.08",
+      "domain_id": "ASP-07",
+      "domain": "Memory, State & Persistence Integrity",
+      "name": "Memory Lifecycle & Expiry",
+      "invariant": "Temporäre Daten, Zustände und Delegationsinformationen müssen definierte TTL, Lösch- und Invalidierungsregeln besitzen.",
+      "detection": "Retention metadata, expiry tests, state inventory und deletion verification.",
+      "minimum_evidence": "state item, creation, TTL und deletion/expiry evidence.",
+      "owasp_agentic": [
+        "ASI06",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM01",
+        "LLM04",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "AI Agent Context Poisoning",
+        "Modify AI Agent Configuration",
+        "LLM Prompt Self-Replication"
+      ],
+      "skil_controls": [],
+      "skil_status": "NEW"
+    },
+    {
+      "id": "ASP-08.01",
+      "domain_id": "ASP-08",
+      "domain": "Inter-Agent & Delegation Security",
+      "name": "Agent Identity Authentication",
+      "invariant": "Nachrichten und Delegationen müssen eindeutig einer authentisierten Agenten-/Service-Identität zuordenbar sein.",
+      "detection": "Signed messages, mTLS/OIDC identity validation und registry binding.",
+      "minimum_evidence": "sender identity, credential/signature und verifier result.",
+      "owasp_agentic": [
+        "ASI03",
+        "ASI07",
+        "ASI08",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM02",
+        "LLM05",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "AI Agent Tool Invocation",
+        "AI Agent Tool Data Poisoning",
+        "AI Agent Tool Poisoning"
+      ],
+      "skil_controls": [],
+      "skil_status": "NEW"
+    },
+    {
+      "id": "ASP-08.02",
+      "domain_id": "ASP-08",
+      "domain": "Inter-Agent & Delegation Security",
+      "name": "Inter-Agent Message Integrity",
+      "invariant": "Agent-zu-Agent-Nachrichten dürfen zwischen Erzeugung und Verarbeitung nicht unbemerkt verändert werden.",
+      "detection": "Message signatures/MACs, transport integrity und replay protection.",
+      "minimum_evidence": "message digest/signature, sender und receiver.",
+      "owasp_agentic": [
+        "ASI03",
+        "ASI07",
+        "ASI08",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM02",
+        "LLM05",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "AI Agent Tool Invocation",
+        "AI Agent Tool Data Poisoning",
+        "AI Agent Tool Poisoning"
+      ],
+      "skil_controls": [],
+      "skil_status": "NEW"
+    },
+    {
+      "id": "ASP-08.03",
+      "domain_id": "ASP-08",
+      "domain": "Inter-Agent & Delegation Security",
+      "name": "Delegation Monotonicity",
+      "invariant": "Ein delegierter Agent darf keine Autorität erhalten, die über die Schnittmenge aus Parent-Autorität und explizit delegiertem Scope hinausgeht.",
+      "detection": "Capability algebra, delegation token scopes und runtime authorization.",
+      "minimum_evidence": "C_child ⊆ C_parent ∩ C_delegated.",
+      "owasp_agentic": [
+        "ASI03",
+        "ASI07",
+        "ASI08",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM02",
+        "LLM05",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "AI Agent Tool Invocation",
+        "AI Agent Tool Data Poisoning",
+        "AI Agent Tool Poisoning"
+      ],
+      "skil_controls": [],
+      "skil_status": "NEW"
+    },
+    {
+      "id": "ASP-08.04",
+      "domain_id": "ASP-08",
+      "domain": "Inter-Agent & Delegation Security",
+      "name": "Confused-Deputy Resistance",
+      "invariant": "Ein privilegierter Agent oder Proxy darf seine Autorität nicht für einen weniger privilegierten oder bösartigen Initiator missbrauchen lassen.",
+      "detection": "Initiator binding, per-client consent, audience/scope checks und request provenance.",
+      "minimum_evidence": "initiator, deputy, privileged resource und missing binding.",
+      "owasp_agentic": [
+        "ASI03",
+        "ASI07",
+        "ASI08",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM02",
+        "LLM05",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "AI Agent Tool Invocation",
+        "AI Agent Tool Data Poisoning",
+        "AI Agent Tool Poisoning"
+      ],
+      "skil_controls": [],
+      "skil_status": "NEW"
+    },
+    {
+      "id": "ASP-08.05",
+      "domain_id": "ASP-08",
+      "domain": "Inter-Agent & Delegation Security",
+      "name": "Cross-Agent Trust Propagation Bound",
+      "invariant": "Unverifizierter Output darf durch Weitergabe über mehrere Agenten nicht automatisch an Trust gewinnen.",
+      "detection": "Trust-label propagation across messages und planner contexts.",
+      "minimum_evidence": "origin trust, hops, target trust und declassification.",
+      "owasp_agentic": [
+        "ASI03",
+        "ASI07",
+        "ASI08",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM02",
+        "LLM05",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "AI Agent Tool Invocation",
+        "AI Agent Tool Data Poisoning",
+        "AI Agent Tool Poisoning"
+      ],
+      "skil_controls": [
+        "SKIL-OUTPUT-BOUNDARY"
+      ],
+      "skil_status": "PARTIAL"
+    },
+    {
+      "id": "ASP-08.06",
+      "domain_id": "ASP-08",
+      "domain": "Inter-Agent & Delegation Security",
+      "name": "Inter-Agent Output Validation",
+      "invariant": "Agentenoutputs müssen am Empfänger wie externe Eingaben behandelt und vor Tool-, Prompt- oder State-Sinks validiert werden.",
+      "detection": "Boundary validation, schema checks, taint und intent scanning.",
+      "minimum_evidence": "agent output source, receiver sink und validator.",
+      "owasp_agentic": [
+        "ASI03",
+        "ASI07",
+        "ASI08",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM02",
+        "LLM05",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "AI Agent Tool Invocation",
+        "AI Agent Tool Data Poisoning",
+        "AI Agent Tool Poisoning"
+      ],
+      "skil_controls": [
+        "SKIL-OUTPUT-BOUNDARY",
+        "SKIL-TAINT-*"
+      ],
+      "skil_status": "PARTIAL"
+    },
+    {
+      "id": "ASP-08.07",
+      "domain_id": "ASP-08",
+      "domain": "Inter-Agent & Delegation Security",
+      "name": "Collusion & Self-Replication Containment",
+      "invariant": "Mehrere Agenten dürfen durch Koordination, gegenseitige Aktivierung oder Selbstreplikation keine Policies, Quoten oder Takedown-Mechanismen umgehen.",
+      "detection": "Graph/rate analysis, identity correlation, propagation detection und runtime quotas.",
+      "minimum_evidence": "agent graph, repeated propagation und policy bypass effect.",
+      "owasp_agentic": [
+        "ASI03",
+        "ASI07",
+        "ASI08",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM02",
+        "LLM05",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "AI Agent Tool Invocation",
+        "AI Agent Tool Data Poisoning",
+        "AI Agent Tool Poisoning"
+      ],
+      "skil_controls": [],
+      "skil_status": "NEW"
+    },
+    {
+      "id": "ASP-08.08",
+      "domain_id": "ASP-08",
+      "domain": "Inter-Agent & Delegation Security",
+      "name": "Delegation Chain Traceability",
+      "invariant": "Jede delegierte Aktion muss über die gesamte Kette auf Nutzerauftrag, Parent-Agent, Skill, Tool und effektiven Scope zurückführbar sein.",
+      "detection": "Distributed trace IDs, signed delegation context und audit correlation.",
+      "minimum_evidence": "end-to-end delegation chain with identities and scopes.",
+      "owasp_agentic": [
+        "ASI03",
+        "ASI07",
+        "ASI08",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM02",
+        "LLM05",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "AI Agent Tool Invocation",
+        "AI Agent Tool Data Poisoning",
+        "AI Agent Tool Poisoning"
+      ],
+      "skil_controls": [],
+      "skil_status": "NEW"
+    },
+    {
+      "id": "ASP-09.01",
+      "domain_id": "ASP-09",
+      "domain": "Supply Chain, Provenance & Artifact Integrity",
+      "name": "Publisher Authenticity",
+      "invariant": "Ein Skill muss einem erwarteten, überprüfbaren Publisher beziehungsweise Repository-Owner zugeordnet werden können.",
+      "detection": "OIDC/code-signing identity, repository ownership und publisher policy.",
+      "minimum_evidence": "publisher identity, issuer, repository und verification result.",
+      "owasp_agentic": [
+        "ASI04",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM03"
+      ],
+      "mitre_atlas": [
+        "AI Supply Chain Rug Pull",
+        "AI Supply Chain Reputation Inflation"
+      ],
+      "skil_controls": [],
+      "skil_status": "NEW"
+    },
+    {
+      "id": "ASP-09.02",
+      "domain_id": "ASP-09",
+      "domain": "Supply Chain, Provenance & Artifact Integrity",
+      "name": "Artifact Signature Verification",
+      "invariant": "Veröffentlichte und installierte Skill-Artefakte müssen kryptographisch gegen einen erwarteten Signer verifiziert werden können.",
+      "detection": "Detached signature/Sigstore-style verification over the complete artifact closure.",
+      "minimum_evidence": "artifact digest, signature, certificate/identity und verification policy.",
+      "owasp_agentic": [
+        "ASI04",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM03"
+      ],
+      "mitre_atlas": [
+        "AI Supply Chain Rug Pull",
+        "AI Supply Chain Reputation Inflation"
+      ],
+      "skil_controls": [],
+      "skil_status": "NEW"
+    },
+    {
+      "id": "ASP-09.03",
+      "domain_id": "ASP-09",
+      "domain": "Supply Chain, Provenance & Artifact Integrity",
+      "name": "Payload Integrity",
+      "invariant": "SKILL.md, Scripts, References, Assets, Hooks und weitere ausführungsrelevante Dateien dürfen nach Signatur/Review nicht verändert werden.",
+      "detection": "Merkle/file digest manifest, signature verification und install-time rehash.",
+      "minimum_evidence": "reviewed digest set versus installed digest set.",
+      "owasp_agentic": [
+        "ASI04",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM03"
+      ],
+      "mitre_atlas": [
+        "AI Supply Chain Rug Pull",
+        "AI Supply Chain Reputation Inflation"
+      ],
+      "skil_controls": [],
+      "skil_status": "NEW"
+    },
+    {
+      "id": "ASP-09.04",
+      "domain_id": "ASP-09",
+      "domain": "Supply Chain, Provenance & Artifact Integrity",
+      "name": "Provenance & Build Attestation",
+      "invariant": "Die Entstehung des Skills muss über Quelle, Builder, Builddefinition und Inputs nachvollziehbar sein.",
+      "detection": "SLSA-style provenance, attestations und source-to-artifact verification.",
+      "minimum_evidence": "source URI/digest, builder, build definition und subject digest.",
+      "owasp_agentic": [
+        "ASI04",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM03"
+      ],
+      "mitre_atlas": [
+        "AI Supply Chain Rug Pull",
+        "AI Supply Chain Reputation Inflation"
+      ],
+      "skil_controls": [],
+      "skil_status": "NEW"
+    },
+    {
+      "id": "ASP-09.05",
+      "domain_id": "ASP-09",
+      "domain": "Supply Chain, Provenance & Artifact Integrity",
+      "name": "Version Lineage & Rollback Protection",
+      "invariant": "Installationen und Updates dürfen nicht unbemerkt auf ältere verwundbare oder nicht freigegebene Versionen zurückfallen.",
+      "detection": "Monotonic version policy, signed release metadata und rollback denylist.",
+      "minimum_evidence": "current version, candidate version, lineage und approval.",
+      "owasp_agentic": [
+        "ASI04",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM03"
+      ],
+      "mitre_atlas": [
+        "AI Supply Chain Rug Pull",
+        "AI Supply Chain Reputation Inflation"
+      ],
+      "skil_controls": [],
+      "skil_status": "NEW"
+    },
+    {
+      "id": "ASP-09.06",
+      "domain_id": "ASP-09",
+      "domain": "Supply Chain, Provenance & Artifact Integrity",
+      "name": "Update Revalidation",
+      "invariant": "Jede neue Skill-Version muss wie ein neuer Admission-Event auf Metadaten, Permissions, Verhalten, Dependencies und Provenance geprüft werden.",
+      "detection": "Version diff, semantic behavior diff, capability diff und full rescanning.",
+      "minimum_evidence": "old/new artifact, changed security surface und revalidation result.",
+      "owasp_agentic": [
+        "ASI04",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM03"
+      ],
+      "mitre_atlas": [
+        "AI Supply Chain Rug Pull",
+        "AI Supply Chain Reputation Inflation"
+      ],
+      "skil_controls": [
+        "SKIL-MCP-005"
+      ],
+      "skil_status": "PARTIAL"
+    },
+    {
+      "id": "ASP-09.07",
+      "domain_id": "ASP-09",
+      "domain": "Supply Chain, Provenance & Artifact Integrity",
+      "name": "Tool & Dependency Substitution Integrity",
+      "invariant": "Updates dürfen referenzierte Tools, MCP-Server oder Dependencies nicht unbemerkt durch privilegiertere oder andere Identitäten ersetzen.",
+      "detection": "Lockfiles, identity pins, dependency graph diff und tool metadata diff.",
+      "minimum_evidence": "old/new dependency/tool identities und trust attributes.",
+      "owasp_agentic": [
+        "ASI04",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM03"
+      ],
+      "mitre_atlas": [
+        "AI Supply Chain Rug Pull",
+        "AI Supply Chain Reputation Inflation"
+      ],
+      "skil_controls": [
+        "SKIL-MCP-003",
+        "SKIL-MCP-005"
+      ],
+      "skil_status": "PARTIAL"
+    },
+    {
+      "id": "ASP-09.08",
+      "domain_id": "ASP-09",
+      "domain": "Supply Chain, Provenance & Artifact Integrity",
+      "name": "Review-to-Execution Integrity",
+      "invariant": "Zur Laufzeit ausgeführte Artefakte müssen innerhalb der geprüften Artifact Closure liegen; TOCTOU-Mutationen sind zu verhindern.",
+      "detection": "Digest pinning, immutable mounts, runtime file measurement und sandbox attestation.",
+      "minimum_evidence": "review digest, execution digest und mutation/closure evidence.",
+      "owasp_agentic": [
+        "ASI04",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM03"
+      ],
+      "mitre_atlas": [
+        "AI Supply Chain Rug Pull",
+        "AI Supply Chain Reputation Inflation"
+      ],
+      "skil_controls": [
+        "SKIL-BOUNDARY-MUTABLE-IMAGE"
+      ],
+      "skil_status": "PARTIAL"
+    },
+    {
+      "id": "ASP-10.01",
+      "domain_id": "ASP-10",
+      "domain": "MCP & Integration Protocol Security",
+      "name": "MCP Wildcard Permission Prevention",
+      "invariant": "MCP-Tool- oder Permission-Listen dürfen keine unbeschränkten Wildcards enthalten, wenn eine konkrete Allowlist möglich ist.",
+      "detection": "Structured JSON/YAML schema traversal und set-membership checks.",
+      "minimum_evidence": "permission field, wildcard value und available tools.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI03",
+        "ASI04",
+        "ASI07"
+      ],
+      "owasp_llm": [
+        "LLM03",
+        "LLM05",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "AI Agent Tool Poisoning",
+        "AI Agent Tool Data Poisoning",
+        "AI Agent Tool Credential Harvesting"
+      ],
+      "skil_controls": [
+        "SKIL-MCP-001"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-10.02",
+      "domain_id": "ASP-10",
+      "domain": "MCP & Integration Protocol Security",
+      "name": "MCP Metadata Poisoning Resistance",
+      "invariant": "Tool-Namen, Beschreibungen, Defaults und andere MCP-Metadaten dürfen keine versteckten oder manipulativen Instruktionen tragen.",
+      "detection": "Field-scoped intent analysis, unicode/hidden-content scan und schema parsing.",
+      "minimum_evidence": "metadata field/path, malicious span und trust context.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI03",
+        "ASI04",
+        "ASI07"
+      ],
+      "owasp_llm": [
+        "LLM03",
+        "LLM05",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "AI Agent Tool Poisoning",
+        "AI Agent Tool Data Poisoning",
+        "AI Agent Tool Credential Harvesting"
+      ],
+      "skil_controls": [
+        "SKIL-MCP-002",
+        "SKIL-UNI-001"
+      ],
+      "skil_status": "PARTIAL"
+    },
+    {
+      "id": "ASP-10.03",
+      "domain_id": "ASP-10",
+      "domain": "MCP & Integration Protocol Security",
+      "name": "MCP Parameter Injection Resistance",
+      "invariant": "Parameterbeschreibungen und Defaultwerte dürfen keine Prompt-, Shell-, URL- oder Credential-Collection-Payloads enthalten.",
+      "detection": "Field-scoped intent engine, length heuristics und URL/shell classification.",
+      "minimum_evidence": "parameter field, payload class und matched security relation.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI03",
+        "ASI04",
+        "ASI07"
+      ],
+      "owasp_llm": [
+        "LLM03",
+        "LLM05",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "AI Agent Tool Poisoning",
+        "AI Agent Tool Data Poisoning",
+        "AI Agent Tool Credential Harvesting"
+      ],
+      "skil_controls": [
+        "SKIL-MCP-004",
+        "SKIL-MCP-007"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-10.04",
+      "domain_id": "ASP-10",
+      "domain": "MCP & Integration Protocol Security",
+      "name": "MCP Tool Identity Stability",
+      "invariant": "Tool-/Server-Identität, Command, Args, Schema und sicherheitsrelevante Metadaten müssen an geprüfte Versionen oder Locks gebunden bleiben.",
+      "detection": "Identity pinning, lock-file diff, immutable version/digest checks.",
+      "minimum_evidence": "reviewed identity versus current identity.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI03",
+        "ASI04",
+        "ASI07"
+      ],
+      "owasp_llm": [
+        "LLM03",
+        "LLM05",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "AI Agent Tool Poisoning",
+        "AI Agent Tool Data Poisoning",
+        "AI Agent Tool Credential Harvesting"
+      ],
+      "skil_controls": [
+        "SKIL-MCP-003",
+        "SKIL-MCP-005"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-10.05",
+      "domain_id": "ASP-10",
+      "domain": "MCP & Integration Protocol Security",
+      "name": "MCP Description–Behavior Consistency",
+      "invariant": "MCP-Toolbeschreibung und beobachtetes Verhalten müssen semantisch und capability-seitig übereinstimmen.",
+      "detection": "Code/tool behavior extraction plus semantic comparison.",
+      "minimum_evidence": "description, observed operations und mismatch.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI03",
+        "ASI04",
+        "ASI07"
+      ],
+      "owasp_llm": [
+        "LLM03",
+        "LLM05",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "AI Agent Tool Poisoning",
+        "AI Agent Tool Data Poisoning",
+        "AI Agent Tool Credential Harvesting"
+      ],
+      "skil_controls": [
+        "SKIL-MCP-006",
+        "SKIL-INTENT-DESCRIPTION"
+      ],
+      "skil_status": "PARTIAL"
+    },
+    {
+      "id": "ASP-10.06",
+      "domain_id": "ASP-10",
+      "domain": "MCP & Integration Protocol Security",
+      "name": "OAuth Authorization URL Safety",
+      "invariant": "MCP-Clients dürfen nur zulässige Authorization-URL-Schemes und validierte Redirect-Ziele öffnen; Shell-/JS-Schemes und interne Targets sind abzulehnen.",
+      "detection": "URL parsing, scheme allowlist, redirect-hop validation und SSRF controls.",
+      "minimum_evidence": "authorization URL, scheme, resolved target und validation result.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI03",
+        "ASI04",
+        "ASI07"
+      ],
+      "owasp_llm": [
+        "LLM03",
+        "LLM05",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "AI Agent Tool Poisoning",
+        "AI Agent Tool Data Poisoning",
+        "AI Agent Tool Credential Harvesting"
+      ],
+      "skil_controls": [],
+      "skil_status": "NEW"
+    },
+    {
+      "id": "ASP-10.07",
+      "domain_id": "ASP-10",
+      "domain": "MCP & Integration Protocol Security",
+      "name": "MCP State-Handle Ownership Binding",
+      "invariant": "Serverseitige State Handles müssen unvorhersagbar und an die authentisierte Identität beziehungsweise den Mandanten gebunden sein.",
+      "detection": "State-handle entropy, ownership authorization und cross-user negative tests.",
+      "minimum_evidence": "handle, owner, caller und access result.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI03",
+        "ASI04",
+        "ASI07"
+      ],
+      "owasp_llm": [
+        "LLM03",
+        "LLM05",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "AI Agent Tool Poisoning",
+        "AI Agent Tool Data Poisoning",
+        "AI Agent Tool Credential Harvesting"
+      ],
+      "skil_controls": [],
+      "skil_status": "NEW"
+    },
+    {
+      "id": "ASP-10.08",
+      "domain_id": "ASP-10",
+      "domain": "MCP & Integration Protocol Security",
+      "name": "Local MCP/stdio Isolation",
+      "invariant": "Lokale MCP-Server und stdio-Proxies müssen Prozess-, Datei-, Credential- und User-Boundaries wahren und dürfen keine implizite Host-Autorität vererben.",
+      "detection": "Process sandbox, executable allowlist, local server provenance und OS-boundary monitoring.",
+      "minimum_evidence": "server binary, launch context, inherited privileges und accessible resources.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI03",
+        "ASI04",
+        "ASI07"
+      ],
+      "owasp_llm": [
+        "LLM03",
+        "LLM05",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "AI Agent Tool Poisoning",
+        "AI Agent Tool Data Poisoning",
+        "AI Agent Tool Credential Harvesting"
+      ],
+      "skil_controls": [],
+      "skil_status": "NEW"
+    },
+    {
+      "id": "ASP-11.01",
+      "domain_id": "ASP-11",
+      "domain": "Network, Filesystem & Runtime Boundary Security",
+      "name": "Outbound Network Boundary",
+      "invariant": "Ausgehende Netzwerkverbindungen müssen auf deklarierte Protokolle, Hosts, Ports und Zwecke beschränkt sein.",
+      "detection": "Network call inventory, domain/IP allowlists, taint und egress policy.",
+      "minimum_evidence": "call, resolved target, purpose und policy result.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI03",
+        "ASI05"
+      ],
+      "owasp_llm": [
+        "LLM02",
+        "LLM05",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "Escape to Host",
+        "Command and Scripting Interpreter",
+        "AI Agent Tool Credential Harvesting"
+      ],
+      "skil_controls": [
+        "SKIL-NET-001",
+        "SKIL-TAINT-NETWORK"
+      ],
+      "skil_status": "PARTIAL"
+    },
+    {
+      "id": "ASP-11.02",
+      "domain_id": "ASP-11",
+      "domain": "Network, Filesystem & Runtime Boundary Security",
+      "name": "Cloud Metadata SSRF Protection",
+      "invariant": "Link-local und cloud-spezifische Metadata-Endpunkte dürfen nicht über Skill-kontrollierte Requests erreichbar sein.",
+      "detection": "Literal endpoint detection, URL resolution, redirect validation und egress block.",
+      "minimum_evidence": "request primitive, resolved metadata endpoint und source.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI03",
+        "ASI05"
+      ],
+      "owasp_llm": [
+        "LLM02",
+        "LLM05",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "Escape to Host",
+        "Command and Scripting Interpreter",
+        "AI Agent Tool Credential Harvesting"
+      ],
+      "skil_controls": [
+        "SKIL-BOUNDARY-METADATA"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-11.03",
+      "domain_id": "ASP-11",
+      "domain": "Network, Filesystem & Runtime Boundary Security",
+      "name": "Internal & Loopback SSRF Protection",
+      "invariant": "Requests an localhost, private Netze und interne Services müssen explizit autorisiert und gegen SSRF geschützt sein.",
+      "detection": "IP range classification, DNS resolution und redirect-hop validation.",
+      "minimum_evidence": "request target, resolved IP/range und trust classification.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI03",
+        "ASI05"
+      ],
+      "owasp_llm": [
+        "LLM02",
+        "LLM05",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "Escape to Host",
+        "Command and Scripting Interpreter",
+        "AI Agent Tool Credential Harvesting"
+      ],
+      "skil_controls": [
+        "SKIL-BOUNDARY-SSRF-INTERNAL"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-11.04",
+      "domain_id": "ASP-11",
+      "domain": "Network, Filesystem & Runtime Boundary Security",
+      "name": "Dynamic-Target SSRF Protection",
+      "invariant": "Untrusted oder dynamisch zusammengesetzte URL-Ziele müssen vor Netzwerkzugriff streng validiert und nach DNS-Auflösung erneut geprüft werden.",
+      "detection": "Taint to URL sinks, parser-based validation und DNS pinning/TOCTOU controls.",
+      "minimum_evidence": "source variable, URL construction, resolution und network sink.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI03",
+        "ASI05"
+      ],
+      "owasp_llm": [
+        "LLM02",
+        "LLM05",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "Escape to Host",
+        "Command and Scripting Interpreter",
+        "AI Agent Tool Credential Harvesting"
+      ],
+      "skil_controls": [
+        "SKIL-BOUNDARY-SSRF"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-11.05",
+      "domain_id": "ASP-11",
+      "domain": "Network, Filesystem & Runtime Boundary Security",
+      "name": "Agent & MCP Configuration Isolation",
+      "invariant": "Skills dürfen private Agenten-, Session-, History- und MCP-Konfiguration anderer Komponenten nicht lesen oder enumerieren.",
+      "detection": "Path classification, filesystem call analysis und boundary intent rules.",
+      "minimum_evidence": "config/state path, operation und ownership.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI03",
+        "ASI05"
+      ],
+      "owasp_llm": [
+        "LLM02",
+        "LLM05",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "Escape to Host",
+        "Command and Scripting Interpreter",
+        "AI Agent Tool Credential Harvesting"
+      ],
+      "skil_controls": [
+        "SKIL-BOUNDARY-AGENT-STATE",
+        "SKIL-BOUNDARY-MCP-CONFIG"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-11.06",
+      "domain_id": "ASP-11",
+      "domain": "Network, Filesystem & Runtime Boundary Security",
+      "name": "Peer Skill Isolation",
+      "invariant": "Ein Skill darf andere installierte Skills, deren SKILL.md oder interne Ressourcen nicht ohne explizite Cross-Skill-Capability enumerieren oder lesen.",
+      "detection": "Peer-skill path detection, registry access analysis und contract verification.",
+      "minimum_evidence": "peer skill path/identity, read/enumeration und authorization.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI03",
+        "ASI05"
+      ],
+      "owasp_llm": [
+        "LLM02",
+        "LLM05",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "Escape to Host",
+        "Command and Scripting Interpreter",
+        "AI Agent Tool Credential Harvesting"
+      ],
+      "skil_controls": [
+        "SKIL-BOUNDARY-PEER-SKILL"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-11.07",
+      "domain_id": "ASP-11",
+      "domain": "Network, Filesystem & Runtime Boundary Security",
+      "name": "Container Control-Plane Isolation",
+      "invariant": "Docker-/containerd-Sockets, Kubernetes Service Accounts und ähnliche Control-Plane-Interfaces dürfen einem Skill nicht implizit zugänglich sein.",
+      "detection": "Socket/path/env detection, mount analysis und runtime sandbox policy.",
+      "minimum_evidence": "control-plane endpoint, accessible operation und inherited privilege.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI03",
+        "ASI05"
+      ],
+      "owasp_llm": [
+        "LLM02",
+        "LLM05",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "Escape to Host",
+        "Command and Scripting Interpreter",
+        "AI Agent Tool Credential Harvesting"
+      ],
+      "skil_controls": [
+        "SKIL-BOUNDARY-CONTAINER"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-11.08",
+      "domain_id": "ASP-11",
+      "domain": "Network, Filesystem & Runtime Boundary Security",
+      "name": "Host Escape & Privilege-Escalation Prevention",
+      "invariant": "Privileged Container, Host Namespaces, SYS_ADMIN, nsenter/unshare, cgroup escape und sudo/root-Eskalation müssen standardmäßig ausgeschlossen sein.",
+      "detection": "Container/IaC manifest analysis, shell AST und capability policy.",
+      "minimum_evidence": "escape primitive, privilege delta und runtime enforcement.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI03",
+        "ASI05"
+      ],
+      "owasp_llm": [
+        "LLM02",
+        "LLM05",
+        "LLM06"
+      ],
+      "mitre_atlas": [
+        "Escape to Host",
+        "Command and Scripting Interpreter",
+        "AI Agent Tool Credential Harvesting"
+      ],
+      "skil_controls": [
+        "SKIL-BOUNDARY-CONTAINER-ESCAPE",
+        "SKIL-SH-002"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-12.01",
+      "domain_id": "ASP-12",
+      "domain": "Resource, Availability & Failure Containment",
+      "name": "Resource Budget Bound",
+      "invariant": "CPU, Speicher, Tokens, API-Aufrufe, Geld und externe Ressourcen müssen pro Skill, Request oder Workflow begrenzt sein.",
+      "detection": "Static bound detection plus runtime budgets/meters.",
+      "minimum_evidence": "resource type, configured bound und observed/requested use.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI08",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM06",
+        "LLM10"
+      ],
+      "mitre_atlas": [
+        "AI Agent Tool Invocation"
+      ],
+      "skil_controls": [
+        "SKIL-AGENCY-BOUNDS"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-12.02",
+      "domain_id": "ASP-12",
+      "domain": "Resource, Availability & Failure Containment",
+      "name": "Output Bound",
+      "invariant": "Generierte oder weitergeleitete Outputs müssen Größen-, Token- und Rate-Limits besitzen.",
+      "detection": "Config/pattern analysis und runtime output metering.",
+      "minimum_evidence": "output channel, limit und attempted amount.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI08",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM06",
+        "LLM10"
+      ],
+      "mitre_atlas": [
+        "AI Agent Tool Invocation"
+      ],
+      "skil_controls": [
+        "SKIL-OUTPUT-LIMIT"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-12.03",
+      "domain_id": "ASP-12",
+      "domain": "Resource, Availability & Failure Containment",
+      "name": "Rate & Quota Bound",
+      "invariant": "Tool-, Netzwerk- und Provider-Aufrufe müssen Quoten und Ratenbegrenzungen respektieren.",
+      "detection": "Quota config linting, call counters und rate-policy enforcement.",
+      "minimum_evidence": "operation, window, quota und observed rate.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI08",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM06",
+        "LLM10"
+      ],
+      "mitre_atlas": [
+        "AI Agent Tool Invocation"
+      ],
+      "skil_controls": [
+        "SKIL-AGENCY-BOUNDS"
+      ],
+      "skil_status": "PARTIAL"
+    },
+    {
+      "id": "ASP-12.04",
+      "domain_id": "ASP-12",
+      "domain": "Resource, Availability & Failure Containment",
+      "name": "Loop & Recursion Bound",
+      "invariant": "Agentische Loops, Planner-Replanning, rekursive Skill-Aufrufe und Retry-Ketten benötigen maximale Tiefe oder eindeutige Terminierung.",
+      "detection": "Workflow graph cycle analysis, recursion counters und termination guards.",
+      "minimum_evidence": "cycle/recursion edge, max depth und termination condition.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI08",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM06",
+        "LLM10"
+      ],
+      "mitre_atlas": [
+        "AI Agent Tool Invocation"
+      ],
+      "skil_controls": [],
+      "skil_status": "NEW"
+    },
+    {
+      "id": "ASP-12.05",
+      "domain_id": "ASP-12",
+      "domain": "Resource, Availability & Failure Containment",
+      "name": "Cascading Failure Containment",
+      "invariant": "Fehlerhafte Outputs oder Aktionen eines Skills dürfen nicht ungeprüft über abhängige Agenten, Pipelines oder Systeme eskalieren.",
+      "detection": "Dependency graph, trust gates, staged execution und blast-radius tests.",
+      "minimum_evidence": "originating failure, propagation path und containment boundary.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI08",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM06",
+        "LLM10"
+      ],
+      "mitre_atlas": [
+        "AI Agent Tool Invocation"
+      ],
+      "skil_controls": [],
+      "skil_status": "NEW"
+    },
+    {
+      "id": "ASP-12.06",
+      "domain_id": "ASP-12",
+      "domain": "Resource, Availability & Failure Containment",
+      "name": "Circuit Breaker & Kill-Switch Effectiveness",
+      "invariant": "Bei Anomalien, Budgetüberschreitung oder Policy-Verstoß muss eine deterministische Unterbrechung weitere Aktionen stoppen.",
+      "detection": "Runtime circuit breaker tests, fail-closed policy und stop-signal conformance.",
+      "minimum_evidence": "trigger event, breaker state und subsequent actions.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI08",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM06",
+        "LLM10"
+      ],
+      "mitre_atlas": [
+        "AI Agent Tool Invocation"
+      ],
+      "skil_controls": [],
+      "skil_status": "NEW"
+    },
+    {
+      "id": "ASP-12.07",
+      "domain_id": "ASP-12",
+      "domain": "Resource, Availability & Failure Containment",
+      "name": "Retry & Backoff Safety",
+      "invariant": "Retries dürfen weder unbegrenzte Last noch wiederholte irreversible Seiteneffekte erzeugen.",
+      "detection": "Retry config analysis, exponential backoff policy und side-effect classification.",
+      "minimum_evidence": "retry policy, action idempotency und attempt count.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI08",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM06",
+        "LLM10"
+      ],
+      "mitre_atlas": [
+        "AI Agent Tool Invocation"
+      ],
+      "skil_controls": [
+        "SKIL-AGENCY-BOUNDS"
+      ],
+      "skil_status": "PARTIAL"
+    },
+    {
+      "id": "ASP-12.08",
+      "domain_id": "ASP-12",
+      "domain": "Resource, Availability & Failure Containment",
+      "name": "Idempotency & Duplicate-Action Safety",
+      "invariant": "Wiederholte Planner- oder Tool-Aufrufe müssen bei nicht-idempotenten Aktionen durch deduplication keys, transaction boundaries oder confirmation geschützt sein.",
+      "detection": "Side-effect model, idempotency keys und transaction/audit traces.",
+      "minimum_evidence": "action identity, repeated invocation und external effect.",
+      "owasp_agentic": [
+        "ASI02",
+        "ASI08",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM06",
+        "LLM10"
+      ],
+      "mitre_atlas": [
+        "AI Agent Tool Invocation"
+      ],
+      "skil_controls": [],
+      "skil_status": "NEW"
+    },
+    {
+      "id": "ASP-13.01",
+      "domain_id": "ASP-13",
+      "domain": "Human-Agent Trust & Safety",
+      "name": "Risk Disclosure Integrity",
+      "invariant": "Sicherheitsrelevante Seiteneffekte und Risiken dürfen nicht absichtlich verschwiegen oder verharmlost werden.",
+      "detection": "Undisclosed-operation intent, behavior/description diff und high-impact action disclosure check.",
+      "minimum_evidence": "risk/action, expected disclosure und actual disclosure.",
+      "owasp_agentic": [
+        "ASI01",
+        "ASI02",
+        "ASI09",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM01",
+        "LLM06",
+        "LLM09"
+      ],
+      "mitre_atlas": [
+        "AI Agent Clickbait",
+        "LLM Jailbreak"
+      ],
+      "skil_controls": [
+        "SKIL-INTENT-UNDISCLOSED-OPERATION"
+      ],
+      "skil_status": "PARTIAL"
+    },
+    {
+      "id": "ASP-13.02",
+      "domain_id": "ASP-13",
+      "domain": "Human-Agent Trust & Safety",
+      "name": "Consent Specificity",
+      "invariant": "Zustimmung zu einem Zweck oder einer Aktion darf nicht als Zustimmung zu zusätzlichen Datenzugriffen, Uploads, Retention oder Seiteneffekten interpretiert werden.",
+      "detection": "Consent scope model, action-to-consent binding und runtime policy.",
+      "minimum_evidence": "consented scope versus effective action scope.",
+      "owasp_agentic": [
+        "ASI01",
+        "ASI02",
+        "ASI09",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM01",
+        "LLM06",
+        "LLM09"
+      ],
+      "mitre_atlas": [
+        "AI Agent Clickbait",
+        "LLM Jailbreak"
+      ],
+      "skil_controls": [
+        "SKIL-AGENCY-APPROVAL"
+      ],
+      "skil_status": "PARTIAL"
+    },
+    {
+      "id": "ASP-13.03",
+      "domain_id": "ASP-13",
+      "domain": "Human-Agent Trust & Safety",
+      "name": "Deceptive Risk Framing Resistance",
+      "invariant": "Ein Skill darf Berechtigungen oder riskante Aktionen nicht fälschlich als notwendig, harmlos, bereits genehmigt oder alternativlos darstellen.",
+      "detection": "Behavioral manipulation semantics und permission-necessity consistency.",
+      "minimum_evidence": "claim, actual requirement/risk und mismatch.",
+      "owasp_agentic": [
+        "ASI01",
+        "ASI02",
+        "ASI09",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM01",
+        "LLM06",
+        "LLM09"
+      ],
+      "mitre_atlas": [
+        "AI Agent Clickbait",
+        "LLM Jailbreak"
+      ],
+      "skil_controls": [
+        "SKIL-INTENT-BEHAVIOR-MANIPULATION"
+      ],
+      "skil_status": "PARTIAL"
+    },
+    {
+      "id": "ASP-13.04",
+      "domain_id": "ASP-13",
+      "domain": "Human-Agent Trust & Safety",
+      "name": "Confirmation UI/Message Integrity",
+      "invariant": "Approval-Prompts müssen Aktion, Ziel, Datenklasse und irreversiblen Effekt korrekt darstellen und dürfen keine versteckten Zusatzaktionen bündeln.",
+      "detection": "Action preview generation und structured diff between requested and approved action.",
+      "minimum_evidence": "displayed action versus executed action.",
+      "owasp_agentic": [
+        "ASI01",
+        "ASI02",
+        "ASI09",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM01",
+        "LLM06",
+        "LLM09"
+      ],
+      "mitre_atlas": [
+        "AI Agent Clickbait",
+        "LLM Jailbreak"
+      ],
+      "skil_controls": [
+        "SKIL-AGENCY-APPROVAL"
+      ],
+      "skil_status": "PARTIAL"
+    },
+    {
+      "id": "ASP-13.05",
+      "domain_id": "ASP-13",
+      "domain": "Human-Agent Trust & Safety",
+      "name": "Physical-Harm Operational Safety",
+      "invariant": "Skills dürfen keine operationalisierten Anweisungen erzeugen oder enthalten, deren Zweck die konkrete Verursachung physischer Schäden ist.",
+      "detection": "Action-anchored harmful intent rules mit defensivem Kontextfilter und semantic review.",
+      "minimum_evidence": "harm objective, actionable steps und target/context.",
+      "owasp_agentic": [
+        "ASI01",
+        "ASI02",
+        "ASI09",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM01",
+        "LLM06",
+        "LLM09"
+      ],
+      "mitre_atlas": [
+        "AI Agent Clickbait",
+        "LLM Jailbreak"
+      ],
+      "skil_controls": [
+        "SKIL-ABUSE-PHYSICAL-HARM"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-13.06",
+      "domain_id": "ASP-13",
+      "domain": "Human-Agent Trust & Safety",
+      "name": "Malware & Phishing Objective Safety",
+      "invariant": "Ein Skill darf Malware-Konstruktion, Credential-Harvesting-Impersonation oder vergleichbare bösartige Operationsziele nicht als legitimen Zweck verschleiern.",
+      "detection": "Abuse-intent classifiers, code/YARA evidence und behavior composition.",
+      "minimum_evidence": "malicious objective, operational capability und target.",
+      "owasp_agentic": [
+        "ASI01",
+        "ASI02",
+        "ASI09",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM01",
+        "LLM06",
+        "LLM09"
+      ],
+      "mitre_atlas": [
+        "AI Agent Clickbait",
+        "LLM Jailbreak"
+      ],
+      "skil_controls": [
+        "SKIL-ABUSE-MALWARE",
+        "SKIL-ABUSE-PHISHING"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-13.07",
+      "domain_id": "ASP-13",
+      "domain": "Human-Agent Trust & Safety",
+      "name": "Destructive & Recovery-Inhibition Safety",
+      "invariant": "Destruktive Aktionen, Backup-Löschung, Recovery-Hemmung und sabotageartige Operationen benötigen strikte Policy und dürfen nicht verdeckt ausgeführt werden.",
+      "detection": "Destructive-intent patterns, filesystem/cloud action classification und approvals.",
+      "minimum_evidence": "destructive operation, recovery impact und authorization.",
+      "owasp_agentic": [
+        "ASI01",
+        "ASI02",
+        "ASI09",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM01",
+        "LLM06",
+        "LLM09"
+      ],
+      "mitre_atlas": [
+        "AI Agent Clickbait",
+        "LLM Jailbreak"
+      ],
+      "skil_controls": [
+        "SKIL-ABUSE-DESTRUCTION"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-13.08",
+      "domain_id": "ASP-13",
+      "domain": "Human-Agent Trust & Safety",
+      "name": "Security-Control Evasion Safety",
+      "invariant": "Ein Skill darf Detection, Logging, EDR, Sandbox, Policy oder Sicherheitsprüfungen nicht mit dem Ziel der Umgehung deaktivieren oder sabotieren.",
+      "detection": "Evasion-intent patterns, control-target classification und runtime telemetry.",
+      "minimum_evidence": "targeted control, evasion operation und intended effect.",
+      "owasp_agentic": [
+        "ASI01",
+        "ASI02",
+        "ASI09",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM01",
+        "LLM06",
+        "LLM09"
+      ],
+      "mitre_atlas": [
+        "AI Agent Clickbait",
+        "LLM Jailbreak"
+      ],
+      "skil_controls": [
+        "SKIL-ABUSE-EVASION"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-14.01",
+      "domain_id": "ASP-14",
+      "domain": "Auditability, Observability & Accountability",
+      "name": "Action Attribution",
+      "invariant": "Jede sicherheitsrelevante Aktion muss auf User/Caller, Agent, Skill-Version, Tool und Parameter zurückführbar sein.",
+      "detection": "Structured audit events, trace IDs und identity binding.",
+      "minimum_evidence": "actor chain, artifact identity, tool call und result.",
+      "owasp_agentic": [
+        "ASI03",
+        "ASI07",
+        "ASI08",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM06",
+        "LLM09"
+      ],
+      "mitre_atlas": [],
+      "skil_controls": [],
+      "skil_status": "NEW"
+    },
+    {
+      "id": "ASP-14.02",
+      "domain_id": "ASP-14",
+      "domain": "Auditability, Observability & Accountability",
+      "name": "Authorization Decision Traceability",
+      "invariant": "Für jede privilegierte Aktion muss nachvollziehbar sein, welche Policy, Capability und Approval sie erlaubt oder blockiert hat.",
+      "detection": "Policy decision logs, rule IDs und signed authorization context.",
+      "minimum_evidence": "decision, evaluated policy, inputs und outcome.",
+      "owasp_agentic": [
+        "ASI03",
+        "ASI07",
+        "ASI08",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM06",
+        "LLM09"
+      ],
+      "mitre_atlas": [],
+      "skil_controls": [],
+      "skil_status": "NEW"
+    },
+    {
+      "id": "ASP-14.03",
+      "domain_id": "ASP-14",
+      "domain": "Auditability, Observability & Accountability",
+      "name": "Security Event Completeness",
+      "invariant": "High-impact Reads/Writes, Secret-Zugriffe, Netzwerktransfers, Tool-Aufrufe, Persistenz und Policy-Verstöße müssen vollständig observierbar sein.",
+      "detection": "Event coverage matrix, runtime instrumentation und negative coverage tests.",
+      "minimum_evidence": "expected event class versus emitted event.",
+      "owasp_agentic": [
+        "ASI03",
+        "ASI07",
+        "ASI08",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM06",
+        "LLM09"
+      ],
+      "mitre_atlas": [],
+      "skil_controls": [
+        "SKIL-TAINT-LOG"
+      ],
+      "skil_status": "PARTIAL"
+    },
+    {
+      "id": "ASP-14.04",
+      "domain_id": "ASP-14",
+      "domain": "Auditability, Observability & Accountability",
+      "name": "Tamper-Evident Audit Records",
+      "invariant": "Auditdaten müssen gegen nachträgliche Manipulation geschützt und mit Zeit, Identität und Artefaktversion korrelierbar sein.",
+      "detection": "Append-only/WORM log, signatures/hashes und trusted timestamps.",
+      "minimum_evidence": "event hash chain/signature und storage policy.",
+      "owasp_agentic": [
+        "ASI03",
+        "ASI07",
+        "ASI08",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM06",
+        "LLM09"
+      ],
+      "mitre_atlas": [],
+      "skil_controls": [],
+      "skil_status": "NEW"
+    },
+    {
+      "id": "ASP-14.05",
+      "domain_id": "ASP-14",
+      "domain": "Auditability, Observability & Accountability",
+      "name": "Artifact & Version Attribution",
+      "invariant": "Jedes Finding und Runtime-Event muss den exakten Digest der analysierten beziehungsweise ausgeführten Skill-Version referenzieren.",
+      "detection": "Digest capture at scan/install/runtime und event correlation.",
+      "minimum_evidence": "artifact digest, version und source revision.",
+      "owasp_agentic": [
+        "ASI03",
+        "ASI07",
+        "ASI08",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM06",
+        "LLM09"
+      ],
+      "mitre_atlas": [],
+      "skil_controls": [],
+      "skil_status": "NEW"
+    },
+    {
+      "id": "ASP-14.06",
+      "domain_id": "ASP-14",
+      "domain": "Auditability, Observability & Accountability",
+      "name": "Evidence-Chain Reproducibility",
+      "invariant": "Security Findings müssen aus Raw Evidence über Analyzer-Observation und Security-IR bis zur Policy-Entscheidung reproduzierbar sein.",
+      "detection": "Structured finding schema, deterministic analyzer metadata und evidence location.",
+      "minimum_evidence": "raw span/node/path, analyzer, relation und decision.",
+      "owasp_agentic": [
+        "ASI03",
+        "ASI07",
+        "ASI08",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM06",
+        "LLM09"
+      ],
+      "mitre_atlas": [],
+      "skil_controls": [
+        "SKIL-* finding evidence model"
+      ],
+      "skil_status": "PARTIAL"
+    },
+    {
+      "id": "ASP-14.07",
+      "domain_id": "ASP-14",
+      "domain": "Auditability, Observability & Accountability",
+      "name": "Failure & Denial Auditability",
+      "invariant": "Abgebrochene, blockierte oder fehlgeschlagene Aktionen müssen mit Ursache und betroffener Policy protokolliert werden, ohne Secrets zu leaken.",
+      "detection": "Fail-closed audit hooks und sensitive-field redaction.",
+      "minimum_evidence": "failure/deny event, rule und redacted context.",
+      "owasp_agentic": [
+        "ASI03",
+        "ASI07",
+        "ASI08",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM06",
+        "LLM09"
+      ],
+      "mitre_atlas": [],
+      "skil_controls": [],
+      "skil_status": "NEW"
+    },
+    {
+      "id": "ASP-14.08",
+      "domain_id": "ASP-14",
+      "domain": "Auditability, Observability & Accountability",
+      "name": "Coverage & Unknown-State Reporting",
+      "invariant": "Scanner und Runtime dürfen fehlende Provider, nicht auflösbare Reflection, dynamische Downloads oder nicht beobachtete Pfade nicht als sicher deklarieren.",
+      "detection": "Explicit coverage states, analyzer capability inventory und unresolved-edge reporting.",
+      "minimum_evidence": "verified/partial/runtime-dependent/semantic-only/not-observable state.",
+      "owasp_agentic": [
+        "ASI03",
+        "ASI07",
+        "ASI08",
+        "ASI10"
+      ],
+      "owasp_llm": [
+        "LLM06",
+        "LLM09"
+      ],
+      "mitre_atlas": [],
+      "skil_controls": [
+        "Provider coverage reporting"
+      ],
+      "skil_status": "PARTIAL"
+    },
+    {
+      "id": "ASP-15.01",
+      "domain_id": "ASP-15",
+      "domain": "Dependency, Package & Container Supply-Chain Security",
+      "name": "Dependency Pinning",
+      "invariant": "Abhängigkeiten müssen auf überprüfbare Versionen, Digests oder Lockfile-Auflösungen gebunden sein.",
+      "detection": "Manifest/lockfile parsing und version-constraint semantics.",
+      "minimum_evidence": "dependency name, requested constraint und resolved version/digest.",
+      "owasp_agentic": [
+        "ASI04",
+        "ASI05"
+      ],
+      "owasp_llm": [
+        "LLM03"
+      ],
+      "mitre_atlas": [
+        "AI Supply Chain Rug Pull",
+        "AI Supply Chain Reputation Inflation"
+      ],
+      "skil_controls": [
+        "SKIL-DEP-001"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-15.02",
+      "domain_id": "ASP-15",
+      "domain": "Dependency, Package & Container Supply-Chain Security",
+      "name": "Known Vulnerability Hygiene",
+      "invariant": "Aufgelöste Abhängigkeiten dürfen keine nicht akzeptierten bekannten Vulnerabilities enthalten.",
+      "detection": "SBOM/dependency inventory plus OSV/CVE lookup und policy threshold.",
+      "minimum_evidence": "package ecosystem/name/version, advisory und fix/exception.",
+      "owasp_agentic": [
+        "ASI04",
+        "ASI05"
+      ],
+      "owasp_llm": [
+        "LLM03"
+      ],
+      "mitre_atlas": [
+        "AI Supply Chain Rug Pull",
+        "AI Supply Chain Reputation Inflation"
+      ],
+      "skil_controls": [
+        "SKIL-DEP-VULN"
+      ],
+      "skil_status": "PROVIDER_BACKED"
+    },
+    {
+      "id": "ASP-15.03",
+      "domain_id": "ASP-15",
+      "domain": "Dependency, Package & Container Supply-Chain Security",
+      "name": "Package Identity & Typosquatting Resistance",
+      "invariant": "Package-Namen müssen gegen bekannte Namespaces, Homoglyphen und edit-distance-basierte Verwechslungen geprüft werden.",
+      "detection": "Ecosystem-aware canonical names, edit distance, confusables und registry metadata.",
+      "minimum_evidence": "requested package, nearest canonical identity und distance/evidence.",
+      "owasp_agentic": [
+        "ASI04",
+        "ASI05"
+      ],
+      "owasp_llm": [
+        "LLM03"
+      ],
+      "mitre_atlas": [
+        "AI Supply Chain Rug Pull",
+        "AI Supply Chain Reputation Inflation"
+      ],
+      "skil_controls": [
+        "SKIL-DEP-002",
+        "SKIL-UNI-002"
+      ],
+      "skil_status": "IMPLEMENTED"
+    },
+    {
+      "id": "ASP-15.04",
+      "domain_id": "ASP-15",
+      "domain": "Dependency, Package & Container Supply-Chain Security",
+      "name": "Dependency Maintenance & Reputation",
+      "invariant": "Abandoned, übernommen oder reputationsschwache Dependencies müssen als erhöhtes Supply-Chain-Risiko bewertet werden.",
+      "detection": "Maintainer/release recency evidence, curated reputation und ownership change signals.",
+      "minimum_evidence": "package, maintenance evidence und risk rationale.",
+      "owasp_agentic": [
+        "ASI04",
+        "ASI05"
+      ],
+      "owasp_llm": [
+        "LLM03"
+      ],
+      "mitre_atlas": [
+        "AI Supply Chain Rug Pull",
+        "AI Supply Chain Reputation Inflation"
+      ],
+      "skil_controls": [
+        "SKIL-DEP-ABANDONED"
+      ],
+      "skil_status": "PROVIDER_BACKED"
+    },
+    {
+      "id": "ASP-15.05",
+      "domain_id": "ASP-15",
+      "domain": "Dependency, Package & Container Supply-Chain Security",
+      "name": "Dependency Namespace/Confusion Resistance",
+      "invariant": "Interne und öffentliche Package-Namespaces dürfen keine ungewollte Auflösung auf attacker-controlled Pakete ermöglichen.",
+      "detection": "Registry/source priority analysis, namespace ownership und package source pinning.",
+      "minimum_evidence": "package name, configured registries und actual resolution source.",
+      "owasp_agentic": [
+        "ASI04",
+        "ASI05"
+      ],
+      "owasp_llm": [
+        "LLM03"
+      ],
+      "mitre_atlas": [
+        "AI Supply Chain Rug Pull",
+        "AI Supply Chain Reputation Inflation"
+      ],
+      "skil_controls": [],
+      "skil_status": "NEW"
+    },
+    {
+      "id": "ASP-15.06",
+      "domain_id": "ASP-15",
+      "domain": "Dependency, Package & Container Supply-Chain Security",
+      "name": "Lockfile Integrity",
+      "invariant": "Lockfiles und resolved dependency graphs müssen Teil der geprüften Artefaktintegrität sein und dürfen nicht zur Laufzeit stillschweigend neu aufgelöst werden.",
+      "detection": "Lockfile presence/digest, reproducible resolution checks und artifact signature coverage.",
+      "minimum_evidence": "lock digest, resolved graph und execution graph.",
+      "owasp_agentic": [
+        "ASI04",
+        "ASI05"
+      ],
+      "owasp_llm": [
+        "LLM03"
+      ],
+      "mitre_atlas": [
+        "AI Supply Chain Rug Pull",
+        "AI Supply Chain Reputation Inflation"
+      ],
+      "skil_controls": [],
+      "skil_status": "NEW"
+    },
+    {
+      "id": "ASP-15.07",
+      "domain_id": "ASP-15",
+      "domain": "Dependency, Package & Container Supply-Chain Security",
+      "name": "Remote Script & Runtime Dependency Integrity",
+      "invariant": "Zur Laufzeit geladene Skripte, Plugins oder Assets müssen pinbar, verifizierbar und innerhalb der erlaubten Artifact Closure liegen.",
+      "detection": "Remote fetch AST/shell analysis, URL/digest pinning und sandbox download policy.",
+      "minimum_evidence": "remote URI, expected digest/version und execution sink.",
+      "owasp_agentic": [
+        "ASI04",
+        "ASI05"
+      ],
+      "owasp_llm": [
+        "LLM03"
+      ],
+      "mitre_atlas": [
+        "AI Supply Chain Rug Pull",
+        "AI Supply Chain Reputation Inflation"
+      ],
+      "skil_controls": [
+        "SKIL-SH-001"
+      ],
+      "skil_status": "PARTIAL"
+    },
+    {
+      "id": "ASP-15.08",
+      "domain_id": "ASP-15",
+      "domain": "Dependency, Package & Container Supply-Chain Security",
+      "name": "Container Image Trust",
+      "invariant": "Container Images müssen vertrauenswürdige Registries, immutable Digests/zulässige Tags und aktivierte Content-Trust-/Verification-Mechanismen verwenden.",
+      "detection": "Image reference parsing, tag/digest policy und trust flag analysis.",
+      "minimum_evidence": "image identity, registry, tag/digest und trust setting.",
+      "owasp_agentic": [
+        "ASI04",
+        "ASI05"
+      ],
+      "owasp_llm": [
+        "LLM03"
+      ],
+      "mitre_atlas": [
+        "AI Supply Chain Rug Pull",
+        "AI Supply Chain Reputation Inflation"
+      ],
+      "skil_controls": [
+        "SKIL-CONTAINER-TRUST",
+        "SKIL-BOUNDARY-MUTABLE-IMAGE"
+      ],
+      "skil_status": "IMPLEMENTED"
+    }
+  ],
+  "legacy_catalog_migration": [
+    {
+      "legacy_name": "Instruction Override",
+      "target": "ASP-01.01",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "Role/Context Manipulation",
+      "target": "ASP-01.02",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "Anti-Refusal",
+      "target": "ASP-01.03",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "Warning Suppression",
+      "target": "ASP-01.04",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "Guardrail Nullification",
+      "target": "ASP-01.05",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "Hidden/Invisible Instructions",
+      "target": "ASP-01.06",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "Behavioral Steering / Manipulation",
+      "target": "ASP-01.07",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "Generic Physical Harm",
+      "target": "ASP-13.05",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "HTTP/Data Exfiltration",
+      "target": "ASP-03.05",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "Env/Secret Harvesting",
+      "target": "ASP-03.01",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "Filesystem Reconnaissance",
+      "target": "ASP-11.05/ASP-11.06",
+      "classification": "PROPERTY_SPLIT"
+    },
+    {
+      "legacy_name": "Conversation/Context Exfiltration",
+      "target": "ASP-03.03",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "Cloud Storage Exfiltration",
+      "target": "ASP-03.06",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "Excessive Permissions",
+      "target": "ASP-04.01",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "sudo/root escalation",
+      "target": "ASP-11.08",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "Credential-file access",
+      "target": "ASP-03.02",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "Docker Socket",
+      "target": "ASP-11.07",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "Container Escape / privileged workload",
+      "target": "ASP-11.08",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "Unrestricted Tool Access",
+      "target": "ASP-05.01",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "Approval Bypass",
+      "target": "ASP-04.04",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "Scope Creep",
+      "target": "ASP-01.08",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "Missing Resource Bounds",
+      "target": "ASP-12.01",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "Output → Execution",
+      "target": "ASP-06.05",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "Cross-context Output",
+      "target": "ASP-06.06",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "Output Limits",
+      "target": "ASP-12.02",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "Direct Prompt Leakage",
+      "target": "ASP-03.04",
+      "classification": "SUBPROPERTY"
+    },
+    {
+      "legacy_name": "Indirect Prompt Leakage",
+      "target": "ASP-03.04",
+      "classification": "SUBPROPERTY"
+    },
+    {
+      "legacy_name": "Prompt → external/tool exfil",
+      "target": "ASP-03.04/ASP-03.05",
+      "classification": "PROPERTY_COMPOSITION"
+    },
+    {
+      "legacy_name": "Memory Poisoning",
+      "target": "ASP-07.01",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "Context Stuffing",
+      "target": "ASP-07.02",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "Memory/State Manipulation",
+      "target": "ASP-07.03",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "Self Modification",
+      "target": "ASP-07.04",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "Persistence",
+      "target": "ASP-07.05",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "Trigger Abuse",
+      "target": "ASP-02.03",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "Trigger Shadowing",
+      "target": "ASP-02.04",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "Tool Parameter Abuse",
+      "target": "ASP-05.02",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "Tool Chaining",
+      "target": "ASP-05.03",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "Unsafe Defaults",
+      "target": "ASP-05.05",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "Python AST AST1–AST9",
+      "target": "ASP-06.01/ASP-06.02/ASP-06.04",
+      "classification": "MECHANISM_FAMILY"
+    },
+    {
+      "legacy_name": "JS/TS Process Execution",
+      "target": "ASP-06.02",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "Bash/Shell Analysis",
+      "target": "ASP-06.03",
+      "classification": "MECHANISM"
+    },
+    {
+      "legacy_name": "Taint Tracking",
+      "target": "ASP-06.07",
+      "classification": "MECHANISM"
+    },
+    {
+      "legacy_name": "Unicode/Bidi/Confusables",
+      "target": "ASP-01.06/ASP-15.03",
+      "classification": "MECHANISM"
+    },
+    {
+      "legacy_name": "Obfuscation",
+      "target": "ASP-06.08",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "YARA/Malware",
+      "target": "ASP-06.08",
+      "classification": "MECHANISM"
+    },
+    {
+      "legacy_name": "Dependency Pinning",
+      "target": "ASP-15.01",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "OSV/CVE",
+      "target": "ASP-15.02",
+      "classification": "EVIDENCE_SOURCE"
+    },
+    {
+      "legacy_name": "Typosquatting",
+      "target": "ASP-15.03",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "Abandoned Packages",
+      "target": "ASP-15.04",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "Container Trust",
+      "target": "ASP-15.08",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "MCP Wildcards",
+      "target": "ASP-10.01",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "MCP Metadata Poisoning",
+      "target": "ASP-10.02",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "MCP Parameter Injection",
+      "target": "ASP-10.03",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "Description/Behavior mismatch",
+      "target": "ASP-02.02/ASP-10.05",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "MCP Rug Pull / mutable identity",
+      "target": "ASP-10.04/ASP-09.06",
+      "classification": "PROPERTY_COMPOSITION"
+    },
+    {
+      "legacy_name": "Underdeclared Capability",
+      "target": "ASP-04.02",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "Overdeclared Capability",
+      "target": "ASP-04.03",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "Agent Config Snooping",
+      "target": "ASP-11.05",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "MCP Config Snooping",
+      "target": "ASP-11.05",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "Peer Skill Enumeration",
+      "target": "ASP-11.06",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "Cloud Metadata SSRF",
+      "target": "ASP-11.02",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "Internal/Loopback SSRF",
+      "target": "ASP-11.03",
+      "classification": "PROPERTY"
+    },
+    {
+      "legacy_name": "Dynamic-target SSRF",
+      "target": "ASP-11.04",
+      "classification": "PROPERTY"
+    }
+  ],
+  "references": [
+    {
+      "title": "OWASP Top 10 for Agentic Applications 2026",
+      "organization": "OWASP GenAI Security Project",
+      "url": "https://genai.owasp.org/2025/12/09/owasp-top-10-for-agentic-applications-the-benchmark-for-agentic-security-in-the-age-of-autonomous-ai/"
+    },
+    {
+      "title": "OWASP Top 10 for LLM Applications 2025",
+      "organization": "OWASP GenAI Security Project",
+      "url": "https://genai.owasp.org/resource/owasp-top-10-for-llm-applications-2025/"
+    },
+    {
+      "title": "MITRE ATLAS",
+      "organization": "MITRE",
+      "url": "https://atlas.mitre.org/"
+    },
+    {
+      "title": "MCP Security Best Practices — 2026-07-28",
+      "organization": "Model Context Protocol",
+      "url": "https://modelcontextprotocol.io/docs/2026-07-28/tutorials/security/security_best_practices"
+    },
+    {
+      "title": "NIST AI 600-1 — Generative AI Profile",
+      "organization": "NIST",
+      "url": "https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-generative-artificial-intelligence"
+    },
+    {
+      "title": "SLSA Specification v1.2",
+      "organization": "OpenSSF/SLSA",
+      "url": "https://slsa.dev/spec/v1.2/"
+    },
+    {
+      "title": "Sigstore Documentation",
+      "organization": "OpenSSF/Sigstore",
+      "url": "https://docs.sigstore.dev/"
+    },
+    {
+      "title": "NVIDIA-Verified Agent Skills",
+      "organization": "NVIDIA",
+      "url": "https://docs.nvidia.com/skills"
+    },
+    {
+      "title": "Agent Skills in the Wild: An Empirical Study of Security Vulnerabilities at Scale",
+      "organization": "Liu et al. (2026)",
+      "url": "https://arxiv.org/abs/2601.10338"
+    },
+    {
+      "title": "Malicious Agent Skills in the Wild: A Large-Scale Security Empirical Study",
+      "organization": "Liu et al. (2026)",
+      "url": "https://arxiv.org/abs/2602.06547"
+    },
+    {
+      "title": "Towards Secure Agent Skills: Architecture, Threat Taxonomy, and Security Analysis",
+      "organization": "Li et al. (2026)",
+      "url": "https://arxiv.org/abs/2604.02837"
+    },
+    {
+      "title": "Runtime Skill Audit: Targeted Runtime Probing for Agent Skill Security",
+      "organization": "Lan & Xiao (2026)",
+      "url": "https://arxiv.org/abs/2606.11671"
+    },
+    {
+      "title": "Detecting Malicious Agent Skills in the Wild using Attention",
+      "organization": "Etteib et al. (2026)",
+      "url": "https://arxiv.org/abs/2606.23416"
+    },
+    {
+      "title": "Cloak and Detonate: Scanner Evasion and Dynamic Detection of Agent Skill Malware",
+      "organization": "Ji et al. (2026)",
+      "url": "https://arxiv.org/abs/2607.02357"
+    },
+    {
+      "title": "Agent Skill Security: Threat Models, Attacks, Defenses, and Evaluation",
+      "organization": "Badhe & Tiwari (2026)",
+      "url": "https://arxiv.org/abs/2607.13987"
+    },
+    {
+      "title": "Skillware: A Software Ontology and Engineering Lifecycle for Persistent Behavioral Artifacts",
+      "organization": "Fan & Lan (2026)",
+      "url": "https://arxiv.org/abs/2607.18970"
+    },
+    {
+      "title": "Agent Skills open specification",
+      "organization": "Agent Skills",
+      "url": "https://agentskills.io/"
+    },
+    {
+      "title": "skil security control matrix",
+      "organization": "domehahn/skil",
+      "url": "https://github.com/domehahn/skil/blob/main/docs/security-control-matrix.md"
+    },
+    {
+      "title": "skil external control crosswalk",
+      "organization": "domehahn/skil",
+      "url": "https://github.com/domehahn/skil/blob/main/docs/external-control-crosswalk.md"
+    }
+  ]
+}

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Differential comparison of skil against an external reference scanner.
 
-For every property in properties.yaml, runs both scanners against the
-positive and negative fixture, normalizes findings to the shared property
+For every (property, fixture) in properties.yaml, runs both scanners against
+the positive and negative fixture, normalizes findings to the shared property
 ID, and reports the critical metric: how many properties does the external
 scanner detect that skil does not.
 
@@ -12,13 +12,13 @@ Three suites are supported:
 - provider:        skil scans that require a runtime provider (OSV query,
                    YARA binary) and are excluded from the offline CI gate
 
-Per-property `scan_args` (e.g. `--osv`, `--yara-builtin`) are appended to the
-skil command line only for that property.
+Per-fixture `scan_args` (e.g. `--osv`, `--yara-builtin`) are appended to the
+skil command line only for that fixture.
 
-External rule normalization: properties declare `external_rules` as the list
+External rule normalization: fixtures declare `external_rules` as the list
 of rule IDs the reference scanner actually emits (it may collapse several skil
 sub-variants into one rule ID, e.g. P2 for HTML/Markdown/zero-width hidden
-instructions). A property is detected on the external side if ANY declared
+instructions). A fixture is detected on the external side if ANY declared
 external rule ID appears in the scanner output.
 
 Usage:
@@ -88,8 +88,8 @@ def run_external(cmd_prefix: list[str], fixture_dir: Path, extra_args: list[str]
     return True, ids, ""
 
 
-def external_detected(prop: dict, ext_ids: list[str]) -> bool:
-    rules = prop.get("external_rules") or [prop.get("external_rule", "")]
+def external_detected(fixture: dict, ext_ids: list[str]) -> bool:
+    rules = fixture.get("external_rules") or [fixture.get("external_rule", "")]
     return any(rid in ext_ids for rid in rules)
 
 
@@ -112,7 +112,7 @@ def main() -> int:
                      help="Extra args passed to the external scanner in the semantic suite "
                           "(omit --no-llm and pass provider/model flags)")
     ap.add_argument("--skip-different-by-design", action="store_true",
-                     help="Skip DIFFERENT_BY_DESIGN properties (they intentionally do not "
+                     help="Skip DIFFERENT_BY_DESIGN fixtures (they intentionally do not "
                           "produce scanner findings and are not part of the replacement gate)")
     ap.add_argument("--output", default=None,
                      help="Path to write JSON report")
@@ -124,24 +124,29 @@ def main() -> int:
         wanted = [w.strip() for w in args.filter.split(",") if w.strip()]
         properties = [p for p in properties if any(w in p["id"] for w in wanted)]
     if args.suite != "all":
-        properties = [p for p in properties if p.get("suite") == args.suite]
+        properties = [p for p in properties if any(f.get("suite") == args.suite for f in p["fixtures"])]
     if args.skip_different_by_design:
-        properties = [p for p in properties if p.get("status") != "DIFFERENT_BY_DESIGN"]
+        properties = [p for p in properties if any(f.get("status") != "DIFFERENT_BY_DESIGN" for f in p["fixtures"])]
 
+    fixtures = [
+        (prop, fixture)
+        for prop in properties
+        for fixture in prop["fixtures"]
+    ]
 
     results = []
-    for prop in properties:
-        fixture_root = ROOT / "fixtures" / prop["fixture"]
-        skii_extra = [args.semantic_skil_args] if prop.get("suite") == "semantic" else []
-        if prop.get("scan_args"):
-            skii_extra += shlex.split(prop["scan_args"])
-        ext_extra = shlex.split(args.semantic_ext_args) if prop.get("suite") == "semantic" else ["--no-llm"]
+    for prop, fixture in fixtures:
+        fixture_root = ROOT / "fixtures" / fixture["fixture"]
+        skii_extra = [args.semantic_skil_args] if fixture.get("suite") == "semantic" else []
+        if fixture.get("scan_args"):
+            skii_extra += shlex.split(fixture["scan_args"])
+        ext_extra = shlex.split(args.semantic_ext_args) if fixture.get("suite") == "semantic" else ["--no-llm"]
         entry = {
             "property": prop["id"],
-            "fixture": prop["fixture"],
-            "suite": prop.get("suite", "static"),
-            "skil_rules": prop["skil_rules"],
-            "external_rules": prop.get("external_rules", [prop.get("external_rule", "")]),
+            "fixture": fixture["fixture"],
+            "suite": fixture.get("suite", "static"),
+            "skil_rules": fixture["skil_rules"],
+            "external_rules": fixture.get("external_rules", [fixture.get("external_rule", "")]),
             "positive": {"skil": {}, "external": {}},
             "negative": {"skil": {}, "external": {}},
         }
@@ -152,7 +157,7 @@ def main() -> int:
 
             # skil
             skil_ok, skil_ids, skil_err = run_skil(args.skil_binary, fixture_dir, skii_extra)
-            skil_detected = any(rid in skil_ids for rid in prop["skil_rules"])
+            skil_detected = any(rid in skil_ids for rid in fixture["skil_rules"])
             entry[polarity]["skil"] = {
                 "ok": skil_ok,
                 "detected": skil_detected,
@@ -163,7 +168,7 @@ def main() -> int:
             # external
             if external_cmd:
                 ext_ok, ext_ids, ext_err = run_external(external_cmd, fixture_dir, ext_extra)
-                ext_detected = external_detected(prop, ext_ids)
+                ext_detected = external_detected(fixture, ext_ids)
                 entry[polarity]["external"] = {
                     "ok": ext_ok,
                     "detected": ext_detected,
@@ -172,7 +177,7 @@ def main() -> int:
                 }
         results.append(entry)
 
-    # Derive normalized property-level assessment
+    # Derive normalized fixture-level assessment
     skil_only_props = []
     external_only_props = []
     both_detect_props = []
@@ -182,7 +187,7 @@ def main() -> int:
         pos_skil = entry["positive"]["skil"].get("detected", False)
         pos_ext = entry["positive"].get("external", {}).get("detected", False) if external_cmd else None
 
-        # Normalize: property detected iff positive fixture triggered, negative did not
+        # Normalize: fixture detected iff positive fixture triggered, negative did not
         skil_pass = pos_skil and not entry["negative"]["skil"].get("detected", False)
         ext_pass = None
         if external_cmd:
@@ -222,28 +227,28 @@ def main() -> int:
     print()
     total = len(results)
     skil_pass_count = sum(1 for e in results if e["skil_pass"])
-    print(f"skil property detection: {skil_pass_count}/{total}")
+    print(f"skil fixture detection: {skil_pass_count}/{total}")
 
     if external_cmd:
         ext_pass_count = sum(1 for e in results if e.get("external_pass"))
-        print(f"external property detection: {ext_pass_count}/{total}")
+        print(f"external fixture detection: {ext_pass_count}/{total}")
         print()
-        print(f"Properties both detect:    {len(both_detect_props)} {both_detect_props}")
-        print(f"Properties skil-only:      {len(skil_only_props)} {skil_only_props}")
-        print(f"Properties external-only:  {len(external_only_props)} {external_only_props}")
-        print(f"Properties neither:        {len(neither_detect_props)} {neither_detect_props}")
+        print(f"Fixtures both detect:    {len(both_detect_props)} {both_detect_props}")
+        print(f"Fixtures skil-only:      {len(skil_only_props)} {skil_only_props}")
+        print(f"Fixtures external-only:  {len(external_only_props)} {external_only_props}")
+        print(f"Fixtures neither:        {len(neither_detect_props)} {neither_detect_props}")
         print()
 
     # The critical metric: external-only should be 0
     if external_only_props:
-        print(f"*** GAP: {len(external_only_props)} properties detected by external scanner but NOT by skil: {external_only_props}")
+        print(f"*** GAP: {len(external_only_props)} fixtures detected by external scanner but NOT by skil: {external_only_props}")
     else:
-        print("No gaps: zero properties where the external scanner detects something skil does not.")
+        print("No gaps: zero fixtures where the external scanner detects something skil does not.")
 
     # JSON output
     if args.output:
         report = {
-            "schema_version": "1.1.0",
+            "schema_version": "2.0.0",
             "commit": {"skil": None, "external": None},
             "suite": args.suite,
             "results": results,

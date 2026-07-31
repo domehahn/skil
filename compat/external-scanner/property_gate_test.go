@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
@@ -11,10 +12,9 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type Property struct {
-	ID              string   `yaml:"id"`
-	Description     string   `yaml:"description"`
+type Fixture struct {
 	Fixture         string   `yaml:"fixture"`
+	Description     string   `yaml:"description"`
 	SKILRules       []string `yaml:"skil_rules"`
 	ExternalRule    string   `yaml:"external_rule"`
 	ExternalRules   []string `yaml:"external_rules"`
@@ -24,13 +24,28 @@ type Property struct {
 	Status          string   `yaml:"status"`
 	StatusNote      string   `yaml:"status_note"`
 	Notes           string   `yaml:"notes"`
-	SP              string   `yaml:"sp"`
-	OWASP           []string `yaml:"owasp"`
-	Atlas           []string `yaml:"atlas"`
+}
+
+type Property struct {
+	ID              string    `yaml:"id"`
+	Name            string    `yaml:"name"`
+	DomainID        string    `yaml:"domain_id"`
+	Domain          string    `yaml:"domain"`
+	Invariant       string    `yaml:"invariant"`
+	Detection       string    `yaml:"detection"`
+	MinimumEvidence string    `yaml:"minimum_evidence"`
+	OWASPAgentic    []string  `yaml:"owasp_agentic"`
+	OWASPLLM        []string  `yaml:"owasp_llm"`
+	MITREATLAS      []string  `yaml:"mitre_atlas"`
+	SKILControls    []string  `yaml:"skil_controls"`
+	SKILStatus      string    `yaml:"skil_status"`
+	Fixtures        []Fixture `yaml:"fixtures"`
 }
 
 type Manifest struct {
 	SchemaVersion string     `yaml:"schema_version"`
+	SourceSpec    string     `yaml:"source_specification"`
+	Registry      string     `yaml:"registry"`
 	Properties    []Property `yaml:"properties"`
 }
 
@@ -54,17 +69,17 @@ var knownRules = map[string]bool{
 	"SKIL-BOUNDARY-SSRF-INTERNAL": true, "SKIL-BOUNDARY-SSRF": true,
 	"SKIL-BOUNDARY-CLOUD-EXFIL": true, "SKIL-BOUNDARY-CLOUD-SDK-UPLOAD": true,
 	"SKIL-BOUNDARY-MUTABLE-IMAGE": true,
-	"SKIL-MCP-001": true, "SKIL-MCP-002": true,
+	"SKIL-MCP-001":                true, "SKIL-MCP-002": true,
 	"SKIL-MCP-003": true, "SKIL-MCP-004": true, "SKIL-MCP-005": true, "SKIL-MCP-006": true,
 	"SKIL-MCP-007": true,
 	"SKIL-UNI-001": true, "SKIL-UNI-002": true, "SKIL-UNI-003": true,
 	"SKIL-OBF-001": true,
-	"SKIL-SH-001": true, "SKIL-SH-002": true, "SKIL-SH-003": true, "SKIL-SH-004": true,
+	"SKIL-SH-001":  true, "SKIL-SH-002": true, "SKIL-SH-003": true, "SKIL-SH-004": true,
 	"SKIL-PY-001": true, "SKIL-PY-002": true, "SKIL-PY-003": true, "SKIL-PY-004": true,
 	"SKIL-PY-REFLECT-EXEC": true, "SKIL-JS-001": true, "SKIL-JS-002": true,
 	"SKIL-NET-001": true,
-	"SKIL-TAINT-EXECUTION": true, "SKIL-TAINT-NETWORK": true,
-	"SKIL-TAINT-LOG": true, "SKIL-TAINT-PRIVILEGED-CONTEXT": true,
+	"SKIL-TAINT-*": true, "SKIL-TAINT-EXECUTION": true, "SKIL-TAINT-NETWORK": true,
+	"SKIL-TAINT-LOG": true, "SKIL-TAINT-PRIVILEGED-CONTEXT": true, "SKIL-TAINT-FILESYSTEM-WRITE": true,
 	"SKIL-FS-DISCOVERY-CODE": true, "SKIL-PERSISTENCE-STARTUP": true,
 	"SKIL-MEMORY-SATURATION": true, "SKIL-MP-001": true,
 	"SKIL-DEP-001": true, "SKIL-DEP-002": true, "SKIL-DEP-VULN": true, "SKIL-DEP-ABANDONED": true,
@@ -73,14 +88,14 @@ var knownRules = map[string]bool{
 	"SKIL-ABUSE-PHYSICAL-HARM": true, "SKIL-ABUSE-MALWARE": true, "SKIL-ABUSE-PHISHING": true,
 	"SKIL-ABUSE-DESTRUCTION": true, "SKIL-ABUSE-EVASION": true, "SKIL-ABUSE-EXHAUSTION": true,
 	"SKIL-YARA-*": true, "SKIL-SEM-SECURITY": true, "SKIL-SEM-COMPOSITE": true,
-	"SKIL-CAP-DECLARATION-MISSING": true, "SKIL-MANIFEST-PERMISSION-STAGING": true,
+	"SKIL-CAP-DECLARATION-MISSING": true, "SKIL-CAP-001": true, "SKIL-MANIFEST-PERMISSION-STAGING": true,
 	"SKIL-MANIFEST-UNPINNED-VERSION": true, "SKIL-TA-001": true,
 	"SKIL-RESOURCE-UNLIMITED": true, "SKIL-RESOURCE-TIMEOUT": true,
-	"SKIL-TRIGGER-LOCK-DIFF": true,
+	"SKIL-TRIGGER-LOCK-DIFF":  true,
 	"SKIL-INTENT-DESCRIPTION": true, "SKIL-INTENT-CONTEXT": true,
 	"SKIL-INTENT-SCOPE": true, "SKIL-INTENT-IMPLEMENTATION": true,
 	"SKIL-SEM-POLICY": true,
-	"SKIL-YARA-001": true, "SKIL-YARA-002": true, "SKIL-YARA-003": true, "SKIL-YARA-004": true,
+	"SKIL-YARA-001":   true, "SKIL-YARA-002": true, "SKIL-YARA-003": true, "SKIL-YARA-004": true,
 }
 
 // knownExternalRules are rule IDs the reference scanner actually emits.
@@ -95,13 +110,12 @@ var knownHyphenatedExternal = map[string]bool{
 	"SSD-1": true, "SSD-2": true, "SSD-3": true, "SSD-4": true,
 }
 
-// knownSPFamilies are the top-level Security-Property families defined in
-// docs/spec/agent-skill-security-properties-v1.md (SP01..SP14). Every gate
-// property must map to exactly one family.
-var knownSPFamilies = map[string]bool{
-	"SP01": true, "SP02": true, "SP03": true, "SP04": true, "SP05": true,
-	"SP06": true, "SP07": true, "SP08": true, "SP09": true, "SP10": true,
-	"SP11": true, "SP12": true, "SP13": true, "SP14": true,
+// knownASPDomains are the 15 ASPS v1.0 domains. Every gate property must
+// map to exactly one domain.
+var knownASPDomains = map[string]bool{
+	"ASP-01": true, "ASP-02": true, "ASP-03": true, "ASP-04": true, "ASP-05": true,
+	"ASP-06": true, "ASP-07": true, "ASP-08": true, "ASP-09": true, "ASP-10": true,
+	"ASP-11": true, "ASP-12": true, "ASP-13": true, "ASP-14": true, "ASP-15": true,
 }
 
 // knownOWASPRisks are the OWASP Agentic Top 10 2026 risk IDs.
@@ -110,37 +124,59 @@ var knownOWASPRisks = map[string]bool{
 	"ASI06": true, "ASI07": true, "ASI08": true, "ASI09": true, "ASI10": true,
 }
 
+// knownOWASPLLMRisks are the OWASP Top 10 LLM Applications 2025 risk IDs.
+var knownOWASPLLMRisks = map[string]bool{
+	"LLM01": true, "LLM02": true, "LLM03": true, "LLM04": true, "LLM05": true,
+	"LLM06": true, "LLM07": true, "LLM08": true, "LLM09": true, "LLM10": true,
+}
+
 // knownAtlasTechniques are MITRE ATLAS technique names used in the corpus.
 var knownAtlasTechniques = map[string]bool{
-	"LLM Prompt Injection":                          true,
-	"LLM Prompt Obfuscation":                        true,
-	"AI Agent Context Poisoning":                    true,
-	"AI Agent Tool Poisoning":                       true,
-	"AI Agent Tool Data Poisoning":                  true,
-	"Modify AI Agent Configuration":                 true,
-	"Discover AI Agent Configuration":               true,
-	"AI Agent Tool Credential Harvesting":           true,
-	"AI Supply Chain Rug Pull":                      true,
-	"AI Agent Tool Invocation":                      true,
-	"Exfiltration via AI Agent Tool Invocation":     true,
-	"Extract LLM System Prompt":                     true,
-	"Manipulate User LLM Chat History":              true,
+	"LLM Prompt Injection":                              true,
+	"LLM Prompt Obfuscation":                            true,
+	"LLM Jailbreak":                                     true,
+	"LLM Prompt Self-Replication":                       true,
+	"AI Agent Context Poisoning":                        true,
+	"AI Agent Tool Poisoning":                           true,
+	"AI Agent Tool Data Poisoning":                      true,
+	"AI Agent Tool Credential Harvesting":               true,
+	"AI Agent Tool Invocation":                          true,
+	"Modify AI Agent Configuration":                     true,
+	"Discover AI Agent Configuration":                   true,
+	"AI Supply Chain Rug Pull":                          true,
+	"AI Supply Chain Reputation Inflation":              true,
+	"Prompt Infiltration via Public-Facing Application": true,
+	"Exfiltration via AI Agent Tool Invocation":         true,
+	"Extract LLM System Prompt":                         true,
+	"Manipulate User LLM Chat History":                  true,
+	"AI Agent Clickbait":                                true,
+	"Command and Scripting Interpreter":                 true,
+	"Escape to Host":                                    true,
+	"Valid Accounts":                                    true,
 }
 
 func TestPropertyModel(t *testing.T) {
 	m := readProperties(t)
 	for _, p := range m.Properties {
-		if len(p.ExternalRules) == 0 {
-			t.Errorf("property %q must declare external_rules (list of scanner-emitted rule IDs)", p.ID)
+		if !regexp.MustCompile(`^ASP-[0-9]{2}\.[0-9]{2}$`).MatchString(p.ID) {
+			t.Errorf("property id %q must match ASP-xx.yy", p.ID)
 		}
-		if p.ExternalRule == "" {
-			t.Errorf("property %q must declare external_rule (canonical crosswalk key)", p.ID)
+		if !knownASPDomains[p.DomainID] {
+			t.Errorf("property %q has unknown domain %q — want ASP-01..ASP-15", p.ID, p.DomainID)
 		}
-		if p.Suite != "static" && p.Suite != "semantic" && p.Suite != "provider" {
-			t.Errorf("property %q has invalid suite %q (want static, semantic, or provider)", p.ID, p.Suite)
-		}
-		if p.Suite == "provider" && p.Status != "PROVIDER_BACKED" {
-			t.Errorf("property %q has suite %q but status %q (provider suite requires PROVIDER_BACKED)", p.ID, p.Suite, p.Status)
+		for _, f := range p.Fixtures {
+			if len(f.ExternalRules) == 0 {
+				t.Errorf("property %q fixture %q must declare external_rules (list of scanner-emitted rule IDs)", p.ID, f.Fixture)
+			}
+			if f.ExternalRule == "" {
+				t.Errorf("property %q fixture %q must declare external_rule (canonical crosswalk key)", p.ID, f.Fixture)
+			}
+			if f.Suite != "static" && f.Suite != "semantic" && f.Suite != "provider" {
+				t.Errorf("property %q fixture %q has invalid suite %q (want static, semantic, or provider)", p.ID, f.Fixture, f.Suite)
+			}
+			if f.Suite == "provider" && f.Status != "PROVIDER_BACKED" {
+				t.Errorf("property %q fixture %q has suite %q but status %q (provider suite requires PROVIDER_BACKED)", p.ID, f.Fixture, f.Suite, f.Status)
+			}
 		}
 	}
 }
@@ -151,34 +187,36 @@ func TestNoSyntheticExternalIDs(t *testing.T) {
 	// "AST1-9" must never be used as matching IDs in the differential harness.
 	m := readProperties(t)
 	for _, p := range m.Properties {
-		for _, r := range p.ExternalRules {
-			if strings.Contains(r, "-") && !knownHyphenatedExternal[r] {
-				t.Errorf("property %q declares external rule %q with a synthetic suffix; the scanner emits the base ID only", p.ID, r)
+		for _, f := range p.Fixtures {
+			for _, r := range f.ExternalRules {
+				if strings.Contains(r, "-") && !knownHyphenatedExternal[r] {
+					t.Errorf("property %q fixture %q declares external rule %q with a synthetic suffix; the scanner emits the base ID only", p.ID, f.Fixture, r)
+				}
 			}
 		}
 	}
 }
 
 func TestTaxonomyMappings(t *testing.T) {
-	// Every gate property must be classified in the SKIL Security-Property
-	// taxonomy (SP01..SP14), map to at least one OWASP Agentic Top 10 2026
-	// risk (ASI01..ASI10), and use only known MITRE ATLAS technique names.
+	// Every gate property must be classified in the ASPS v1.0 domain taxonomy,
+	// map to at least one OWASP Agentic Top 10 2026 risk (ASI01..ASI10), and
+	// use only known MITRE ATLAS technique names.
 	m := readProperties(t)
 	for _, p := range m.Properties {
-		if p.SP == "" {
-			t.Errorf("property %q must declare an sp: family (SP01..SP14)", p.ID)
-		} else if !knownSPFamilies[p.SP] {
-			t.Errorf("property %q declares unknown sp %q — see docs/spec/agent-skill-security-properties-v1.md", p.ID, p.SP)
-		}
-		if len(p.OWASP) == 0 {
+		if len(p.OWASPAgentic) == 0 {
 			t.Errorf("property %q must map to at least one OWASP risk (ASI01..ASI10)", p.ID)
 		}
-		for _, r := range p.OWASP {
+		for _, r := range p.OWASPAgentic {
 			if !knownOWASPRisks[r] {
 				t.Errorf("property %q declares unknown OWASP risk %q — want ASI01..ASI10", p.ID, r)
 			}
 		}
-		for _, a := range p.Atlas {
+		for _, r := range p.OWASPLLM {
+			if !knownOWASPLLMRisks[r] {
+				t.Errorf("property %q declares unknown OWASP LLM risk %q — want LLM01..LLM10", p.ID, r)
+			}
+		}
+		for _, a := range p.MITREATLAS {
 			if !knownAtlasTechniques[a] {
 				t.Errorf("property %q declares unknown ATLAS technique %q — extend knownAtlasTechniques or fix the YAML", p.ID, a)
 			}
@@ -187,15 +225,17 @@ func TestTaxonomyMappings(t *testing.T) {
 }
 
 func TestNoUnresolvedPARTIALOrMISSING(t *testing.T) {
-	// Replacement gate: every property must be FULL, DIFFERENT_BY_DESIGN, or
+	// Replacement gate: every fixture must be FULL, DIFFERENT_BY_DESIGN, or
 	// PROVIDER_BACKED. PARTIAL and MISSING are not permitted in the final gate.
 	m := readProperties(t)
 	for _, p := range m.Properties {
-		if p.Status == "PARTIAL" {
-			t.Errorf("property %q is PARTIAL — resolve to FULL, DIFFERENT_BY_DESIGN, or PROVIDER_BACKED", p.ID)
-		}
-		if p.Status == "MISSING" {
-			t.Errorf("property %q is MISSING — implement the control or classify explicitly", p.ID)
+		for _, f := range p.Fixtures {
+			if f.Status == "PARTIAL" {
+				t.Errorf("property %q fixture %q is PARTIAL — resolve to FULL, DIFFERENT_BY_DESIGN, or PROVIDER_BACKED", p.ID, f.Fixture)
+			}
+			if f.Status == "MISSING" {
+				t.Errorf("property %q fixture %q is MISSING — implement the control or classify explicitly", p.ID, f.Fixture)
+			}
 		}
 	}
 }
@@ -203,9 +243,11 @@ func TestNoUnresolvedPARTIALOrMISSING(t *testing.T) {
 func TestPropertySKILRulesExist(t *testing.T) {
 	m := readProperties(t)
 	for _, p := range m.Properties {
-		for _, ruleID := range p.SKILRules {
-			if !knownRules[ruleID] {
-				t.Errorf("property %q references unknown rule %q — update knownRules or fix the YAML", p.ID, ruleID)
+		for _, f := range p.Fixtures {
+			for _, ruleID := range f.SKILRules {
+				if !knownRules[ruleID] {
+					t.Errorf("property %q fixture %q references unknown rule %q — update knownRules or fix the YAML", p.ID, f.Fixture, ruleID)
+				}
 			}
 		}
 	}
@@ -214,13 +256,15 @@ func TestPropertySKILRulesExist(t *testing.T) {
 func TestPropertyFixturesExist(t *testing.T) {
 	m := readProperties(t)
 	for _, p := range m.Properties {
-		pos := filepath.Join("fixtures", p.Fixture, "positive")
-		neg := filepath.Join("fixtures", p.Fixture, "negative")
-		if _, err := os.Stat(pos); os.IsNotExist(err) {
-			t.Errorf("property %q missing positive fixture dir: %s", p.ID, pos)
-		}
-		if _, err := os.Stat(neg); os.IsNotExist(err) {
-			t.Errorf("property %q missing negative fixture dir: %s", p.ID, neg)
+		for _, f := range p.Fixtures {
+			pos := filepath.Join("fixtures", f.Fixture, "positive")
+			neg := filepath.Join("fixtures", f.Fixture, "negative")
+			if _, err := os.Stat(pos); os.IsNotExist(err) {
+				t.Errorf("property %q fixture %q missing positive fixture dir: %s", p.ID, f.Fixture, pos)
+			}
+			if _, err := os.Stat(neg); os.IsNotExist(err) {
+				t.Errorf("property %q fixture %q missing negative fixture dir: %s", p.ID, f.Fixture, neg)
+			}
 		}
 	}
 }
@@ -250,11 +294,13 @@ func TestNoMISSINGInParityDoc(t *testing.T) {
 func TestPropertyStatusNotUNMAPPED(t *testing.T) {
 	m := readProperties(t)
 	for _, p := range m.Properties {
-		if p.Status == "" {
-			t.Errorf("property %q has empty status — set to FULL, PARTIAL, or MISSING_BY_DESIGN", p.ID)
-		}
-		if p.Status == "UNMAPPED" {
-			t.Errorf("property %q status is UNMAPPED — set to FULL or PARTIAL if coverage exists", p.ID)
+		for _, f := range p.Fixtures {
+			if f.Status == "" {
+				t.Errorf("property %q fixture %q has empty status — set to FULL, DIFFERENT_BY_DESIGN, or PROVIDER_BACKED", p.ID, f.Fixture)
+			}
+			if f.Status == "UNMAPPED" {
+				t.Errorf("property %q fixture %q status is UNMAPPED — set to FULL or PARTIAL if coverage exists", p.ID, f.Fixture)
+			}
 		}
 	}
 }
@@ -268,55 +314,61 @@ func TestAutoCrosswalkSectionIsUpToDate(t *testing.T) {
 	}
 }
 
-func externalLabel(p Property) string {
-	ext := p.ExternalRule
-	if p.ExternalVariant != "" {
-		ext = p.ExternalRule + " · " + p.ExternalVariant
+func externalLabel(f Fixture) string {
+	ext := f.ExternalRule
+	if f.ExternalVariant != "" {
+		ext = f.ExternalRule + " · " + f.ExternalVariant
 	}
-	if p.Suite == "semantic" {
+	if f.Suite == "semantic" {
 		ext += " (semantic)"
-	} else if p.Suite == "provider" {
+	} else if f.Suite == "provider" {
 		ext += " (provider)"
 	}
 	return ext
 }
 
 func generateCrosswalkTable(properties []Property) string {
-	// Stable sort by canonical external_rule (ties keep properties.yaml order),
-	// mirroring generate_crosswalk.py.
-	type entry struct{ ext, base, behavior, natives, status, analyzer, notes string }
+	// Stable sort by ASP property ID then canonical external_rule (ties keep
+	// properties.yaml order), mirroring generate_crosswalk.py.
+	type entry struct{ asp, ext, base, behavior, natives, status, analyzer, notes string }
 	var entries []entry
 	for _, p := range properties {
-		behavior := p.Description
-		natives := ""
-		for i, r := range p.SKILRules {
-			if i > 0 {
-				natives += ", "
+		for _, f := range p.Fixtures {
+			natives := ""
+			for i, r := range f.SKILRules {
+				if i > 0 {
+					natives += ", "
+				}
+				natives += r
 			}
-			natives += r
-		}
-		note := p.Notes
-		if p.StatusNote != "" {
-			if note != "" {
-				note += " "
+			note := f.Notes
+			if f.StatusNote != "" {
+				if note != "" {
+					note += " "
+				}
+				note += f.StatusNote
 			}
-			note += p.StatusNote
+			entries = append(entries, entry{p.ID, externalLabel(f), f.ExternalRule, f.Description, "`" + natives + "`", f.Status, analyzerLabel(f), note})
 		}
-		entries = append(entries, entry{externalLabel(p), p.ExternalRule, behavior, "`" + natives + "`", p.Status, analyzerLabel(p), note})
 	}
-	sort.SliceStable(entries, func(i, j int) bool { return entries[i].base < entries[j].base })
+	sort.SliceStable(entries, func(i, j int) bool {
+		if entries[i].asp != entries[j].asp {
+			return entries[i].asp < entries[j].asp
+		}
+		return entries[i].base < entries[j].base
+	})
 	var b strings.Builder
 	b.WriteString("## Auto-generated (properties.yaml)\n\n")
-	b.WriteString("| External ID | Reference behavior | Native equivalent | Coverage | Analyzer | Notes |\n")
-	b.WriteString("|---|---|---|---|---|---|\n")
+	b.WriteString("| ASP Property | External ID | Reference behavior | Native equivalent | Coverage | Analyzer | Notes |\n")
+	b.WriteString("|---|---|---|---|---|---|---|\n")
 	for _, e := range entries {
-		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s |\n", e.ext, e.behavior, e.natives, e.status, e.analyzer, e.notes)
+		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s | %s |\n", e.asp, e.ext, e.behavior, e.natives, e.status, e.analyzer, e.notes)
 	}
 	return b.String()
 }
 
-func analyzerLabel(p Property) string {
-	rules := p.SKILRules
+func analyzerLabel(f Fixture) string {
+	rules := f.SKILRules
 	for _, r := range rules {
 		if strings.Contains(r, "MCP") {
 			return "MCP"

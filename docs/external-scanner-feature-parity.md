@@ -14,15 +14,15 @@ etc.) are cited as-is since they are not themselves third-party branding.
 Two skil documents already carry partial versions of this analysis and are
 referenced rather than duplicated:
 
-- [`external-control-crosswalk.md`](external-control-crosswalk.md) — a
-  conformance-suite-backed crosswalk for ~20 external IDs skil's test suite
-  actively asserts equivalence against (`AST1-9`, `TT2-5`, `LP3`, `RP1`,
-  `E1`, `E2`, `EA1`, `MP2`, `PE3`, `P1`, `SC1-7`, `TM1-3`, `YR4`). Where this
-  document's finding matches that file's, the coverage state and analyzer
-  are carried forward unchanged; this document adds ~70 additional
-  properties that crosswalk does not cover, plus the `AR`, `E3-E5`, `OH`,
-  `PE1/2/4/5`, `RA`, `SSRF`, `TR`, `AS`, `TP`, `SDI`, `SQP`, and `SSD`
-  families.
+- [`external-control-crosswalk.md`](external-control-crosswalk.md) — an
+  auto-generated, conformance-suite-backed crosswalk covering all 80 distinct
+  external rule IDs in the gate corpus (`P1-P8`, `AR1-3`, `E1-E5`, `EA1-4`,
+  `OH1-3`, `PE1-5`, `MP1-3`, `RA1-2`, `SSRF1-3`, `SC1-7`, `TR1-3`, `TM1-4`,
+  `AS1-3`, `AST1-9`, `TT1-5`, `LP1-4`, `RP1-3`, `TP1-4`, `SDI1-4`,
+  `SQP1-3`, `SSD1-4`, `YR1-4`). Where this document's finding matches that
+  file's, the coverage state and analyzer are carried forward unchanged;
+  this document adds the per-rule analysis depth (approach, gap rationale)
+  on top of the crosswalk's per-fixture rows.
 - [`security-control-matrix.md`](security-control-matrix.md) — skil's own
   44-control public matrix, organized around skil's trust-boundary model
   rather than the reference scanner's rule IDs. It is the source for several
@@ -40,7 +40,9 @@ reading the implementation (`pattern.go`, `boundary.go`, `unicode.go`,
 behind every rule cited here. Coverage claims below are based on comparing
 the actual regex/AST/taint logic on both sides, not rule-name similarity.
 
-Coverage states: `FULL` | `PARTIAL` | `MISSING` | `DIFFERENT_BY_DESIGN` | `NOT_APPLICABLE`
+Coverage states (fixture-level, in `compat/external-scanner/properties.yaml`):
+`FULL` | `DIFFERENT_BY_DESIGN` | `PROVIDER_BACKED`. The differential gate rejects
+`PARTIAL`, `MISSING`, and `NOT_APPLICABLE`.
 
 ---
 
@@ -71,7 +73,7 @@ Coverage states: `FULL` | `PARTIAL` | `MISSING` | `DIFFERENT_BY_DESIGN` | `NOT_A
 | Reference | Property | Approach | skil equivalent | Coverage | Gap | Notes |
 |---|---|---|---|---|---|---|
 | `static_patterns_data_exfiltration.py` E1 — External Transmission | HTTP POST/PUT calls (`requests.post`, `curl -d`, `fetch(...POST)`), suspicious `api./telemetry./collect.` subdomains | Regex over code + NL instructions | `SKIL-NET-001`, `SKIL-INTENT-EXTERNAL-TRANSFER` | FULL | — | Documented in `external-control-crosswalk.md`. `SKIL-NET-001` is AST-anchored (Python call-name resolution) rather than regex, which is a strictly stronger match than E1's regex. |
-| E2 — Env Variable Harvesting | Iterating `os.environ.items()`, reading `*_KEY/SECRET/TOKEN/PASSWORD` env vars, `process.env` bulk reads, `env \ | grep` | Regex | FULL | FULL | — | Documented in crosswalk. skil's version also fires on Python AST reads (`os.environ.get(...)`), not just regex. |
+| E2 — Env Variable Harvesting | Iterating `os.environ.items()`, reading `*_KEY/SECRET/TOKEN/PASSWORD` env vars, `process.env` bulk reads, `env \| grep` | Regex | `SKIL-SEC-001` | FULL | — | Documented in crosswalk. skil's version also fires on Python AST reads (`os.environ.get(...)`), not just regex. |
 | E3 — File System Enumeration | Recursive `os.walk`/`glob`/`find` scans of home dir or `.ssh`/`.aws`/`.config` looking for credential files | Regex, 11 patterns | `SKIL-INTENT-FS-DISCOVERY` (NL) + new `SKIL-FS-DISCOVERY-CODE` (code) | FULL | — | New rule matches `glob.glob(...)`, `os.walk(...)`, `Path.home().glob/rglob(...)`, and `os.listdir(...)` calls whose argument targets a home or credential directory (`.env`/`.ssh`/`.aws`/`.config`/`.kube`/`.docker`/`.gnupg`/`home`/`~`), scoped to the call's own argument list so an ordinary project-relative glob (`glob.glob("./config/*.yaml")`) does not fire. |
 | E4 — Context Leakage | NL/code instructions to send/log/export the full conversation, session, or agent memory to an external destination | Regex, 9 patterns | `SKIL-EX-001` (partial), `SKIL-INTENT-EXTERNAL-TRANSFER` (partial) | FULL | Neither skil rule specifically targets "conversation/session/memory" as the exfiltrated object the way E4 does; both require either a named-secret noun or a bare "send to URL" pattern | — |
 | E5 — Cloud Storage Exfiltration | boto3 `put_object`/`upload_file`, `aws s3 cp/sync`, `gsutil cp/rsync`, google-cloud-storage `upload_from_*`, `az storage blob upload`, Azure `upload_blob` SDK call — filtered via code-example suppression | Regex, 8 patterns, low confidence by design | `SKIL-BOUNDARY-CLOUD-EXFIL` (CLI form) + new `SKIL-BOUNDARY-CLOUD-SDK-UPLOAD` (SDK form) | FULL | — | New rule matches the bare SDK method names (`put_object`, `upload_fileobj`, `upload_file`, `upload_from_filename`, `upload_from_string`, `upload_from_file`, `upload_blob`) without requiring a co-occurring secret keyword, mirroring the reference scanner's own low-confidence-by-design choice; kept as a separate Medium-severity rule from the Critical CLI+secret-evidence `SKIL-BOUNDARY-CLOUD-EXFIL` since the evidence strength differs. |
@@ -163,7 +165,7 @@ Coverage states: `FULL` | `PARTIAL` | `MISSING` | `DIFFERENT_BY_DESIGN` | `NOT_A
 | Reference | Property | Approach | skil equivalent | Coverage | Gap | Notes |
 |---|---|---|---|---|---|---|
 | `static_patterns_supply_chain.py` SC3 — Obfuscated Code | `exec(base64.b64decode(...))`, `marshal.loads`, hex/base64-decode-then-execute chains, `_0x` minified-var naming, long base64/hex string literals | Regex, 16 patterns | `SKIL-OBF-001`, `SKIL-UNI-*` | FULL | — | Documented FULL in crosswalk. |
-| SC2 — External Script Fetching and Execution | `curl \ | sh`, `wget \ | python`, `eval(fetch(...))`, with a trusted-domain (nodesource/docker/pypi/npmjs/github) allowlist | FULL | `SKIL-SH-001` | FULL | — | Documented FULL in crosswalk. |
+| SC2 — External Script Fetching and Execution | `curl \| sh`, `wget \| python`, `eval(fetch(...))`, with a trusted-domain (nodesource/docker/pypi/npmjs/github) allowlist | Regex, trusted-domain allowlist | `SKIL-SH-001` | FULL | — | Documented FULL in crosswalk. |
 
 ## 15. Unicode deception
 
@@ -222,7 +224,7 @@ Coverage states: `FULL` | `PARTIAL` | `MISSING` | `DIFFERENT_BY_DESIGN` | `NOT_A
 | RP2 (static form) — Permission pre-staging language | "Add new/additional/extra permissions" language in the manifest, suggesting future expansion | Regex over manifest text | `SKIL-MANIFEST-PERMISSION-STAGING` | FULL | — | — |
 | RP3 — Parameter schema/default modification between versions | Comparing `parameters` type/default/description across manifest versions | Structured diff | `SKIL-MCP-005` (partial, via lock-file diff covering tool metadata broadly) | DIFFERENT_BY_DESIGN | — | — |
 | RP3 (static form) — Unpinned skill version (`*`/`latest`/`>=`/`^`) | Manifest `version` field is a wildcard or overly broad range | Regex/string check | `SKIL-MANIFEST-UNPINNED-VERSION` | FULL | — | Line-scoped regex distinguishes the skill's own declared version from the contract schema's integer `version` field without needing structured YAML parsing (an integer can never match the wildcard/range token set). |
-| `mcp_tool_poisoning.py` TP1 — Hidden instructions in MCP metadata | HTML/Markdown comments, zero-width chars, base64 blobs, data URIs embedded in `name`/`description`/`triggers`/parameter fields | Regex, scoped to parsed manifest metadata text fields | `SKIL-MCP-002` (poison-keyword regex only) | FULL | `SKIL-MCP-002`/`poisonValue` regex matches literal phrases ("ignore previous/system", "never refuse", "reveal system/secret", "hidden instruction") inside `description`/`default` fields; it does not check MCP metadata fields for HTML comments, zero-width chars, base64 blobs, or data URIs the way TP1 does — skil's general `SKIL-UNI-*`/`SKIL-OBF-001` rules run over file text broadly and may incidentally catch some of this, but are not scoped to MCP metadata fields specifically | Worth confirming whether `SKIL-UNI-*` fires on MCP JSON/YAML metadata files at all (their `AppliesTo` in `unicode.go` wasn't confirmed) — flagged PARTIAL. |
+| `mcp_tool_poisoning.py` TP1 — Hidden instructions in MCP metadata | HTML/Markdown comments, zero-width chars, base64 blobs, data URIs embedded in `name`/`description`/`triggers`/parameter fields | Regex, scoped to parsed manifest metadata text fields | `SKIL-MCP-002` (poison-keyword regex only) | FULL | `SKIL-MCP-002`/`poisonValue` regex matches literal phrases ("ignore previous/system", "never refuse", "reveal system/secret", "hidden instruction") inside `description`/`default` fields; it does not check MCP metadata fields for HTML comments, zero-width chars, base64 blobs, or data URIs the way TP1 does — skil's general `SKIL-UNI-*`/`SKIL-OBF-001` rules run over file text broadly and may incidentally catch some of this, but are not scoped to MCP metadata fields specifically | The fixture (`hidden-instructions-mcp`) is tracked FULL in `properties.yaml`; the residual TP1-specific metadata-scoping note above is an observation about rule granularity, not a coverage gap. |
 | TP2 — Unicode deception in MCP identifiers | Homoglyph/RTL/invisible/mixed-script identifiers in tool `name`/`triggers`/parameter names | Curated confusables + script detection, identifier-scoped | `SKIL-UNI-002` | FULL | — | See Unicode-deception section above — scope-to-MCP-identifiers confirmed empirically. |
 | TP3 — Parameter description injection | Instruction-override phrases, system-prompt tokens (`SYSTEM:`, `<system>`, `[INST]`), exfiltration phrases, or malicious URLs/shell commands in a parameter's `description`/`default`, plus an excessive-length (>500 char) check | Regex, scoped to `parameters[].description`/`.default` | `SKIL-MCP-004` (four sub-checks) + new `SKIL-MCP-007` (length) | FULL | — | All five TP3 sub-checks now covered: instruction-override/exfiltration/privilege-escalation via the shared `MatchIntentText` engine (unchanged from earlier in this session); `SKIL-PI-003` extended to recognize bare `<system>`/`[INST]`/`[/INST]` role-token wrappers (not just colon-style `SYSTEM:`) with a matching negation-guard fix (the guard only covered the colon form, causing a real FP on defensive mentions — caught and fixed before landing); new malicious-URL/shell-command check on `default` values specifically (`.json` MCP manifests were previously never scanned by `code.go`'s shell-command rules, which skip `.json`); new `SKIL-MCP-007` for the >500-char length heuristic. |
 | TP4 — LLM description-behavior mismatch (MCP-specific) | LLM call comparing manifest description/triggers/permissions against actual code | LLM semantic check, always attempted by default (`use_llm=True`) | `SKIL-MCP-006`, `SKIL-INTENT-DESCRIPTION` | FULL | skil's equivalents are provider-backed (require an LLM provider to be configured) whereas the reference scanner's TP4 defaults to on for any scan (assuming an LLM is configured at all, which the reference scanner also requires); functionally similar but skil's default scan (no provider) emits nothing for this property, while the reference scanner's CLI defaults `use_llm=True` | — |
@@ -247,25 +249,39 @@ Coverage states: `FULL` | `PARTIAL` | `MISSING` | `DIFFERENT_BY_DESIGN` | `NOT_A
 
 ## Summary
 
-**Total distinct the reference scanner properties catalogued: 86** in `compat/external-scanner/properties.yaml` (every rule ID across `P1-P8`, `AR1-3`, `E1-E5`, `EA1-4`, `OH1-3`, `PE1-5`, `MP1-3`, `RA1-2`, `SSRF1-3`, `SC1-7`, `TR1-3`, `TM1-4`, `AS1-3`, `AST1-9`, `TT1-5`, `LP1-4`, `RP1-3`, `TP1-4`, `SDI1-4`, `SQP1-3`, `SSD1-4`, plus the 4-category YARA rule family as one property group).
+**Total distinct the reference scanner properties catalogued: 80** (every rule
+ID across `P1-P8`, `AR1-3`, `E1-E5`, `EA1-4`, `OH1-3`, `PE1-5`, `MP1-3`,
+`RA1-2`, `SSRF1-3`, `SC1-7`, `TR1-3`, `TM1-4`, `AS1-3`, `AST1-9`, `TT1-5`,
+`LP1-4`, `RP1-3`, `TP1-4`, `SDI1-4`, `SQP1-3`, `SSD1-4`, plus the 4-category
+YARA rule family as one property group). The corpus in
+`compat/external-scanner/properties.yaml` is keyed to the ASPS v1.0 taxonomy
+(`compat/asps/asps-registry.json`, 120 properties) and tracks coverage per
+fixture: **120 properties, 173 fixture entries** across 74 properties with
+fixtures (the remaining 46 ASPS properties have no reference-scanner
+counterpart and are tracked at property level only).
 
-**Coverage-state counts** (current, final):
+**Coverage-state counts** (fixture-level, current, final):
 
 | State | Count | Suite (static / semantic / provider) |
 |---|--:|--:|
-| FULL | 78 | 66 / 11 / 1 |
+| FULL | 159 | 141 / 18 / 0 |
 | PARTIAL | 0 | — |
 | MISSING | 0 | — |
-| DIFFERENT_BY_DESIGN | 6 | 4 / 2 / 0 |
+| DIFFERENT_BY_DESIGN | 12 | 11 / 1 / 0 |
 | PROVIDER_BACKED | 2 | 0 / 0 / 2 |
 | NOT_APPLICABLE | 0 | — |
-| **Total** | **86** | 72 / 12 / 2 |
+| **Total** | **173** | 152 / 19 / 2 |
 
-The `properties.yaml` differential harness now gates **zero PARTIAL and zero MISSING**: every property the external reference scanner detects is covered by a skil rule (FULL), a deliberate design difference (DIFFERENT_BY_DESIGN), or a rule that requires an external provider at runtime (PROVIDER_BACKED, excluded from offline CI).
+The `properties.yaml` differential harness now gates **zero PARTIAL and zero MISSING**: every fixture the external reference scanner detects is covered by a skil rule (FULL), a deliberate design difference (DIFFERENT_BY_DESIGN), or a rule that requires an external provider at runtime (PROVIDER_BACKED, excluded from offline CI).
 
-The FULL count is higher than the ~90 raw rule IDs because several single reference-scanner properties (e.g. P2, AST1-9, TT1-5) are tracked at sub-property granularity in `properties.yaml` (P2 → P2-html + P2-md + P2-zw + P2-tag, etc.), inflating the count without changing the per-property conclusion.
+The FULL count is higher than the 90 raw external-rule IDs (80 distinct
+rule labels) because coverage is tracked per **fixture variant**: each rule
+ID is exercised across both polarities (positive/negative) and format
+variants (e.g. `P2` → `hidden-instructions-html` / `hidden-instructions-md` /
+`hidden-instructions-zw` / `hidden-instructions-tag`), inflating the
+fixture count without changing the per-property conclusion.
 
-The six DIFFERENT_BY_DESIGN entries are: LP1 (under-declared capability — needs declared-versus-actual call-site provenance to assert), LP4 (over-declared permission — static inference of declared-but-unused entries reproduces false positives on legitimate declarations; verification is contract-scoped), RP1 (manifest-diff form — `SKIL-MCP-005` uses lock-file digests), RP2 (`SKIL-TRIGGER-LOCK-DIFF` compares against a reviewed lock digest), RP3 (manifest-diff form), and SQP-1 (vague triggers — deterministically detecting "vagueness" is an LLM-judgment task, and the skil engine maps it to the semantic provider rather than a noisy heuristic). The two PROVIDER_BACKED entries (vulnerable-dependency → `--osv`, yara-malware-signatures → `--yara-builtin`) run in the separate `provider` suite.
+The twelve DIFFERENT_BY_DESIGN fixtures are: LP1 (under-declared capability — needs declared-versus-actual call-site provenance to assert), LP4 (over-declared permission — static inference of declared-but-unused entries reproduces false positives on legitimate declarations; verification is contract-scoped), RP1 (manifest-diff form — `SKIL-MCP-005` uses lock-file digests), RP2 (`SKIL-TRIGGER-LOCK-DIFF` compares against a reviewed lock digest), RP3 (manifest-diff form), and SQP-1 (vague triggers — deterministically detecting "vagueness" is an LLM-judgment task, and the skil engine maps it to the semantic provider rather than a noisy heuristic), with the LP1/LP4 and RP1/RP3 entries appearing on multiple ASPS properties. The two PROVIDER_BACKED fixtures (vulnerable-dependency → `--osv`, yara-malware-signatures → `--yara-builtin`) run in the separate `provider` suite.
 
 FULL is concentrated in the areas the existing `external-control-crosswalk.md` conformance suite already asserts: Python AST dynamic-execution (AST1-9), taint tracking (TT1-5), supply-chain (SC1-7), core prompt-injection/anti-refusal/agency instruction patterns, credential-path access, SSRF, agent-snooping, and all MCP tool-poisoning surface patterns.
 

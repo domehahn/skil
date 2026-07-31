@@ -8,8 +8,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version: "1.24.x"
           cache: true
@@ -23,7 +23,7 @@ jobs:
         run: go test ./compat/external-scanner/ -v -count=1
       - name: Crosswalk generation check
         run: python3 compat/external-scanner/generate_crosswalk.py --check docs/external-control-crosswalk.md
-      - run: go build -trimpath ./cmd/skil
+      - run: go build -trimpath -o bin/skil ./cmd/skil
       - run: go run ./cmd/skil validate tests/fixtures/clean-skill
       - run: go run ./cmd/skil scan tests/fixtures/clean-skill --format sarif --output skil.sarif
       - name: Smoke test collection scanning
@@ -62,7 +62,7 @@ jobs:
   vulnerabilities:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: golang/govulncheck-action@v1
         with:
           go-version-file: go.mod
@@ -70,8 +70,8 @@ jobs:
   osv-provider:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache: true
@@ -84,7 +84,7 @@ jobs:
           set -e
           test "$code" -eq 1
           jq -e '.findings[] | select(.rule_id == "SKIL-DEP-VULN" and (.references | index("GO-2021-0113")))' osv-proof.json
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: osv-provider-proof
           path: osv-proof.json
@@ -92,7 +92,7 @@ jobs:
   container:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Build non-root scanner image
         run: docker build -t skil:ci .
       - name: Smoke test image identity and YARA directory
@@ -108,8 +108,8 @@ jobs:
   linux-isolation:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache: true
@@ -127,8 +127,8 @@ jobs:
   windows-isolation:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache: true
@@ -139,8 +139,8 @@ jobs:
   macos-isolation:
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache: true
@@ -161,13 +161,13 @@ jobs:
           - runner: macos-15
             os: macos
             executable_suffix: ""
-          - runner: windows-2022
+          - runner: windows-latest
             os: windows
             executable_suffix: ".exe"
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache: true
@@ -215,7 +215,7 @@ jobs:
           grep -q '"runtime_enforcement": true' "${ASSURANCE_PROOF}"
           grep -q '"containment": "completed"' "${ASSURANCE_PROOF}"
           grep -q '"native_isolation": "completed"' "${ASSURANCE_PROOF}"
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: assurance-${{ matrix.os }}-proof
           path: assurance-${{ matrix.os }}.json
@@ -225,8 +225,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache: true
