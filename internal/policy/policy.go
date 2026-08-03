@@ -51,6 +51,16 @@ type Policy struct {
 	RequiredDomains                 []string            `json:"required_domains,omitempty" yaml:"required_domains,omitempty"`
 	AllowedDomains                  []string            `json:"allowed_domains,omitempty" yaml:"allowed_domains,omitempty"`
 	ForbiddenDomains                []string            `json:"forbidden_domains,omitempty" yaml:"forbidden_domains,omitempty"`
+	// RevokedSignerKeyIDs/RevokedArtifactDigests/RevokedSkills implement
+	// revocation as a first-class primitive: once a publisher's signing key,
+	// a specific artifact digest, or a skill (name or name@version) appears
+	// here, every install, update, and re-evaluation is denied regardless
+	// of how strong its existing signature, attestation, or provenance is —
+	// revocation always overrides prior trust rather than merely failing to
+	// add new trust.
+	RevokedSignerKeyIDs    []string `json:"revoked_signer_key_ids,omitempty" yaml:"revoked_signer_key_ids,omitempty"`
+	RevokedArtifactDigests []string `json:"revoked_artifact_digests,omitempty" yaml:"revoked_artifact_digests,omitempty"`
+	RevokedSkills          []string `json:"revoked_skills,omitempty" yaml:"revoked_skills,omitempty"`
 }
 type Violation struct {
 	Rule     string `json:"rule" yaml:"rule"`
@@ -100,6 +110,7 @@ func Check(p Policy, in Input) Result {
 	add := func(rule string, expected, observed any, message string) {
 		result.Violations = append(result.Violations, Violation{rule, expected, observed, message})
 	}
+	checkRevocation(p, in, &result)
 	if severityRank(in.Scan.Maximum) > severityRank(skil.Severity(strings.ToUpper(p.MaximumSeverity))) {
 		add("maximum-severity", strings.ToUpper(p.MaximumSeverity), in.Scan.Maximum, "maximum finding severity exceeds policy")
 	}
@@ -259,6 +270,30 @@ func Check(p Policy, in Input) Result {
 		result.Decision = "DENY"
 	}
 	return result
+}
+
+func checkRevocation(p Policy, in Input, result *Result) {
+	add := func(rule string, expected, observed any, message string) {
+		result.Violations = append(result.Violations, Violation{rule, expected, observed, message})
+	}
+	if digest := in.Scan.Artifact.SubjectDigest(); digest != "" && contains(p.RevokedArtifactDigests, digest) {
+		add("revoked-artifact", "not revoked", digest, "this exact artifact digest has been revoked")
+	}
+	if in.Contract != nil {
+		name := in.Contract.Skill.Name
+		versioned := name + "@" + in.Contract.Skill.Version
+		if contains(p.RevokedSkills, name) || contains(p.RevokedSkills, versioned) {
+			add("revoked-skill", "not revoked", versioned, "this skill has been revoked")
+		}
+	}
+	if in.PackageStatement != nil && in.PackageStatement.Signature != nil &&
+		contains(p.RevokedSignerKeyIDs, in.PackageStatement.Signature.KeyID) {
+		add("revoked-signer", "not revoked", in.PackageStatement.Signature.KeyID, "the package signer's key has been revoked")
+	}
+	if in.Attestation != nil && in.Attestation.Signature != nil &&
+		contains(p.RevokedSignerKeyIDs, in.Attestation.Signature.KeyID) {
+		add("revoked-signer", "not revoked", in.Attestation.Signature.KeyID, "the attestation signer's key has been revoked")
+	}
 }
 
 func checkEvaluation(p Policy, in Input, result *Result) {

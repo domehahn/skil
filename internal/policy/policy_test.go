@@ -35,6 +35,82 @@ func TestPolicyDeniesIncompleteInspection(t *testing.T) {
 	}
 }
 
+func TestPolicyDeniesRevokedArtifactDigest(t *testing.T) {
+	p := Policy{Version: 1, MaximumSeverity: "CRITICAL", RevokedArtifactDigests: []string{"deadbeef"}}
+	result := Check(p, Input{Scan: skil.ScanResult{
+		Maximum: skil.SeverityInfo, Artifact: skil.Artifact{Digest: "deadbeef"},
+	}})
+	if result.Decision != "DENY" || len(result.Violations) != 1 || result.Violations[0].Rule != "revoked-artifact" {
+		t.Fatalf("expected a revoked artifact digest to deny regardless of otherwise clean findings: %#v", result)
+	}
+}
+
+func TestPolicyDeniesRevokedSkillByNameOrVersion(t *testing.T) {
+	p := Policy{Version: 1, MaximumSeverity: "CRITICAL", RevokedSkills: []string{"bad-skill@1.0.0"}}
+	result := Check(p, Input{
+		Scan:     skil.ScanResult{Maximum: skil.SeverityInfo},
+		Contract: &skil.SkillContract{Skill: skil.SkillIdentity{Name: "bad-skill", Version: "1.0.0"}},
+	})
+	if result.Decision != "DENY" || !hasViolationRule(result, "revoked-skill") {
+		t.Fatalf("expected a revoked skill@version to deny: %#v", result)
+	}
+
+	pByName := Policy{Version: 1, MaximumSeverity: "CRITICAL", RevokedSkills: []string{"bad-skill"}}
+	resultByName := Check(pByName, Input{
+		Scan:     skil.ScanResult{Maximum: skil.SeverityInfo},
+		Contract: &skil.SkillContract{Skill: skil.SkillIdentity{Name: "bad-skill", Version: "2.0.0"}},
+	})
+	if resultByName.Decision != "DENY" || !hasViolationRule(resultByName, "revoked-skill") {
+		t.Fatalf("expected a bare revoked skill name to deny any version: %#v", resultByName)
+	}
+}
+
+func TestPolicyDeniesRevokedSignerKeyEvenWithValidPackageSignature(t *testing.T) {
+	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	statement := skil.PackageStatement{
+		Version: 1, Name: "n", VersionName: "v",
+		PackageSHA256: "pkg", ContentManifestSHA256: "content", Timestamp: time.Now(),
+	}
+	if err := signing.SignPackageStatement(&statement, privateKey, "revoked-key"); err != nil {
+		t.Fatal(err)
+	}
+	p := Policy{
+		Version: 1, MaximumSeverity: "CRITICAL",
+		TrustedSigners:      map[string]string{"revoked-key": base64.StdEncoding.EncodeToString(publicKey)},
+		RevokedSignerKeyIDs: []string{"revoked-key"},
+	}
+	result := Check(p, Input{
+		Scan:             skil.ScanResult{Maximum: skil.SeverityInfo, Artifact: skil.Artifact{Digest: "content", PackageDigest: "pkg"}},
+		PackageStatement: &statement,
+	})
+	if result.Decision != "DENY" || !hasViolationRule(result, "revoked-signer") {
+		t.Fatalf("expected a revoked signer key to deny even with an otherwise valid signature: %#v", result)
+	}
+}
+
+func TestPolicyAllowsUnrevokedArtifactSkillAndSigner(t *testing.T) {
+	p := Policy{Version: 1, MaximumSeverity: "CRITICAL", RevokedArtifactDigests: []string{"other-digest"}, RevokedSkills: []string{"other-skill"}}
+	result := Check(p, Input{
+		Scan:     skil.ScanResult{Maximum: skil.SeverityInfo, Artifact: skil.Artifact{Digest: "clean-digest"}},
+		Contract: &skil.SkillContract{Skill: skil.SkillIdentity{Name: "clean-skill", Version: "1.0.0"}},
+	})
+	if result.Decision != "ALLOW" {
+		t.Fatalf("expected an unrevoked artifact/skill to be unaffected by an unrelated revocation list: %#v", result)
+	}
+}
+
+func hasViolationRule(result Result, rule string) bool {
+	for _, violation := range result.Violations {
+		if violation.Rule == rule {
+			return true
+		}
+	}
+	return false
+}
+
 func TestPolicyCountsOnlySignedBoundExternalScannerEvidence(t *testing.T) {
 	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {

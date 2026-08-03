@@ -8,6 +8,19 @@ type SkillContract struct {
 	Compatibility *Compatibility   `json:"compatibility,omitempty" yaml:"compatibility,omitempty"`
 	Security      *SecurityPosture `json:"security,omitempty" yaml:"security,omitempty"`
 	Capabilities  Capabilities     `json:"capabilities" yaml:"capabilities"`
+	// ReviewedClosure pins a runtime-loaded dependency (a fetched script, an
+	// MCP tool binary, a dynamically loaded model or plugin — anything that
+	// enters execution after the scan, not from a build-time lockfile) to
+	// the exact content digest that was scanned and approved. The runtime
+	// Enforcer denies loading anything under a pinned identifier whose
+	// observed digest does not match, closing the TOCTOU gap between what
+	// was reviewed and what actually executes.
+	ReviewedClosure []ReviewedDependency `json:"reviewed_closure,omitempty" yaml:"reviewed_closure,omitempty"`
+}
+
+type ReviewedDependency struct {
+	Identifier string `json:"identifier" yaml:"identifier"`
+	SHA256     string `json:"sha256" yaml:"sha256"`
 }
 
 type SkillIdentity struct {
@@ -85,6 +98,18 @@ type ResourceLimits struct {
 	MaxMemoryMB       int64 `json:"max_memory_mb,omitempty" yaml:"max_memory_mb,omitempty"`
 	MaxNetworkBytes   int64 `json:"max_network_bytes,omitempty" yaml:"max_network_bytes,omitempty"`
 	MaxToolCalls      int   `json:"max_tool_calls,omitempty" yaml:"max_tool_calls,omitempty"`
+	// MaxModelTokens and MaxExternalMutations are cumulative budgets tracked
+	// across the Enforcer's lifetime, the same way MaxToolCalls and
+	// MaxNetworkBytes are. MaxRetries, MaxDelegationDepth, and
+	// MaxRecursionDepth are per-operation bounds instead: the caller
+	// reports the current attempt/depth on each Operation, and the
+	// Enforcer rejects any single operation that exceeds the bound, rather
+	// than accumulating a running total.
+	MaxModelTokens       int64 `json:"max_model_tokens,omitempty" yaml:"max_model_tokens,omitempty"`
+	MaxRetries           int   `json:"max_retries,omitempty" yaml:"max_retries,omitempty"`
+	MaxDelegationDepth   int   `json:"max_delegation_depth,omitempty" yaml:"max_delegation_depth,omitempty"`
+	MaxRecursionDepth    int   `json:"max_recursion_depth,omitempty" yaml:"max_recursion_depth,omitempty"`
+	MaxExternalMutations int   `json:"max_external_mutations,omitempty" yaml:"max_external_mutations,omitempty"`
 }
 
 type ObservedCapabilities struct {

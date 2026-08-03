@@ -16,10 +16,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/domehahn/skil/compat/asps"
 	"github.com/domehahn/skil/internal/analyzer"
 	"github.com/domehahn/skil/internal/artifact"
 	"github.com/domehahn/skil/internal/baseline"
 	"github.com/domehahn/skil/internal/collection"
+	"github.com/domehahn/skil/internal/conformance"
 	"github.com/domehahn/skil/internal/contracts"
 	"github.com/domehahn/skil/internal/eval"
 	"github.com/domehahn/skil/internal/evidence"
@@ -149,6 +151,8 @@ func (a *App) Run(ctx context.Context, args []string) int {
 		code = a.scanAll(ctx, args[1:])
 	case "serve":
 		code = a.serve(ctx, args[1:])
+	case "admission":
+		code = a.admission(ctx, args[1:])
 	case "verify":
 		code = a.verify(ctx, args[1:])
 	case "eval":
@@ -179,6 +183,8 @@ func (a *App) Run(ctx context.Context, args []string) int {
 		code = a.baselineCreate(ctx, args[1:])
 	case "rules":
 		code = a.rules(args[1:])
+	case "conform":
+		code = a.conform(args[1:])
 	case "analyzers":
 		code = a.analyzers(args[1:])
 	case "capabilities":
@@ -256,6 +262,8 @@ Usage:
   skil policy check <skill> --policy file [--eval-result file] [--package-signature file] [--attestation file] [--provenance file] [analysis flags]
   skil baseline create <skill> [--output file] [--approved-by name] [--reason text]
   skil rules list | show <rule-id>
+  skil conform --profile core|identity|multi-agent|supply-chain|mcp|privacy|resilience|audit [--format json]
+  skil admission serve --root dir --listen 127.0.0.1:port --policy file [--token-env VAR]
   skil analyzers list
   skil capabilities
   skil inspect <skill>
@@ -1617,6 +1625,51 @@ func (a *App) rules(args []string) int {
 	}
 	return a.inputError(errors.New("usage: skil rules list | show <rule-id>"))
 }
+
+func (a *App) conform(args []string) int {
+	var profileKey, format string
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--profile":
+			if i+1 >= len(args) {
+				return a.inputError(errors.New("--profile requires a value"))
+			}
+			i++
+			profileKey = args[i]
+		case "--format":
+			if i+1 >= len(args) {
+				return a.inputError(errors.New("--format requires a value"))
+			}
+			i++
+			format = args[i]
+		default:
+			return a.inputError(fmt.Errorf("usage: skil conform --profile %s [--format json]", strings.Join(conformance.ProfileNames(), "|")))
+		}
+	}
+	if profileKey == "" {
+		return a.inputError(fmt.Errorf("usage: skil conform --profile %s [--format json]", strings.Join(conformance.ProfileNames(), "|")))
+	}
+	reg, err := asps.Load()
+	if err != nil {
+		return a.internalError(err)
+	}
+	report, err := conformance.Evaluate(reg, profileKey)
+	if err != nil {
+		return a.inputError(err)
+	}
+	if format == "json" {
+		return boolCode(writeJSON(a.Out, report), a)
+	}
+	fmt.Fprintf(a.Out, "ASPS Conformance: %s (snapshot %s)\n\n", report.Profile, report.Snapshot)
+	fmt.Fprintf(a.Out, "Domain\tTotal\tImplemented\tPartial\tProvider\tMissing\tScore\n")
+	for _, d := range report.Domains {
+		fmt.Fprintf(a.Out, "%s (%s)\t%d\t%d\t%d\t%d\t%d\t%.1f%%\n",
+			d.DomainName, d.DomainID, d.Total, d.Implemented, d.Partial, d.ProviderBacked, d.Missing, d.Score*100)
+	}
+	fmt.Fprintf(a.Out, "\nOverall: %.1f%% (%d properties)\n", report.Score*100, report.TotalProperties)
+	return ExitOK
+}
+
 func (a *App) analyzers(args []string) int {
 	if len(args) > 0 && args[0] != "list" {
 		return a.inputError(errors.New("usage: skil analyzers list"))

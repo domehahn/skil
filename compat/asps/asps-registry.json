@@ -975,8 +975,10 @@
         "Extract LLM System Prompt",
         "AI Agent Tool Credential Harvesting"
       ],
-      "skil_controls": [],
-      "skil_status": "NEW"
+      "skil_controls": [
+        "SKIL-DATA-OVERBROAD-COLLECTION"
+      ],
+      "skil_status": "PARTIAL"
     },
     {
       "id": "ASP-03.08",
@@ -1005,7 +1007,9 @@
       ],
       "skil_controls": [
         "SKIL-MP-001",
-        "SKIL-PERSISTENCE-STARTUP"
+        "SKIL-PERSISTENCE-STARTUP",
+        "SKIL-DATA-PURPOSE-VIOLATION",
+        "SKIL-DATA-RETENTION-UNBOUNDED"
       ],
       "skil_status": "PARTIAL"
     },
@@ -1141,8 +1145,10 @@
         "AI Agent Tool Credential Harvesting",
         "Modify AI Agent Configuration"
       ],
-      "skil_controls": [],
-      "skil_status": "NEW"
+      "skil_controls": [
+        "SKIL-AUTH-SCOPE-OVERBROAD"
+      ],
+      "skil_status": "PARTIAL"
     },
     {
       "id": "ASP-04.06",
@@ -1166,8 +1172,10 @@
         "AI Agent Tool Credential Harvesting",
         "Modify AI Agent Configuration"
       ],
-      "skil_controls": [],
-      "skil_status": "NEW"
+      "skil_controls": [
+        "SKIL-AUTH-AUDIENCE"
+      ],
+      "skil_status": "PARTIAL"
     },
     {
       "id": "ASP-04.07",
@@ -1191,8 +1199,10 @@
         "AI Agent Tool Credential Harvesting",
         "Modify AI Agent Configuration"
       ],
-      "skil_controls": [],
-      "skil_status": "NEW"
+      "skil_controls": [
+        "SKIL-MCP-008"
+      ],
+      "skil_status": "PARTIAL"
     },
     {
       "id": "ASP-04.08",
@@ -1216,8 +1226,10 @@
         "AI Agent Tool Credential Harvesting",
         "Modify AI Agent Configuration"
       ],
-      "skil_controls": [],
-      "skil_status": "NEW"
+      "skil_controls": [
+        "Policy revocation enforcement (revoked_signer_key_ids/revoked_artifact_digests/revoked_skills)"
+      ],
+      "skil_status": "IMPLEMENTED"
     },
     {
       "id": "ASP-05.01",
@@ -1907,8 +1919,10 @@
         "AI Agent Tool Data Poisoning",
         "AI Agent Tool Poisoning"
       ],
-      "skil_controls": [],
-      "skil_status": "NEW"
+      "skil_controls": [
+        "SKIL-A2A-001"
+      ],
+      "skil_status": "PARTIAL"
     },
     {
       "id": "ASP-08.02",
@@ -1961,8 +1975,10 @@
         "AI Agent Tool Data Poisoning",
         "AI Agent Tool Poisoning"
       ],
-      "skil_controls": [],
-      "skil_status": "NEW"
+      "skil_controls": [
+        "SKIL-A2A-002"
+      ],
+      "skil_status": "PARTIAL"
     },
     {
       "id": "ASP-08.04",
@@ -1988,8 +2004,10 @@
         "AI Agent Tool Data Poisoning",
         "AI Agent Tool Poisoning"
       ],
-      "skil_controls": [],
-      "skil_status": "NEW"
+      "skil_controls": [
+        "SKIL-MCP-008"
+      ],
+      "skil_status": "PARTIAL"
     },
     {
       "id": "ASP-08.05",
@@ -2074,8 +2092,10 @@
         "AI Agent Tool Data Poisoning",
         "AI Agent Tool Poisoning"
       ],
-      "skil_controls": [],
-      "skil_status": "NEW"
+      "skil_controls": [
+        "SKIL-A2A-004"
+      ],
+      "skil_status": "PARTIAL"
     },
     {
       "id": "ASP-08.08",
@@ -2101,8 +2121,10 @@
         "AI Agent Tool Data Poisoning",
         "AI Agent Tool Poisoning"
       ],
-      "skil_controls": [],
-      "skil_status": "NEW"
+      "skil_controls": [
+        "Enforcer delegation_depth bound and decision-record audit trail"
+      ],
+      "skil_status": "PARTIAL"
     },
     {
       "id": "ASP-09.01",
@@ -2211,8 +2233,10 @@
         "AI Supply Chain Rug Pull",
         "AI Supply Chain Reputation Inflation"
       ],
-      "skil_controls": [],
-      "skil_status": "NEW"
+      "skil_controls": [
+        "Policy revocation enforcement (revoked_artifact_digests/revoked_skills)"
+      ],
+      "skil_status": "PARTIAL"
     },
     {
       "id": "ASP-09.06",
@@ -2283,9 +2307,10 @@
         "AI Supply Chain Reputation Inflation"
       ],
       "skil_controls": [
-        "SKIL-BOUNDARY-MUTABLE-IMAGE"
+        "SKIL-BOUNDARY-MUTABLE-IMAGE",
+        "Enforcer reviewed_closure digest binding (TOCTOU enforcement)"
       ],
-      "skil_status": "PARTIAL"
+      "skil_status": "IMPLEMENTED"
     },
     {
       "id": "ASP-10.01",
@@ -2839,8 +2864,10 @@
       "mitre_atlas": [
         "AI Agent Tool Invocation"
       ],
-      "skil_controls": [],
-      "skil_status": "NEW"
+      "skil_controls": [
+        "Enforcer max_recursion_depth/max_delegation_depth bound"
+      ],
+      "skil_status": "PARTIAL"
     },
     {
       "id": "ASP-12.05",
@@ -2909,7 +2936,8 @@
         "AI Agent Tool Invocation"
       ],
       "skil_controls": [
-        "SKIL-AGENCY-BOUNDS"
+        "SKIL-AGENCY-BOUNDS",
+        "Enforcer max_retries bound"
       ],
       "skil_status": "PARTIAL"
     },
@@ -3180,8 +3208,10 @@
         "LLM09"
       ],
       "mitre_atlas": [],
-      "skil_controls": [],
-      "skil_status": "NEW"
+      "skil_controls": [
+        "Enforcer decision-record (capability/target attribution)"
+      ],
+      "skil_status": "PARTIAL"
     },
     {
       "id": "ASP-14.02",
@@ -3202,8 +3232,10 @@
         "LLM09"
       ],
       "mitre_atlas": [],
-      "skil_controls": [],
-      "skil_status": "NEW"
+      "skil_controls": [
+        "Enforcer decision-record audit trail"
+      ],
+      "skil_status": "IMPLEMENTED"
     },
     {
       "id": "ASP-14.03",
@@ -3270,8 +3302,10 @@
         "LLM09"
       ],
       "mitre_atlas": [],
-      "skil_controls": [],
-      "skil_status": "NEW"
+      "skil_controls": [
+        "Enforcer decision-record artifact_digest/contract_digest"
+      ],
+      "skil_status": "PARTIAL"
     },
     {
       "id": "ASP-14.06",
@@ -3316,8 +3350,10 @@
         "LLM09"
       ],
       "mitre_atlas": [],
-      "skil_controls": [],
-      "skil_status": "NEW"
+      "skil_controls": [
+        "Enforcer decision-record deny+reason"
+      ],
+      "skil_status": "IMPLEMENTED"
     },
     {
       "id": "ASP-14.08",

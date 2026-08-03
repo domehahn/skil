@@ -21,16 +21,16 @@ ASP-03.03,Data Confidentiality & Privacy,Conversation & Context Confidentiality,
 ASP-03.04,Data Confidentiality & Privacy,Privileged Instruction Confidentiality,ASI01;ASI02;ASI03;ASI06;ASI07,LLM02;LLM06;LLM07,Exfiltration via AI Agent Tool Invocation;Extract LLM System Prompt;AI Agent Tool Credential Harvesting,SKIL-PL-001;SKIL-PROMPT-INDIRECT-LEAK,PARTIAL
 ASP-03.05,Data Confidentiality & Privacy,External Data Exfiltration Prevention,ASI01;ASI02;ASI03;ASI06;ASI07,LLM02;LLM06;LLM07,Exfiltration via AI Agent Tool Invocation;Extract LLM System Prompt;AI Agent Tool Credential Harvesting,SKIL-EX-001;SKIL-NET-001;SKIL-TAINT-NETWORK;SKIL-INTENT-EXTERNAL-TRANSFER,IMPLEMENTED
 ASP-03.06,Data Confidentiality & Privacy,Cloud/Object-Storage Exfiltration Prevention,ASI01;ASI02;ASI03;ASI06;ASI07,LLM02;LLM06;LLM07,Exfiltration via AI Agent Tool Invocation;Extract LLM System Prompt;AI Agent Tool Credential Harvesting,SKIL-BOUNDARY-CLOUD-EXFIL;SKIL-BOUNDARY-CLOUD-SDK-UPLOAD,IMPLEMENTED
-ASP-03.07,Data Confidentiality & Privacy,Data Minimization,ASI01;ASI02;ASI03;ASI06;ASI07,LLM02;LLM06;LLM07,Exfiltration via AI Agent Tool Invocation;Extract LLM System Prompt;AI Agent Tool Credential Harvesting,,NEW
-ASP-03.08,Data Confidentiality & Privacy,Purpose & Retention Bound,ASI01;ASI02;ASI03;ASI06;ASI07,LLM02;LLM06;LLM07,Exfiltration via AI Agent Tool Invocation;Extract LLM System Prompt;AI Agent Tool Credential Harvesting,SKIL-MP-001;SKIL-PERSISTENCE-STARTUP,PARTIAL
+ASP-03.07,Data Confidentiality & Privacy,Data Minimization,ASI01;ASI02;ASI03;ASI06;ASI07,LLM02;LLM06;LLM07,Exfiltration via AI Agent Tool Invocation;Extract LLM System Prompt;AI Agent Tool Credential Harvesting,SKIL-DATA-OVERBROAD-COLLECTION,PARTIAL
+ASP-03.08,Data Confidentiality & Privacy,Purpose & Retention Bound,ASI01;ASI02;ASI03;ASI06;ASI07,LLM02;LLM06;LLM07,Exfiltration via AI Agent Tool Invocation;Extract LLM System Prompt;AI Agent Tool Credential Harvesting,SKIL-MP-001;SKIL-PERSISTENCE-STARTUP;SKIL-DATA-PURPOSE-VIOLATION;SKIL-DATA-RETENTION-UNBOUNDED,PARTIAL
 ASP-04.01,"Identity, Authorization & Consent",Least-Privilege Permission Bound,ASI02;ASI03;ASI07,LLM02;LLM06,Valid Accounts;AI Agent Tool Credential Harvesting;Modify AI Agent Configuration,SKIL-AGENCY-TOOLS;SKIL-MCP-001,IMPLEMENTED
 ASP-04.02,"Identity, Authorization & Consent",Underdeclared Capability Detection,ASI02;ASI03;ASI07,LLM02;LLM06,Valid Accounts;AI Agent Tool Credential Harvesting;Modify AI Agent Configuration,SKIL-CAP-DECLARATION-MISSING;SKIL-CAP-001,IMPLEMENTED
 ASP-04.03,"Identity, Authorization & Consent",Overdeclared Capability Minimization,ASI02;ASI03;ASI07,LLM02;LLM06,Valid Accounts;AI Agent Tool Credential Harvesting;Modify AI Agent Configuration,SKIL-CAP-001,PARTIAL
 ASP-04.04,"Identity, Authorization & Consent",Approval & Confirmation Integrity,ASI02;ASI03;ASI07,LLM02;LLM06,Valid Accounts;AI Agent Tool Credential Harvesting;Modify AI Agent Configuration,SKIL-AGENCY-APPROVAL,IMPLEMENTED
-ASP-04.05,"Identity, Authorization & Consent",Credential Scope Minimization,ASI02;ASI03;ASI07,LLM02;LLM06,Valid Accounts;AI Agent Tool Credential Harvesting;Modify AI Agent Configuration,,NEW
-ASP-04.06,"Identity, Authorization & Consent",Token Audience & Resource Binding,ASI02;ASI03;ASI07,LLM02;LLM06,Valid Accounts;AI Agent Tool Credential Harvesting;Modify AI Agent Configuration,,NEW
-ASP-04.07,"Identity, Authorization & Consent",Credential Non-Transferability,ASI02;ASI03;ASI07,LLM02;LLM06,Valid Accounts;AI Agent Tool Credential Harvesting;Modify AI Agent Configuration,,NEW
-ASP-04.08,"Identity, Authorization & Consent",Revocation & Stop Enforcement,ASI02;ASI03;ASI07,LLM02;LLM06,Valid Accounts;AI Agent Tool Credential Harvesting;Modify AI Agent Configuration,,NEW
+ASP-04.05,"Identity, Authorization & Consent",Credential Scope Minimization,ASI02;ASI03;ASI07,LLM02;LLM06,Valid Accounts;AI Agent Tool Credential Harvesting;Modify AI Agent Configuration,SKIL-AUTH-SCOPE-OVERBROAD,PARTIAL
+ASP-04.06,"Identity, Authorization & Consent",Token Audience & Resource Binding,ASI02;ASI03;ASI07,LLM02;LLM06,Valid Accounts;AI Agent Tool Credential Harvesting;Modify AI Agent Configuration,SKIL-AUTH-AUDIENCE,PARTIAL
+ASP-04.07,"Identity, Authorization & Consent",Credential Non-Transferability,ASI02;ASI03;ASI07,LLM02;LLM06,Valid Accounts;AI Agent Tool Credential Harvesting;Modify AI Agent Configuration,SKIL-MCP-008,PARTIAL
+ASP-04.08,"Identity, Authorization & Consent",Revocation & Stop Enforcement,ASI02;ASI03;ASI07,LLM02;LLM06,Valid Accounts;AI Agent Tool Credential Harvesting;Modify AI Agent Configuration,Policy revocation enforcement (revoked_signer_key_ids/revoked_artifact_digests/revoked_skills),IMPLEMENTED
 ASP-05.01,"Tool, Capability & Agency Safety",Restricted Tool Surface,ASI02;ASI03;ASI05;ASI10,LLM05;LLM06,AI Agent Tool Invocation;Command and Scripting Interpreter;Escape to Host,SKIL-AGENCY-TOOLS;SKIL-MCP-001,IMPLEMENTED
 ASP-05.02,"Tool, Capability & Agency Safety",Tool Parameter Safety,ASI02;ASI03;ASI05;ASI10,LLM05;LLM06,AI Agent Tool Invocation;Command and Scripting Interpreter;Escape to Host,SKIL-PY-002;SKIL-TAINT-EXECUTION;SKIL-MCP-004,IMPLEMENTED
 ASP-05.03,"Tool, Capability & Agency Safety",Tool Chaining Safety,ASI02;ASI03;ASI05;ASI10,LLM05;LLM06,AI Agent Tool Invocation;Command and Scripting Interpreter;Escape to Host,SKIL-SH-001,PARTIAL
@@ -55,22 +55,22 @@ ASP-07.05,"Memory, State & Persistence Integrity",Persistence Authorization,ASI0
 ASP-07.06,"Memory, State & Persistence Integrity",State Ownership Isolation,ASI06;ASI10,LLM01;LLM04;LLM06,AI Agent Context Poisoning;Modify AI Agent Configuration;LLM Prompt Self-Replication,,NEW
 ASP-07.07,"Memory, State & Persistence Integrity",Memory Provenance & Trust Labels,ASI06;ASI10,LLM01;LLM04;LLM06,AI Agent Context Poisoning;Modify AI Agent Configuration;LLM Prompt Self-Replication,,NEW
 ASP-07.08,"Memory, State & Persistence Integrity",Memory Lifecycle & Expiry,ASI06;ASI10,LLM01;LLM04;LLM06,AI Agent Context Poisoning;Modify AI Agent Configuration;LLM Prompt Self-Replication,,NEW
-ASP-08.01,Inter-Agent & Delegation Security,Agent Identity Authentication,ASI03;ASI07;ASI08;ASI10,LLM02;LLM05;LLM06,AI Agent Tool Invocation;AI Agent Tool Data Poisoning;AI Agent Tool Poisoning,,NEW
+ASP-08.01,Inter-Agent & Delegation Security,Agent Identity Authentication,ASI03;ASI07;ASI08;ASI10,LLM02;LLM05;LLM06,AI Agent Tool Invocation;AI Agent Tool Data Poisoning;AI Agent Tool Poisoning,SKIL-A2A-001,PARTIAL
 ASP-08.02,Inter-Agent & Delegation Security,Inter-Agent Message Integrity,ASI03;ASI07;ASI08;ASI10,LLM02;LLM05;LLM06,AI Agent Tool Invocation;AI Agent Tool Data Poisoning;AI Agent Tool Poisoning,,NEW
-ASP-08.03,Inter-Agent & Delegation Security,Delegation Monotonicity,ASI03;ASI07;ASI08;ASI10,LLM02;LLM05;LLM06,AI Agent Tool Invocation;AI Agent Tool Data Poisoning;AI Agent Tool Poisoning,,NEW
-ASP-08.04,Inter-Agent & Delegation Security,Confused-Deputy Resistance,ASI03;ASI07;ASI08;ASI10,LLM02;LLM05;LLM06,AI Agent Tool Invocation;AI Agent Tool Data Poisoning;AI Agent Tool Poisoning,,NEW
+ASP-08.03,Inter-Agent & Delegation Security,Delegation Monotonicity,ASI03;ASI07;ASI08;ASI10,LLM02;LLM05;LLM06,AI Agent Tool Invocation;AI Agent Tool Data Poisoning;AI Agent Tool Poisoning,SKIL-A2A-002,PARTIAL
+ASP-08.04,Inter-Agent & Delegation Security,Confused-Deputy Resistance,ASI03;ASI07;ASI08;ASI10,LLM02;LLM05;LLM06,AI Agent Tool Invocation;AI Agent Tool Data Poisoning;AI Agent Tool Poisoning,SKIL-MCP-008,PARTIAL
 ASP-08.05,Inter-Agent & Delegation Security,Cross-Agent Trust Propagation Bound,ASI03;ASI07;ASI08;ASI10,LLM02;LLM05;LLM06,AI Agent Tool Invocation;AI Agent Tool Data Poisoning;AI Agent Tool Poisoning,SKIL-OUTPUT-BOUNDARY,PARTIAL
 ASP-08.06,Inter-Agent & Delegation Security,Inter-Agent Output Validation,ASI03;ASI07;ASI08;ASI10,LLM02;LLM05;LLM06,AI Agent Tool Invocation;AI Agent Tool Data Poisoning;AI Agent Tool Poisoning,SKIL-OUTPUT-BOUNDARY;SKIL-TAINT-*,PARTIAL
-ASP-08.07,Inter-Agent & Delegation Security,Collusion & Self-Replication Containment,ASI03;ASI07;ASI08;ASI10,LLM02;LLM05;LLM06,AI Agent Tool Invocation;AI Agent Tool Data Poisoning;AI Agent Tool Poisoning,,NEW
-ASP-08.08,Inter-Agent & Delegation Security,Delegation Chain Traceability,ASI03;ASI07;ASI08;ASI10,LLM02;LLM05;LLM06,AI Agent Tool Invocation;AI Agent Tool Data Poisoning;AI Agent Tool Poisoning,,NEW
+ASP-08.07,Inter-Agent & Delegation Security,Collusion & Self-Replication Containment,ASI03;ASI07;ASI08;ASI10,LLM02;LLM05;LLM06,AI Agent Tool Invocation;AI Agent Tool Data Poisoning;AI Agent Tool Poisoning,SKIL-A2A-004,PARTIAL
+ASP-08.08,Inter-Agent & Delegation Security,Delegation Chain Traceability,ASI03;ASI07;ASI08;ASI10,LLM02;LLM05;LLM06,AI Agent Tool Invocation;AI Agent Tool Data Poisoning;AI Agent Tool Poisoning,Enforcer delegation_depth bound and decision-record audit trail,PARTIAL
 ASP-09.01,"Supply Chain, Provenance & Artifact Integrity",Publisher Authenticity,ASI04;ASI10,LLM03,AI Supply Chain Rug Pull;AI Supply Chain Reputation Inflation,,NEW
 ASP-09.02,"Supply Chain, Provenance & Artifact Integrity",Artifact Signature Verification,ASI04;ASI10,LLM03,AI Supply Chain Rug Pull;AI Supply Chain Reputation Inflation,,NEW
 ASP-09.03,"Supply Chain, Provenance & Artifact Integrity",Payload Integrity,ASI04;ASI10,LLM03,AI Supply Chain Rug Pull;AI Supply Chain Reputation Inflation,,NEW
 ASP-09.04,"Supply Chain, Provenance & Artifact Integrity",Provenance & Build Attestation,ASI04;ASI10,LLM03,AI Supply Chain Rug Pull;AI Supply Chain Reputation Inflation,,NEW
-ASP-09.05,"Supply Chain, Provenance & Artifact Integrity",Version Lineage & Rollback Protection,ASI04;ASI10,LLM03,AI Supply Chain Rug Pull;AI Supply Chain Reputation Inflation,,NEW
+ASP-09.05,"Supply Chain, Provenance & Artifact Integrity",Version Lineage & Rollback Protection,ASI04;ASI10,LLM03,AI Supply Chain Rug Pull;AI Supply Chain Reputation Inflation,Policy revocation enforcement (revoked_artifact_digests/revoked_skills),PARTIAL
 ASP-09.06,"Supply Chain, Provenance & Artifact Integrity",Update Revalidation,ASI04;ASI10,LLM03,AI Supply Chain Rug Pull;AI Supply Chain Reputation Inflation,SKIL-MCP-005,PARTIAL
 ASP-09.07,"Supply Chain, Provenance & Artifact Integrity",Tool & Dependency Substitution Integrity,ASI04;ASI10,LLM03,AI Supply Chain Rug Pull;AI Supply Chain Reputation Inflation,SKIL-MCP-003;SKIL-MCP-005,PARTIAL
-ASP-09.08,"Supply Chain, Provenance & Artifact Integrity",Review-to-Execution Integrity,ASI04;ASI10,LLM03,AI Supply Chain Rug Pull;AI Supply Chain Reputation Inflation,SKIL-BOUNDARY-MUTABLE-IMAGE,PARTIAL
+ASP-09.08,"Supply Chain, Provenance & Artifact Integrity",Review-to-Execution Integrity,ASI04;ASI10,LLM03,AI Supply Chain Rug Pull;AI Supply Chain Reputation Inflation,SKIL-BOUNDARY-MUTABLE-IMAGE;Enforcer reviewed_closure digest binding (TOCTOU enforcement),IMPLEMENTED
 ASP-10.01,MCP & Integration Protocol Security,MCP Wildcard Permission Prevention,ASI02;ASI03;ASI04;ASI07,LLM03;LLM05;LLM06,AI Agent Tool Poisoning;AI Agent Tool Data Poisoning;AI Agent Tool Credential Harvesting,SKIL-MCP-001,IMPLEMENTED
 ASP-10.02,MCP & Integration Protocol Security,MCP Metadata Poisoning Resistance,ASI02;ASI03;ASI04;ASI07,LLM03;LLM05;LLM06,AI Agent Tool Poisoning;AI Agent Tool Data Poisoning;AI Agent Tool Credential Harvesting,SKIL-MCP-002;SKIL-UNI-001,PARTIAL
 ASP-10.03,MCP & Integration Protocol Security,MCP Parameter Injection Resistance,ASI02;ASI03;ASI04;ASI07,LLM03;LLM05;LLM06,AI Agent Tool Poisoning;AI Agent Tool Data Poisoning;AI Agent Tool Credential Harvesting,SKIL-MCP-004;SKIL-MCP-007,IMPLEMENTED
@@ -90,10 +90,10 @@ ASP-11.08,"Network, Filesystem & Runtime Boundary Security",Host Escape & Privil
 ASP-12.01,"Resource, Availability & Failure Containment",Resource Budget Bound,ASI02;ASI08;ASI10,LLM06;LLM10,AI Agent Tool Invocation,SKIL-AGENCY-BOUNDS,IMPLEMENTED
 ASP-12.02,"Resource, Availability & Failure Containment",Output Bound,ASI02;ASI08;ASI10,LLM06;LLM10,AI Agent Tool Invocation,SKIL-OUTPUT-LIMIT,IMPLEMENTED
 ASP-12.03,"Resource, Availability & Failure Containment",Rate & Quota Bound,ASI02;ASI08;ASI10,LLM06;LLM10,AI Agent Tool Invocation,SKIL-AGENCY-BOUNDS,PARTIAL
-ASP-12.04,"Resource, Availability & Failure Containment",Loop & Recursion Bound,ASI02;ASI08;ASI10,LLM06;LLM10,AI Agent Tool Invocation,,NEW
+ASP-12.04,"Resource, Availability & Failure Containment",Loop & Recursion Bound,ASI02;ASI08;ASI10,LLM06;LLM10,AI Agent Tool Invocation,Enforcer max_recursion_depth/max_delegation_depth bound,PARTIAL
 ASP-12.05,"Resource, Availability & Failure Containment",Cascading Failure Containment,ASI02;ASI08;ASI10,LLM06;LLM10,AI Agent Tool Invocation,,NEW
 ASP-12.06,"Resource, Availability & Failure Containment",Circuit Breaker & Kill-Switch Effectiveness,ASI02;ASI08;ASI10,LLM06;LLM10,AI Agent Tool Invocation,,NEW
-ASP-12.07,"Resource, Availability & Failure Containment",Retry & Backoff Safety,ASI02;ASI08;ASI10,LLM06;LLM10,AI Agent Tool Invocation,SKIL-AGENCY-BOUNDS,PARTIAL
+ASP-12.07,"Resource, Availability & Failure Containment",Retry & Backoff Safety,ASI02;ASI08;ASI10,LLM06;LLM10,AI Agent Tool Invocation,SKIL-AGENCY-BOUNDS;Enforcer max_retries bound,PARTIAL
 ASP-12.08,"Resource, Availability & Failure Containment",Idempotency & Duplicate-Action Safety,ASI02;ASI08;ASI10,LLM06;LLM10,AI Agent Tool Invocation,,NEW
 ASP-13.01,Human-Agent Trust & Safety,Risk Disclosure Integrity,ASI01;ASI02;ASI09;ASI10,LLM01;LLM06;LLM09,AI Agent Clickbait;LLM Jailbreak,SKIL-INTENT-UNDISCLOSED-OPERATION,PARTIAL
 ASP-13.02,Human-Agent Trust & Safety,Consent Specificity,ASI01;ASI02;ASI09;ASI10,LLM01;LLM06;LLM09,AI Agent Clickbait;LLM Jailbreak,SKIL-AGENCY-APPROVAL,PARTIAL
@@ -103,13 +103,13 @@ ASP-13.05,Human-Agent Trust & Safety,Physical-Harm Operational Safety,ASI01;ASI0
 ASP-13.06,Human-Agent Trust & Safety,Malware & Phishing Objective Safety,ASI01;ASI02;ASI09;ASI10,LLM01;LLM06;LLM09,AI Agent Clickbait;LLM Jailbreak,SKIL-ABUSE-MALWARE;SKIL-ABUSE-PHISHING,IMPLEMENTED
 ASP-13.07,Human-Agent Trust & Safety,Destructive & Recovery-Inhibition Safety,ASI01;ASI02;ASI09;ASI10,LLM01;LLM06;LLM09,AI Agent Clickbait;LLM Jailbreak,SKIL-ABUSE-DESTRUCTION,IMPLEMENTED
 ASP-13.08,Human-Agent Trust & Safety,Security-Control Evasion Safety,ASI01;ASI02;ASI09;ASI10,LLM01;LLM06;LLM09,AI Agent Clickbait;LLM Jailbreak,SKIL-ABUSE-EVASION,IMPLEMENTED
-ASP-14.01,"Auditability, Observability & Accountability",Action Attribution,ASI03;ASI07;ASI08;ASI10,LLM06;LLM09,,,NEW
-ASP-14.02,"Auditability, Observability & Accountability",Authorization Decision Traceability,ASI03;ASI07;ASI08;ASI10,LLM06;LLM09,,,NEW
+ASP-14.01,"Auditability, Observability & Accountability",Action Attribution,ASI03;ASI07;ASI08;ASI10,LLM06;LLM09,,Enforcer decision-record (capability/target attribution),PARTIAL
+ASP-14.02,"Auditability, Observability & Accountability",Authorization Decision Traceability,ASI03;ASI07;ASI08;ASI10,LLM06;LLM09,,Enforcer decision-record audit trail,IMPLEMENTED
 ASP-14.03,"Auditability, Observability & Accountability",Security Event Completeness,ASI03;ASI07;ASI08;ASI10,LLM06;LLM09,,SKIL-TAINT-LOG,PARTIAL
 ASP-14.04,"Auditability, Observability & Accountability",Tamper-Evident Audit Records,ASI03;ASI07;ASI08;ASI10,LLM06;LLM09,,,NEW
-ASP-14.05,"Auditability, Observability & Accountability",Artifact & Version Attribution,ASI03;ASI07;ASI08;ASI10,LLM06;LLM09,,,NEW
+ASP-14.05,"Auditability, Observability & Accountability",Artifact & Version Attribution,ASI03;ASI07;ASI08;ASI10,LLM06;LLM09,,Enforcer decision-record artifact_digest/contract_digest,PARTIAL
 ASP-14.06,"Auditability, Observability & Accountability",Evidence-Chain Reproducibility,ASI03;ASI07;ASI08;ASI10,LLM06;LLM09,,SKIL-* finding evidence model,PARTIAL
-ASP-14.07,"Auditability, Observability & Accountability",Failure & Denial Auditability,ASI03;ASI07;ASI08;ASI10,LLM06;LLM09,,,NEW
+ASP-14.07,"Auditability, Observability & Accountability",Failure & Denial Auditability,ASI03;ASI07;ASI08;ASI10,LLM06;LLM09,,Enforcer decision-record deny+reason,IMPLEMENTED
 ASP-14.08,"Auditability, Observability & Accountability",Coverage & Unknown-State Reporting,ASI03;ASI07;ASI08;ASI10,LLM06;LLM09,,Provider coverage reporting,PARTIAL
 ASP-15.01,"Dependency, Package & Container Supply-Chain Security",Dependency Pinning,ASI04;ASI05,LLM03,AI Supply Chain Rug Pull;AI Supply Chain Reputation Inflation,SKIL-DEP-001,IMPLEMENTED
 ASP-15.02,"Dependency, Package & Container Supply-Chain Security",Known Vulnerability Hygiene,ASI04;ASI05,LLM03,AI Supply Chain Rug Pull;AI Supply Chain Reputation Inflation,SKIL-DEP-VULN,PROVIDER_BACKED

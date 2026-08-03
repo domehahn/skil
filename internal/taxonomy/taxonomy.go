@@ -380,6 +380,9 @@ func allControls() []Control {
 		{ID: "MCP-005", Title: "Metadata Rug Pull", Domain: MCPSecurity, SKILRule: "SKIL-MCP-005"},
 		{ID: "MCP-006", Title: "Description/Behavior Mismatch", Domain: MCPSecurity, SKILRule: "SKIL-MCP-006"},
 		{ID: "MCP-007", Title: "Excessive Parameter Description", Domain: MCPSecurity, SKILRule: "SKIL-MCP-007"},
+		{ID: "MCP-008", Title: "Token Passthrough / Audience Binding Violation", Domain: MCPSecurity, SKILRule: "SKIL-MCP-008"},
+		{ID: "MCP-009", Title: "Tool-Controlled URL Fetch (SSRF)", Domain: MCPSecurity, SKILRule: "SKIL-MCP-009"},
+		{ID: "MCP-010", Title: "Overly Broad OAuth Scope", Domain: MCPSecurity, SKILRule: "SKIL-MCP-010"},
 
 		// 5. Code Security
 		{ID: "CODE-001", Title: "Dynamic Execution Detection", Domain: CodeSecurity, SKILRule: "SKIL-SH-001"},
@@ -418,6 +421,9 @@ func allControls() []Control {
 		{ID: "DATA-003", Title: "PII / Secret in Dataset", Domain: DataDatasetSecurity, SKILRule: "SKIL-SECRET-HARDCODED"},
 		{ID: "DATA-004", Title: "Dataset Provenance Missing", Domain: DataDatasetSecurity},
 		{ID: "DATA-005", Title: "License / Policy Violation", Domain: DataDatasetSecurity},
+		{ID: "DATA-006", Title: "Purpose Limitation Violation", Domain: DataDatasetSecurity, SKILRule: "SKIL-DATA-PURPOSE-VIOLATION"},
+		{ID: "DATA-007", Title: "Unbounded Sensitive Data Retention", Domain: DataDatasetSecurity, SKILRule: "SKIL-DATA-RETENTION-UNBOUNDED"},
+		{ID: "DATA-008", Title: "Sensitive Data Minimization Violation", Domain: DataDatasetSecurity, SKILRule: "SKIL-DATA-OVERBROAD-COLLECTION"},
 
 		// 8. RAG / Context Security
 		{ID: "RAG-001", Title: "Indirect Prompt Injection via Document", Domain: RAGContextSecurity, SKILRule: "SKIL-PI-002"},
@@ -449,6 +455,10 @@ func allControls() []Control {
 		{ID: "ID-006", Title: "Hardcoded Secret", Domain: IdentityAuthorization, SKILRule: "SKIL-SECRET-HARDCODED"},
 		{ID: "ID-007", Title: "Embedded Private Key", Domain: IdentityAuthorization, SKILRule: "SKIL-SECRET-PRIVATE-KEY"},
 		{ID: "ID-008", Title: "Exposed Connection String", Domain: IdentityAuthorization, SKILRule: "SKIL-SECRET-CONNECTION-STRING"},
+		{ID: "ID-009", Title: "Missing Audience Binding", Domain: IdentityAuthorization, SKILRule: "SKIL-AUTH-AUDIENCE"},
+		{ID: "ID-010", Title: "Overbroad OAuth Scope Request", Domain: IdentityAuthorization, SKILRule: "SKIL-AUTH-SCOPE-OVERBROAD"},
+		{ID: "ID-011", Title: "Excessive or Non-Expiring Token Lifetime", Domain: IdentityAuthorization, SKILRule: "SKIL-AUTH-LIFETIME"},
+		{ID: "ID-012", Title: "Consent Scope Exceeded", Domain: IdentityAuthorization, SKILRule: "SKIL-AUTH-CONSENT-SCOPE"},
 
 		// 11. Multi-Agent / A2A Security
 		{ID: "A2A-001", Title: "Agent Identity Spoofing", Domain: MultiAgentSecurity},

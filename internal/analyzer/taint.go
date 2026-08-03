@@ -19,7 +19,7 @@ import (
 type Taint struct{}
 
 var (
-	taintSources = regexp.MustCompile(`(?i)(os\.environ|os\.getenv|process\.env|input\s*\(|sys\.stdin|request\.(?:args|query|body)|readFile|open\s*\([^)]*["']r|tool[_ .-]?output|mcp[_ .-]?output|model[_ .-]?output|llm[_ .-]?response|assistant[_ .-]?response|completion\s*=|\.(?:responses|chat|completions|generate)\.(?:create|complete)\s*\()`)
+	taintSources = regexp.MustCompile(`(?i)(os\.environ|os\.getenv|process\.env|input\s*\(|sys\.stdin|request\.(?:args|query|body)|readFile|open\s*\([^)]*["']r|tool[_ .-]?output|mcp[_ .-]?output|model[_ .-]?output|llm[_ .-]?response|assistant[_ .-]?response|completion\s*=|\.(?:responses|chat|completions|generate)\.(?:create|complete)\s*\(|(?:requests\.(?:get|post|put)|urllib\.request\.urlopen|fetch)\s*\([^)]*\)\.(?:text|content|json\s*\(\)|read\s*\(\)))`)
 	sanitizers   = regexp.MustCompile(`(?i)\b(?:sanitize|validate|allowlist|whitelist|escape|urlparse|url\.parse|path\.resolve)\s*\(`)
 	identifier   = regexp.MustCompile(`[A-Za-z_$][A-Za-z0-9_$]*`)
 
@@ -177,7 +177,7 @@ func resolvePythonAliasesInText(text string, aliasPatterns []pythonAliasPattern)
 // an "untrusted output reaches execution" finding from existing taint and
 // AST evidence instead of re-detecting the same condition with a separate
 // text pattern.
-var untrustedOutputOrigin = regexp.MustCompile(`(?i)input\s*\(|stdin|request\.(?:args|query|body)|readfile|tool[_ .-]?output|mcp[_ .-]?output|model[_ .-]?output|llm[_ .-]?response|assistant[_ .-]?response|completion\s*=|\.(?:responses|chat|completions|generate)\.(?:create|complete)\s*\(`)
+var untrustedOutputOrigin = regexp.MustCompile(`(?i)input\s*\(|stdin|request\.(?:args|query|body)|readfile|tool[_ .-]?output|mcp[_ .-]?output|model[_ .-]?output|llm[_ .-]?response|assistant[_ .-]?response|completion\s*=|\.(?:responses|chat|completions|generate)\.(?:create|complete)\s*\(|(?:requests\.(?:get|post|put)|urllib\.request\.urlopen|fetch)\s*\([^)]*\)\.(?:text|content|json\s*\(\)|read\s*\(\))`)
 
 func taintLanguage(ext string) unsafe.Pointer {
 	switch ext {

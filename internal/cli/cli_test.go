@@ -499,3 +499,38 @@ func TestSBOMAndCapabilitiesContracts(t *testing.T) {
 		t.Fatalf("runtime enforcement availability is inconsistent: %s", out.String())
 	}
 }
+
+func TestConformReportsASPSProfileScore(t *testing.T) {
+	var out, errOut bytes.Buffer
+	app := New(&out, &errOut)
+	if code := app.Run(context.Background(), []string{"conform", "--profile", "mcp", "--format", "json"}); code != ExitOK {
+		t.Fatalf("conform failed: code=%d stderr=%s", code, errOut.String())
+	}
+	var report struct {
+		Profile         string  `json:"profile"`
+		TotalProperties int     `json:"total_properties"`
+		Score           float64 `json:"score"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
+		t.Fatal(err)
+	}
+	if report.Profile != "ASPS-MCP" || report.TotalProperties != 8 {
+		t.Fatalf("unexpected conform report: %s", out.String())
+	}
+	if report.Score <= 0 || report.Score > 1 {
+		t.Fatalf("expected a score in (0,1], got %v", report.Score)
+	}
+}
+
+func TestConformRejectsMissingAndUnknownProfile(t *testing.T) {
+	var out, errOut bytes.Buffer
+	app := New(&out, &errOut)
+	if code := app.Run(context.Background(), []string{"conform"}); code != ExitInput {
+		t.Fatalf("expected missing --profile to be an input error, got code=%d", code)
+	}
+	out.Reset()
+	errOut.Reset()
+	if code := app.Run(context.Background(), []string{"conform", "--profile", "bogus"}); code != ExitInput {
+		t.Fatalf("expected an unknown profile to be an input error, got code=%d", code)
+	}
+}

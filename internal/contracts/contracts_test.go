@@ -16,6 +16,48 @@ capabilities:
 	}
 }
 
+func minimalCapabilities() string {
+	return `capabilities:
+  filesystem: {read: [], write: [], delete: []}
+  network: {inbound: false, outbound: false, hosts: []}
+  commands: {execute: false, allow: []}
+  secrets: {read: [], expose: false}
+  environment: {read: []}
+  tools: {allow: [], deny: []}
+  mcp: {servers: [], tools: []}
+  persistence: false
+  agent: {autonomous_actions: false, external_side_effects: false, confirm_destructive: false, confirm_external: false}
+`
+}
+
+func TestContractAcceptsReviewedClosureWithValidDigest(t *testing.T) {
+	digest := strings.Repeat("a", 64)
+	_, err := Parse([]byte("version: 1\nskill: {name: x, description: x}\n" + minimalCapabilities() +
+		"reviewed_closure:\n  - identifier: helper-plugin\n    sha256: " + digest + "\n"))
+	if err != nil {
+		t.Fatalf("expected a valid reviewed_closure entry to be accepted: %v", err)
+	}
+}
+
+func TestContractRejectsReviewedClosureShortDigest(t *testing.T) {
+	_, err := Parse([]byte("version: 1\nskill: {name: x, description: x}\n" + minimalCapabilities() +
+		"reviewed_closure:\n  - identifier: helper-plugin\n    sha256: deadbeef\n"))
+	if err == nil {
+		t.Fatal("expected a non-64-character sha256 digest to be rejected")
+	}
+}
+
+func TestContractRejectsReviewedClosureDuplicateIdentifier(t *testing.T) {
+	digest := strings.Repeat("a", 64)
+	other := strings.Repeat("b", 64)
+	_, err := Parse([]byte("version: 1\nskill: {name: x, description: x}\n" + minimalCapabilities() +
+		"reviewed_closure:\n  - identifier: helper-plugin\n    sha256: " + digest +
+		"\n  - identifier: helper-plugin\n    sha256: " + other + "\n"))
+	if err == nil {
+		t.Fatal("expected a duplicate reviewed_closure identifier to be rejected")
+	}
+}
+
 func TestContractRejectsSchemaSectionsThatAreOnlyImplicitZeroValues(t *testing.T) {
 	_, err := Parse([]byte(`version: 1
 skill: {name: x, description: x}

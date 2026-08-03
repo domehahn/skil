@@ -19,7 +19,7 @@ func DefaultRegistry(vuln skil.VulnerabilityProvider) *Registry {
 		NewPattern(), NewPythonAST(), NewStructuredAST(), NewTaint(), NewDependency(vuln), NewMCP(), NewBoundary(), NewUnicode(),
 		NewLocalSemantic(), NewModelArtifact(), NewSecret(), NewBuild(), NewIdentity(), NewLateral(), NewAsset(),
 		NewSkill(), NewToolCapability(), NewDataDataset(), NewRAGContext(), NewMultiAgent(), NewAuditEvidence(), NewPolicyEnforcement(),
-		NewHiddenInstruction(), NewTrigger(), NewResourceConfig(),
+		NewHiddenInstruction(), NewTrigger(), NewResourceConfig(), NewCredentialFlow(), NewDataClassification(),
 	}
 	return &Registry{analyzers: items}
 }

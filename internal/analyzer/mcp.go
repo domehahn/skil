@@ -40,6 +40,13 @@ func (m *MCP) Analyze(_ context.Context, ac skil.AnalysisContext) ([]skil.Findin
 	anyURL := regexp.MustCompile(`(?i)https?://\S+`)
 	loopbackURL := regexp.MustCompile(`(?i)^https?://(?:localhost|127\.0\.0\.1)(?:[:/?#]|$)`)
 	maliciousDefaultShell := regexp.MustCompile(`(?i)\bcurl\b|\bwget\b|bash\s+-c|sh\s+-c|\beval\b`)
+	// tokenPassthrough/toolControlledFetch detect two anti-patterns the MCP
+	// authorization spec calls out by name: forwarding an inbound token to a
+	// downstream call verbatim instead of minting a token scoped to that
+	// downstream's own audience, and fetching a URL that came directly from
+	// a tool argument rather than a fixed, reviewed endpoint (SSRF).
+	tokenPassthrough := regexp.MustCompile(`(?i)headers\s*=\s*(?:dict\()?\s*(?:\*\*)?request\.headers\b|headers\[['"]authorization['"]\]\s*=\s*request\.headers|proxy_headers\s*=\s*request\.headers`)
+	toolControlledFetch := regexp.MustCompile(`(?i)\b(?:requests\.(?:get|post|put)|fetch|axios\.(?:get|post)|urllib\.request\.urlopen)\s*\(\s*(?:url|target_url|endpoint|webhook_url|tool_url|callback_url)\s*[,)]`)
 	lock, err := loadMCPLock(ac.Artifact)
 	if err != nil {
 		return nil, err
@@ -111,6 +118,14 @@ func (m *MCP) Analyze(_ context.Context, ac skil.AnalysisContext) ([]skil.Findin
 						}, Confidence: .7})
 					}
 				}
+				if (normalized == "scope" || normalized == "scopes") && mcpOverbroadScope(value) {
+					emitMCPFinding(&out, seen, file, line, text, RulePattern{Rule: skil.Rule{
+						ID: "SKIL-MCP-010", Title: "Overly broad OAuth scope",
+						Category: "tool-protocol", Severity: skil.SeverityHigh,
+						Description: "The MCP server manifest requests a wildcard or administrative OAuth scope rather than the minimum scope its tools need.",
+						Analysis:    "mcp", Remediation: "Request the narrowest OAuth scope each tool needs; never request wildcard or admin scope.",
+					}, Confidence: .9})
+				}
 			})
 			for _, description := range mcpParameterDescriptions(document) {
 				// Reuse the same deterministic intent-matching primitive
@@ -147,6 +162,20 @@ func (m *MCP) Analyze(_ context.Context, ac skil.AnalysisContext) ([]skil.Findin
 					Category: "tool-protocol", Severity: skil.SeverityCritical,
 					Description: "An MCP description or default embeds manipulative instructions.", Analysis: "mcp",
 					Remediation: "Remove hidden instructions and bind descriptions to reviewed tool behavior."}, Confidence: .9}
+				out = append(out, makeFinding(rule, file, line+1, text))
+			}
+			if tokenPassthrough.MatchString(text) {
+				rule := RulePattern{Rule: skil.Rule{ID: "SKIL-MCP-008", Title: "MCP token passthrough",
+					Category: "tool-protocol", Severity: skil.SeverityHigh,
+					Description: "An MCP server forwards an inbound token to a downstream call verbatim instead of minting a token scoped to that downstream's own audience, violating the MCP authorization spec's ban on token passthrough.",
+					Analysis: "mcp", Remediation: "Never forward an inbound token as-is; exchange it for a new, downstream-audience-scoped token or use the server's own service credential."}, Confidence: .9}
+				out = append(out, makeFinding(rule, file, line+1, text))
+			}
+			if toolControlledFetch.MatchString(text) {
+				rule := RulePattern{Rule: skil.Rule{ID: "SKIL-MCP-009", Title: "Tool-controlled URL fetch (SSRF)",
+					Category: "tool-protocol", Severity: skil.SeverityHigh,
+					Description: "An MCP tool handler fetches a URL taken directly from a tool argument rather than a fixed, reviewed endpoint, allowing a caller to redirect the request (SSRF).",
+					Analysis: "mcp", Remediation: "Validate tool-supplied URLs against an explicit allowlist of hosts before fetching, or use a fixed endpoint."}, Confidence: .85}
 				out = append(out, makeFinding(rule, file, line+1, text))
 			}
 		}
@@ -500,6 +529,27 @@ func containsWildcard(value any) bool {
 		}
 		for _, child := range item {
 			if containsWildcard(child) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+var mcpOverbroadScopeValue = regexp.MustCompile(`(?i)^(?:\*|all|admin|full[_-]?access|superuser)$`)
+
+func mcpOverbroadScope(value any) bool {
+	switch item := value.(type) {
+	case string:
+		for _, entry := range strings.Fields(item) {
+			if mcpOverbroadScopeValue.MatchString(strings.TrimSpace(entry)) {
+				return true
+			}
+		}
+		return false
+	case []any:
+		for _, child := range item {
+			if mcpOverbroadScope(child) {
 				return true
 			}
 		}

@@ -175,6 +175,19 @@ func Validate(c skil.SkillContract) error {
 	if c.Capabilities.Commands.Execute && len(c.Capabilities.Commands.Allow) == 0 {
 		return errors.New("commands.execute requires an explicit command allowlist")
 	}
+	seen := map[string]bool{}
+	for _, dependency := range c.ReviewedClosure {
+		if strings.TrimSpace(dependency.Identifier) == "" {
+			return errors.New("reviewed_closure entries require a non-empty identifier")
+		}
+		if seen[dependency.Identifier] {
+			return fmt.Errorf("reviewed_closure has a duplicate identifier %q", dependency.Identifier)
+		}
+		seen[dependency.Identifier] = true
+		if len(dependency.SHA256) != 64 {
+			return fmt.Errorf("reviewed_closure entry %q requires a 64-character sha256 digest", dependency.Identifier)
+		}
+	}
 	return nil
 }
 

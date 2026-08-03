@@ -36,6 +36,9 @@
     "require_zero_forbidden_side_effects": {"type": "boolean"},
     "required_domains": {"type": "array", "items": {"type": "string"}},
     "allowed_domains": {"type": "array", "items": {"type": "string"}},
-    "forbidden_domains": {"type": "array", "items": {"type": "string"}}
+    "forbidden_domains": {"type": "array", "items": {"type": "string"}},
+    "revoked_signer_key_ids": {"type": "array", "items": {"type": "string"}},
+    "revoked_artifact_digests": {"type": "array", "items": {"type": "string"}},
+    "revoked_skills": {"type": "array", "items": {"type": "string"}}
   }
 }

@@ -39,7 +39,19 @@
         "description": {"type": "string", "minLength": 1}
       }
     },
-    "capabilities": {"$ref": "#/$defs/capabilities"}
+    "capabilities": {"$ref": "#/$defs/capabilities"},
+    "reviewed_closure": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["identifier", "sha256"],
+        "properties": {
+          "identifier": {"type": "string", "minLength": 1},
+          "sha256": {"type": "string", "pattern": "^[0-9a-fA-F]{64}$"}
+        }
+      }
+    }
   },
   "$defs": {
     "strings": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
@@ -66,7 +78,12 @@
           "max_runtime_seconds": {"type": "integer", "minimum": 0},
           "max_memory_mb": {"type": "integer", "minimum": 0},
           "max_network_bytes": {"type": "integer", "minimum": 0},
-          "max_tool_calls": {"type": "integer", "minimum": 0}
+          "max_tool_calls": {"type": "integer", "minimum": 0},
+          "max_model_tokens": {"type": "integer", "minimum": 0},
+          "max_retries": {"type": "integer", "minimum": 0},
+          "max_delegation_depth": {"type": "integer", "minimum": 0},
+          "max_recursion_depth": {"type": "integer", "minimum": 0},
+          "max_external_mutations": {"type": "integer", "minimum": 0}
         }}
       }
     }
