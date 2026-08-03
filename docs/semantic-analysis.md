@@ -14,7 +14,7 @@ write interface from core. Semantic output is probabilistic and remains
 separate from deterministic static findings.
 
 Opt-in model-backed semantic analysis runs independent security,
-developer-intent, and quality passes, then a constrained meta pass over their
+developer-intent, quality, and policy passes, then a constrained meta pass over their
 findings, and deduplicates only identical native findings. Its separate
 coverage key is `semantic-provider`. The OpenAI-compatible
 adapter sets `tool_choice: none` and requests a strict JSON schema. The native
@@ -33,3 +33,11 @@ requests are SigV4-signed by the official AWS SDK. No semantic provider
 executes a local agent CLI: such CLIs can retain read capabilities and local
 authentication state even in their strictest sandbox modes, which does not
 satisfy skil's no-tools provider contract.
+
+Semantic output validation defaults to `--semantic-validation review`. Valid
+findings remain available when a model also returns malformed findings; every
+rejection is reported in `diagnostics` and `semantic-provider` coverage becomes
+`degraded`. Use `--semantic-validation strict` for fail-closed workflows where
+any invalid finding must fail the complete semantic pass. Structural response
+errors, response-size violations, provider failures, and more than 100 findings
+always fail in both modes.

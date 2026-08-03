@@ -122,3 +122,67 @@ func TestSemanticPolicyFindingsNormalize(t *testing.T) {
 		t.Fatal("semantic_policy outside focus=security must be rejected")
 	}
 }
+
+func TestReviewValidationRetainsValidFindingsAndReportsRejectedItems(t *testing.T) {
+	items := []semanticFinding{
+		{
+			Control: "semantic_security", Severity: "HIGH", Confidence: .9,
+			Title: "Valid", Message: "evidence", File: "SKILL.md", StartLine: 1, EndLine: 1,
+			Remediation: "review",
+		},
+		{
+			Control: "semantic_security", Severity: "HIGH", Confidence: .9,
+			Title: "Invalid", Message: "evidence", File: "private-secret.txt", StartLine: 1, EndLine: 1,
+			Remediation: "review",
+		},
+	}
+	result, err := normalizeFindingsDetailed(items, skil.SemanticRequest{
+		ArtifactDigest: "abc", Files: map[string]string{"SKILL.md": "content"}, Focus: "security",
+	}, "test", skil.SemanticValidationReview)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Findings) != 1 || result.Diagnostics.Accepted != 1 || result.Diagnostics.Rejected != 1 || len(result.Diagnostics.Errors) != 1 {
+		t.Fatalf("unexpected review result: %#v", result)
+	}
+	if strings.Contains(result.Diagnostics.Errors[0].Message, "private-secret.txt") {
+		t.Fatalf("diagnostic leaks rejected model output: %#v", result.Diagnostics.Errors[0])
+	}
+}
+
+func TestStrictValidationRejectsCompletePass(t *testing.T) {
+	items := []semanticFinding{
+		{
+			Control: "semantic_security", Severity: "HIGH", Confidence: .9,
+			Title: "Valid", Message: "evidence", File: "SKILL.md", StartLine: 1, EndLine: 1,
+			Remediation: "review",
+		},
+		{
+			Control: "semantic_security", Severity: "INVALID", Confidence: .9,
+			Title: "Invalid", Message: "evidence", File: "SKILL.md", StartLine: 1, EndLine: 1,
+			Remediation: "review",
+		},
+	}
+	result, err := normalizeFindingsDetailed(items, skil.SemanticRequest{
+		ArtifactDigest: "abc", Files: map[string]string{"SKILL.md": "content"}, Focus: "security",
+	}, "test", skil.SemanticValidationStrict)
+	if err == nil {
+		t.Fatal("strict validation must reject the complete pass")
+	}
+	if len(result.Findings) != 0 || result.Diagnostics.Rejected != 1 {
+		t.Fatalf("strict validation returned partial findings: %#v", result)
+	}
+}
+
+func TestSemanticValidationModeDefaultsAndValidation(t *testing.T) {
+	provider, err := New(Config{Model: "test"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if provider.validationMode != skil.SemanticValidationReview {
+		t.Fatalf("default validation mode = %q, want review", provider.validationMode)
+	}
+	if _, err := New(Config{Model: "test", ValidationMode: "permissive"}); err == nil {
+		t.Fatal("unsupported validation mode must be rejected")
+	}
+}

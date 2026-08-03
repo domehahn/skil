@@ -61,6 +61,9 @@ python3 run_differential.py \
 ```
 
 Use `--filter <substring>` to run a subset of properties by id.
+Use `--suite static|semantic|provider|all` to select only fixtures belonging
+to that suite. Combine it with `--skip-different-by-design` to omit those
+fixture entries from the selected suite.
 
 ## Coverage
 

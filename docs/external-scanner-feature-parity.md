@@ -306,7 +306,7 @@ errors) are stored in
 
 - **Model**: `qwen2.5-coder:7b-instruct` (Ollama, `http://127.0.0.1:11434/v1`) — same model for both scanners
 - **skil**: commit `58100c6`, prompt version `2026-07-31`, `--semantic --semantic-model qwen2.5-coder:7b-instruct`
-- **External scanner**: commit `34f6030` (v2.5.0), `SKILLSPECTOR_MODEL=qwen2.5-coder:7b-instruct`
+- **External scanner**: commit `34f6030` (v2.5.0), model `qwen2.5-coder:7b-instruct`
 - **Result**: skil 9/28 fixture entries, external 5/28; **external-only gaps: 2**
   (`ASP-02.02` intent-code-divergence, `ASP-13.03` nl-policy-violations), skil-only: 6, neither: 17
 

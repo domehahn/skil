@@ -2961,8 +2961,10 @@
       "mitre_atlas": [
         "AI Agent Tool Invocation"
       ],
-      "skil_controls": [],
-      "skil_status": "NEW"
+      "skil_controls": [
+        "Enforcer.verifyIdempotencyOnRetry"
+      ],
+      "skil_status": "PARTIAL"
     },
     {
       "id": "ASP-13.01",

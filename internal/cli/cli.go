@@ -75,6 +75,7 @@ type analysisFlags struct {
 	semanticAllowPrivate *bool
 	semanticRegion       *string
 	semanticAPIVersion   *string
+	semanticValidation   *string
 	requireComplete      *bool
 	allowRemote          *bool
 	dependencyReputation *string
@@ -102,6 +103,7 @@ func bindAnalysisFlags(fs *flag.FlagSet) analysisFlags {
 		semanticAllowPrivate: fs.Bool("semantic-allow-private", false, "allow explicitly configured private/local semantic endpoint"),
 		semanticRegion:       fs.String("semantic-region", "us-west-2", "cloud region for the Bedrock semantic provider"),
 		semanticAPIVersion:   fs.String("semantic-api-version", "", "optional Anthropic proxy API version"),
+		semanticValidation:   fs.String("semantic-validation", "review", "semantic output validation: review or strict"),
 		requireComplete:      fs.Bool("require-complete", false, "fail the gate unless every applicable inspection work item completed"),
 		allowRemote:          fs.Bool("allow-remote", false, "explicitly permit a public HTTPS archive or Git source"),
 		dependencyReputation: fs.String("dependency-reputation", "", "trusted offline package-reputation JSON"),
@@ -151,6 +153,8 @@ func (a *App) Run(ctx context.Context, args []string) int {
 		code = a.scanAll(ctx, args[1:])
 	case "serve":
 		code = a.serve(ctx, args[1:])
+	case "mcp":
+		code = a.mcpRegistry(ctx, args[1:])
 	case "admission":
 		code = a.admission(ctx, args[1:])
 	case "verify":
@@ -241,11 +245,12 @@ Usage:
   skil validate <skill> [--format json]
   skil lint <skill> [--strict|--profile default|strict|portable|publish] [--format terminal|json|markdown|sarif] [--output file]
   skil lint-all <collection> [--profile default|strict|portable|publish] [--workers N] [--format terminal|json|markdown] [--output file]
-   skil scan <skill> [--full] [--static-only] [--osv] [--yara-rules file|--yara-rules-dir dir] [--semantic --semantic-model model] [--require-complete] [--allow-remote]
+   skil scan <skill> [--full] [--static-only] [--osv] [--yara-rules file|--yara-rules-dir dir] [--semantic --semantic-model model] [--semantic-validation review|strict] [--require-complete] [--allow-remote]
               [--format terminal|json|markdown|sarif] [--compact] [--output file] [--baseline file] [--show-suppressed=false] [--domain domain] [--list-domains]
   skil scan-all <collection> [analysis flags] [--workers N] [--format terminal|json|markdown] [--output file]
   skil serve (--stdio | --listen 127.0.0.1:port --token-env ENV) --root <directory>
-  skil verify <skill> [--format json] [--osv] [--yara-rules file] [--semantic --semantic-model model]
+  skil mcp registry scan [file|server-name] [--official] [--format terminal|json] [--reviewed-closure contract]
+  skil verify <skill> [--format json] [--osv] [--yara-rules file] [--semantic --semantic-model model] [--semantic-validation review|strict]
   skil eval <skill> [--test file] [--runtime mock|isolated] [--runtime-command executable] [--runs N] [--output file]
   skil assure <skill> --runtime-command executable [--test file] [--runs N] [--full] [--format terminal|json]
   skil attest <skill> [--output file] [--eval-result file] [--signing-key key.pem] [analysis flags]
@@ -1691,6 +1696,7 @@ func (a *App) capabilities(args []string) int {
 			"formats":  []string{"terminal", "json", "markdown", "sarif"},
 		},
 		"package_lockfile": true, "collection_scanning": true, "remote_sources_opt_in": true,
+		"mcp_registry_posture": true,
 		"integrated_assurance": true,
 		"collection_formats":   []string{"terminal", "json", "markdown"}, "collection_workers_max": 64,
 		"baseline":   []string{"artifact-bound-fingerprint", "reviewed-glob", "expiry", "audit-reason"},
@@ -1883,9 +1889,10 @@ func (a *App) analysisRegistry(ctx context.Context, flags analysisFlags) (*analy
 		if *flags.semanticProvider == "bedrock" {
 			destination = "AWS Bedrock region " + *flags.semanticRegion
 		}
+		validationMode := skil.SemanticValidationMode(*flags.semanticValidation)
 		a.logMu.Lock()
-		fmt.Fprintf(a.Err, "semantic analysis: provider=%s model=%s destination=%s transmission=all text files up to 1 MiB tools=none passes=security,intent,quality,policy,meta\n",
-			*flags.semanticProvider, *flags.semanticModel, destination)
+		fmt.Fprintf(a.Err, "semantic analysis: provider=%s model=%s destination=%s validation=%s transmission=all text files up to 1 MiB tools=none passes=security,intent,quality,policy,meta\n",
+			*flags.semanticProvider, *flags.semanticModel, destination, validationMode)
 		a.logMu.Unlock()
 		var provider skil.SemanticProvider
 		var err error
@@ -1894,6 +1901,7 @@ func (a *App) analysisRegistry(ctx context.Context, flags analysisFlags) (*analy
 			provider, err = semanticprovider.New(semanticprovider.Config{
 				Endpoint: *flags.semanticEndpoint, Model: *flags.semanticModel,
 				APIKey: os.Getenv(*flags.semanticKeyEnv), AllowPrivate: *flags.semanticAllowPrivate,
+				ValidationMode: validationMode,
 			})
 		case "nvidia":
 			endpoint := *flags.semanticEndpoint
@@ -1907,6 +1915,7 @@ func (a *App) analysisRegistry(ctx context.Context, flags analysisFlags) (*analy
 			provider, err = semanticprovider.New(semanticprovider.Config{
 				Endpoint: endpoint, Model: *flags.semanticModel,
 				APIKey: os.Getenv(keyEnvironment), AllowPrivate: *flags.semanticAllowPrivate,
+				ValidationMode: validationMode,
 			})
 		case "anthropic":
 			endpoint := *flags.semanticEndpoint
@@ -1916,6 +1925,7 @@ func (a *App) analysisRegistry(ctx context.Context, flags analysisFlags) (*analy
 			provider, err = semanticprovider.NewAnthropic(semanticprovider.AnthropicConfig{
 				Endpoint: endpoint, Model: *flags.semanticModel,
 				APIKey: os.Getenv(*flags.semanticKeyEnv), AllowPrivate: *flags.semanticAllowPrivate,
+				ValidationMode: validationMode,
 			})
 		case "anthropic-proxy":
 			keyEnvironment := *flags.semanticKeyEnv
@@ -1925,11 +1935,11 @@ func (a *App) analysisRegistry(ctx context.Context, flags analysisFlags) (*analy
 			provider, err = semanticprovider.NewAnthropicProxy(semanticprovider.AnthropicProxyConfig{
 				Endpoint: *flags.semanticEndpoint, Model: *flags.semanticModel,
 				BearerToken: os.Getenv(keyEnvironment), APIVersion: *flags.semanticAPIVersion,
-				AllowPrivate: *flags.semanticAllowPrivate,
+				AllowPrivate: *flags.semanticAllowPrivate, ValidationMode: validationMode,
 			})
 		case "bedrock":
 			provider, err = semanticprovider.NewBedrock(ctx, semanticprovider.BedrockConfig{
-				Model: *flags.semanticModel, Region: *flags.semanticRegion,
+				Model: *flags.semanticModel, Region: *flags.semanticRegion, ValidationMode: validationMode,
 			})
 		default:
 			return nil, fmt.Errorf("unsupported semantic provider %q", *flags.semanticProvider)

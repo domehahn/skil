@@ -47,6 +47,42 @@ func (f *focusProvider) AnalyzeUntrusted(_ context.Context, request skil.Semanti
 	return nil, nil
 }
 
+type diagnosticSemanticProvider struct{}
+
+func (*diagnosticSemanticProvider) ID() string { return "diagnostic-test" }
+func (*diagnosticSemanticProvider) AnalyzeUntrusted(context.Context, skil.SemanticRequest) ([]skil.Finding, error) {
+	return nil, nil
+}
+func (*diagnosticSemanticProvider) AnalyzeUntrustedDetailed(context.Context, skil.SemanticRequest) (skil.SemanticAnalysis, error) {
+	return skil.SemanticAnalysis{Diagnostics: skil.SemanticDiagnostics{
+		Rejected: 1,
+		Errors:   []skil.SemanticValidationError{{Index: 0, Message: "has invalid severity"}},
+	}}, nil
+}
+
+func TestSemanticSuiteMarksRejectedProviderOutputDegraded(t *testing.T) {
+	suite, err := NewSemanticSuite(&diagnosticSemanticProvider{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	registry := DefaultRegistry(nil)
+	if err := registry.Register(suite); err != nil {
+		t.Fatal(err)
+	}
+	result, err := registry.Scan(context.Background(), skil.AnalysisContext{
+		Artifact: artifactWith("SKILL.md", "# test"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Coverage["semantic-provider"] != skil.CoverageDegraded {
+		t.Fatalf("semantic provider coverage = %q, want degraded", result.Coverage["semantic-provider"])
+	}
+	if len(result.Diagnostics) == 0 || !strings.Contains(result.Diagnostics[0].Message, "coverage is degraded") {
+		t.Fatalf("missing rejection diagnostics: %#v", result.Diagnostics)
+	}
+}
+
 func TestSemanticSuiteRunsIndependentPasses(t *testing.T) {
 	provider := &focusProvider{}
 	suite, err := NewSemanticSuite(provider)

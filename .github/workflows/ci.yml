@@ -21,6 +21,8 @@ jobs:
       - run: go test -race -coverprofile=coverage.out ./...
       - name: Property crosswalk CI gate
         run: go test ./compat/external-scanner/ -v -count=1
+      - name: Differential runner regression tests
+        run: python3 -m unittest discover -s compat/external-scanner -p 'test_*.py'
       - name: Crosswalk generation check
         run: python3 compat/external-scanner/generate_crosswalk.py --check docs/external-control-crosswalk.md
       - run: go build -trimpath -o bin/skil ./cmd/skil

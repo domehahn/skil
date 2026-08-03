@@ -94,7 +94,7 @@ ASP-12.04,"Resource, Availability & Failure Containment",Loop & Recursion Bound,
 ASP-12.05,"Resource, Availability & Failure Containment",Cascading Failure Containment,ASI02;ASI08;ASI10,LLM06;LLM10,AI Agent Tool Invocation,,NEW
 ASP-12.06,"Resource, Availability & Failure Containment",Circuit Breaker & Kill-Switch Effectiveness,ASI02;ASI08;ASI10,LLM06;LLM10,AI Agent Tool Invocation,,NEW
 ASP-12.07,"Resource, Availability & Failure Containment",Retry & Backoff Safety,ASI02;ASI08;ASI10,LLM06;LLM10,AI Agent Tool Invocation,SKIL-AGENCY-BOUNDS;Enforcer max_retries bound,PARTIAL
-ASP-12.08,"Resource, Availability & Failure Containment",Idempotency & Duplicate-Action Safety,ASI02;ASI08;ASI10,LLM06;LLM10,AI Agent Tool Invocation,,NEW
+ASP-12.08,"Resource, Availability & Failure Containment",Idempotency & Duplicate-Action Safety,ASI02;ASI08;ASI10,LLM06;LLM10,AI Agent Tool Invocation,Enforcer.verifyIdempotencyOnRetry,PARTIAL
 ASP-13.01,Human-Agent Trust & Safety,Risk Disclosure Integrity,ASI01;ASI02;ASI09;ASI10,LLM01;LLM06;LLM09,AI Agent Clickbait;LLM Jailbreak,SKIL-INTENT-UNDISCLOSED-OPERATION,PARTIAL
 ASP-13.02,Human-Agent Trust & Safety,Consent Specificity,ASI01;ASI02;ASI09;ASI10,LLM01;LLM06;LLM09,AI Agent Clickbait;LLM Jailbreak,SKIL-AGENCY-APPROVAL,PARTIAL
 ASP-13.03,Human-Agent Trust & Safety,Deceptive Risk Framing Resistance,ASI01;ASI02;ASI09;ASI10,LLM01;LLM06;LLM09,AI Agent Clickbait;LLM Jailbreak,SKIL-INTENT-BEHAVIOR-MANIPULATION,PARTIAL

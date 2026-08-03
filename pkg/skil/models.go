@@ -107,6 +107,7 @@ type CoverageState string
 
 const (
 	CoverageCompleted    CoverageState = "completed"
+	CoverageDegraded     CoverageState = "degraded"
 	CoverageNotAvailable CoverageState = "not_available"
 	CoverageNotRequested CoverageState = "not_requested"
 	CoverageNotRun       CoverageState = "not_run"
@@ -187,6 +188,21 @@ type Analyzer interface {
 	Analyze(context.Context, AnalysisContext) ([]Finding, error)
 }
 
+// AnalyzerResult lets analyzers return diagnostics and narrow their own
+// coverage state without turning a partially useful analysis into an error.
+type AnalyzerResult struct {
+	Findings    []Finding
+	Diagnostics []Diagnostic
+	Coverage    map[string]CoverageState
+}
+
+// ResultAnalyzer is an additive extension for analyzers that can complete
+// with degraded coverage. Existing Analyzer implementations are unchanged.
+type ResultAnalyzer interface {
+	Analyzer
+	AnalyzeResult(context.Context, AnalysisContext) (AnalyzerResult, error)
+}
+
 // CapabilityObservation records that an analyzer observed a skill artifact
 // actually using a capability, independent of whether that usage was unsafe
 // enough to also produce a Finding. Safe use of a declared capability (e.g.
@@ -225,6 +241,36 @@ type DomainAnalyzer interface {
 type SemanticProvider interface {
 	ID() string
 	AnalyzeUntrusted(context.Context, SemanticRequest) ([]Finding, error)
+}
+
+type SemanticValidationMode string
+
+const (
+	SemanticValidationReview SemanticValidationMode = "review"
+	SemanticValidationStrict SemanticValidationMode = "strict"
+)
+
+type SemanticValidationError struct {
+	Index   int    `json:"index"`
+	Message string `json:"message"`
+}
+
+type SemanticDiagnostics struct {
+	Accepted int                       `json:"accepted"`
+	Rejected int                       `json:"rejected"`
+	Errors   []SemanticValidationError `json:"errors,omitempty"`
+}
+
+type SemanticAnalysis struct {
+	Findings    []Finding           `json:"findings"`
+	Diagnostics SemanticDiagnostics `json:"diagnostics"`
+}
+
+// DiagnosticSemanticProvider is an additive provider extension. Review-mode
+// adapters use it to retain valid findings while reporting rejected output.
+type DiagnosticSemanticProvider interface {
+	SemanticProvider
+	AnalyzeUntrustedDetailed(context.Context, SemanticRequest) (SemanticAnalysis, error)
 }
 
 type SemanticRequest struct {

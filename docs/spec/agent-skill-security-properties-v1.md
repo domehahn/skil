@@ -217,7 +217,7 @@ verification layer), `PROVIDER_BACKED`. The differential gate rejects
 | ASP-12.05 | ASP-12 · Resource, Availability & Failure Containment | ASI02, ASI08, ASI10 | AI Agent Tool Invocation | NEW |
 | ASP-12.06 | ASP-12 · Resource, Availability & Failure Containment | ASI02, ASI08, ASI10 | AI Agent Tool Invocation | NEW |
 | ASP-12.07 | ASP-12 · Resource, Availability & Failure Containment | ASI02, ASI08, ASI10 | AI Agent Tool Invocation | PARTIAL |
-| ASP-12.08 | ASP-12 · Resource, Availability & Failure Containment | ASI02, ASI08, ASI10 | AI Agent Tool Invocation | NEW |
+| ASP-12.08 | ASP-12 · Resource, Availability & Failure Containment | ASI02, ASI08, ASI10 | AI Agent Tool Invocation | PARTIAL |
 | ASP-13.01 | ASP-13 · Human-Agent Trust & Safety | ASI01, ASI02, ASI09, ASI10 | AI Agent Clickbait, LLM Jailbreak | PARTIAL |
 | ASP-13.02 | ASP-13 · Human-Agent Trust & Safety | ASI01, ASI02, ASI09, ASI10 | AI Agent Clickbait, LLM Jailbreak | PARTIAL |
 | ASP-13.03 | ASP-13 · Human-Agent Trust & Safety | ASI01, ASI02, ASI09, ASI10 | AI Agent Clickbait, LLM Jailbreak | PARTIAL |

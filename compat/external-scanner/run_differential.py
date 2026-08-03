@@ -124,6 +124,24 @@ def parse_model_from_args(*arg_lists: str) -> str | None:
     return None
 
 
+def select_fixtures(
+    properties: list[dict],
+    suite: str = "all",
+    skip_different_by_design: bool = False,
+) -> list[tuple[dict, dict]]:
+    """Select fixture entries without leaking other suites or skipped statuses."""
+    return [
+        (prop, fixture)
+        for prop in properties
+        for fixture in prop["fixtures"]
+        if (suite == "all" or fixture.get("suite", "static") == suite)
+        and not (
+            skip_different_by_design
+            and fixture.get("status") == "DIFFERENT_BY_DESIGN"
+        )
+    ]
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Differential security-property comparison")
     ap.add_argument("--skil-binary", default="skil")
@@ -164,16 +182,11 @@ def main() -> int:
     if args.filter:
         wanted = [w.strip() for w in args.filter.split(",") if w.strip()]
         properties = [p for p in properties if any(w in p["id"] for w in wanted)]
-    if args.suite != "all":
-        properties = [p for p in properties if any(f.get("suite") == args.suite for f in p["fixtures"])]
-    if args.skip_different_by_design:
-        properties = [p for p in properties if any(f.get("status") != "DIFFERENT_BY_DESIGN" for f in p["fixtures"])]
-
-    fixtures = [
-        (prop, fixture)
-        for prop in properties
-        for fixture in prop["fixtures"]
-    ]
+    fixtures = select_fixtures(
+        properties,
+        suite=args.suite,
+        skip_different_by_design=args.skip_different_by_design,
+    )
 
     results = []
     for prop, fixture in fixtures:
