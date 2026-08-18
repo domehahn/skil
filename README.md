@@ -261,6 +261,10 @@ amd64, accompanied by checksums and binary-derived SPDX SBOMs, attested through
 GitHub OIDC, downloaded into the publication job, and verified again before
 release creation.
 
+See [COMPARISON.md](COMPARISON.md) for a verifiable capability matrix — what
+skil does, linked to the tests and evidence that back each claim, and an
+explicit list of what isn't independently benchmarked yet.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow, and
