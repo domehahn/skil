@@ -3,7 +3,7 @@ module github.com/domehahn/skil
 go 1.24
 
 require (
-	github.com/aws/aws-sdk-go-v2 v1.43.1
+	github.com/aws/aws-sdk-go-v2 v1.43.6
 	github.com/aws/aws-sdk-go-v2/config v1.32.32
 	github.com/aws/aws-sdk-go-v2/service/bedrockruntime v1.56.1
 	github.com/pelletier/go-toml/v2 v2.4.3
@@ -29,7 +29,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sso v1.33.1 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.38.1 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.45.1 // indirect
-	github.com/aws/smithy-go v1.27.5 // indirect
+	github.com/aws/smithy-go v1.27.8 // indirect
 	github.com/mattn/go-pointer v0.0.1 // indirect
 	golang.org/x/text v0.14.0 // indirect
 )
