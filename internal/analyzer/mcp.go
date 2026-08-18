@@ -168,14 +168,14 @@ func (m *MCP) Analyze(_ context.Context, ac skil.AnalysisContext) ([]skil.Findin
 				rule := RulePattern{Rule: skil.Rule{ID: "SKIL-MCP-008", Title: "MCP token passthrough",
 					Category: "tool-protocol", Severity: skil.SeverityHigh,
 					Description: "An MCP server forwards an inbound token to a downstream call verbatim instead of minting a token scoped to that downstream's own audience, violating the MCP authorization spec's ban on token passthrough.",
-					Analysis: "mcp", Remediation: "Never forward an inbound token as-is; exchange it for a new, downstream-audience-scoped token or use the server's own service credential."}, Confidence: .9}
+					Analysis:    "mcp", Remediation: "Never forward an inbound token as-is; exchange it for a new, downstream-audience-scoped token or use the server's own service credential."}, Confidence: .9}
 				out = append(out, makeFinding(rule, file, line+1, text))
 			}
 			if toolControlledFetch.MatchString(text) {
 				rule := RulePattern{Rule: skil.Rule{ID: "SKIL-MCP-009", Title: "Tool-controlled URL fetch (SSRF)",
 					Category: "tool-protocol", Severity: skil.SeverityHigh,
 					Description: "An MCP tool handler fetches a URL taken directly from a tool argument rather than a fixed, reviewed endpoint, allowing a caller to redirect the request (SSRF).",
-					Analysis: "mcp", Remediation: "Validate tool-supplied URLs against an explicit allowlist of hosts before fetching, or use a fixed endpoint."}, Confidence: .85}
+					Analysis:    "mcp", Remediation: "Validate tool-supplied URLs against an explicit allowlist of hosts before fetching, or use a fixed endpoint."}, Confidence: .85}
 				out = append(out, makeFinding(rule, file, line+1, text))
 			}
 		}
