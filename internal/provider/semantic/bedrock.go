@@ -19,23 +19,29 @@ type bedrockRuntimeClient interface {
 }
 
 type BedrockConfig struct {
-	Model  string
-	Region string
-	Client bedrockRuntimeClient
+	Model          string
+	Region         string
+	Client         bedrockRuntimeClient
+	ValidationMode skil.SemanticValidationMode
 }
 
 // BedrockProvider invokes Anthropic Messages through the official AWS SDK.
 // SigV4 credentials come from the standard SDK chain and are never exposed to
 // scanned content or a child process.
 type BedrockProvider struct {
-	model  string
-	region string
-	client bedrockRuntimeClient
+	model          string
+	region         string
+	client         bedrockRuntimeClient
+	validationMode skil.SemanticValidationMode
 }
 
 func NewBedrock(ctx context.Context, config BedrockConfig) (*BedrockProvider, error) {
 	if config.Model == "" {
 		return nil, errors.New("semantic model is required")
+	}
+	validationMode, err := validateSemanticMode(config.ValidationMode)
+	if err != nil {
+		return nil, err
 	}
 	if config.Region == "" {
 		config.Region = defaultBedrockRegion
@@ -48,18 +54,24 @@ func NewBedrock(ctx context.Context, config BedrockConfig) (*BedrockProvider, er
 		}
 		client = bedrockruntime.NewFromConfig(awsConfiguration)
 	}
-	return &BedrockProvider{model: config.Model, region: config.Region, client: client}, nil
+	return &BedrockProvider{model: config.Model, region: config.Region, client: client,
+		validationMode: validationMode}, nil
 }
 
 func (p *BedrockProvider) ID() string { return "aws-bedrock/" + p.region + "/" + p.model }
 
 func (p *BedrockProvider) AnalyzeUntrusted(ctx context.Context, request skil.SemanticRequest) ([]skil.Finding, error) {
+	result, err := p.AnalyzeUntrustedDetailed(ctx, request)
+	return result.Findings, err
+}
+
+func (p *BedrockProvider) AnalyzeUntrustedDetailed(ctx context.Context, request skil.SemanticRequest) (skil.SemanticAnalysis, error) {
 	if !request.NoTools {
-		return nil, errors.New("semantic analysis requires NoTools=true")
+		return skil.SemanticAnalysis{}, errors.New("semantic analysis requires NoTools=true")
 	}
 	untrusted, err := json.Marshal(request)
 	if err != nil {
-		return nil, err
+		return skil.SemanticAnalysis{}, err
 	}
 	body, err := json.Marshal(map[string]any{
 		"anthropic_version": "bedrock-2023-05-31",
@@ -71,17 +83,17 @@ func (p *BedrockProvider) AnalyzeUntrusted(ctx context.Context, request skil.Sem
 		}},
 	})
 	if err != nil {
-		return nil, err
+		return skil.SemanticAnalysis{}, err
 	}
 	contentType := "application/json"
 	response, err := p.client.InvokeModel(ctx, &bedrockruntime.InvokeModelInput{
 		ModelId: aws.String(p.model), Body: body, ContentType: &contentType, Accept: &contentType,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("bedrock semantic provider request: %w", err)
+		return skil.SemanticAnalysis{}, fmt.Errorf("bedrock semantic provider request: %w", err)
 	}
 	if len(response.Body) > maxResponse {
-		return nil, errors.New("semantic response exceeds size limit")
+		return skil.SemanticAnalysis{}, errors.New("semantic response exceeds size limit")
 	}
 	var decoded struct {
 		Content []struct {
@@ -90,7 +102,7 @@ func (p *BedrockProvider) AnalyzeUntrusted(ctx context.Context, request skil.Sem
 		} `json:"content"`
 	}
 	if err := json.Unmarshal(response.Body, &decoded); err != nil {
-		return nil, errors.New("bedrock returned an invalid response")
+		return skil.SemanticAnalysis{}, errors.New("bedrock returned an invalid response")
 	}
 	text := ""
 	for _, block := range decoded.Content {
@@ -100,10 +112,10 @@ func (p *BedrockProvider) AnalyzeUntrusted(ctx context.Context, request skil.Sem
 	}
 	var result semanticResult
 	if text == "" || json.Unmarshal([]byte(text), &result) != nil {
-		return nil, errors.New("bedrock returned invalid structured output")
+		return skil.SemanticAnalysis{}, errors.New("bedrock returned invalid structured output")
 	}
 	if len(result.Findings) > 100 {
-		return nil, errors.New("semantic provider returned too many findings")
+		return skil.SemanticAnalysis{}, errors.New("semantic provider returned too many findings")
 	}
-	return normalizeFindings(result.Findings, request, p.ID())
+	return normalizeFindingsDetailed(result.Findings, request, p.ID(), p.validationMode)
 }

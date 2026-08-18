@@ -364,6 +364,14 @@ func TestOptionalAnalyzerArgumentsFailSafely(t *testing.T) {
 	if code := app.Run(context.Background(), []string{"scan", fixture(t, "clean-skill"), "--semantic"}); code != ExitInput {
 		t.Fatalf("expected missing model rejection, got %d", code)
 	}
+	out.Reset()
+	errOut.Reset()
+	if code := app.Run(context.Background(), []string{
+		"scan", fixture(t, "clean-skill"), "--semantic", "--semantic-model", "x",
+		"--semantic-validation", "permissive",
+	}); code != ExitInput || !strings.Contains(errOut.String(), "validation mode") {
+		t.Fatalf("expected invalid semantic validation mode rejection, got %d stderr=%s", code, errOut.String())
+	}
 }
 
 func TestEvidenceAndGateCommandsShareAnalyzerFlags(t *testing.T) {

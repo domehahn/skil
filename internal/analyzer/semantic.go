@@ -34,29 +34,46 @@ func (s *SemanticSuite) Metadata() skil.AnalyzerMetadata {
 }
 
 func (s *SemanticSuite) Analyze(ctx context.Context, ac skil.AnalysisContext) ([]skil.Finding, error) {
+	result, err := s.AnalyzeResult(ctx, ac)
+	return result.Findings, err
+}
+
+func (s *SemanticSuite) AnalyzeResult(ctx context.Context, ac skil.AnalysisContext) (skil.AnalyzerResult, error) {
 	files, err := semanticFiles(ac)
 	if err != nil {
-		return nil, err
+		return skil.AnalyzerResult{}, err
 	}
 	var findings []skil.Finding
+	var diagnostics []skil.Diagnostic
+	degraded := false
 	for _, focus := range []string{"security", "intent", "quality", "policy"} {
-		pass, err := s.provider.AnalyzeUntrusted(ctx, skil.SemanticRequest{
+		pass, passDiagnostics, err := analyzeSemanticPass(ctx, s.provider, skil.SemanticRequest{
 			ArtifactDigest: ac.Artifact.Digest, Files: files, Contract: ac.Contract, Focus: focus, NoTools: true,
 		})
 		if err != nil {
-			return nil, fmt.Errorf("%s semantic pass: %w", focus, err)
+			return skil.AnalyzerResult{}, fmt.Errorf("%s semantic pass: %w", focus, err)
 		}
 		findings = append(findings, pass...)
+		diagnostics = append(diagnostics, semanticDiagnostics(focus, s.provider.ID(), passDiagnostics)...)
+		degraded = degraded || passDiagnostics.Rejected > 0
 	}
-	synthesis, err := s.provider.AnalyzeUntrusted(ctx, skil.SemanticRequest{
+	synthesis, synthesisDiagnostics, err := analyzeSemanticPass(ctx, s.provider, skil.SemanticRequest{
 		ArtifactDigest: ac.Artifact.Digest, Files: files, Contract: ac.Contract,
 		Focus: "meta", PriorFindings: deduplicateSemantic(findings), NoTools: true,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("meta semantic pass: %w", err)
+		return skil.AnalyzerResult{}, fmt.Errorf("meta semantic pass: %w", err)
 	}
 	findings = append(findings, synthesis...)
-	return deduplicateSemantic(findings), nil
+	diagnostics = append(diagnostics, semanticDiagnostics("meta", s.provider.ID(), synthesisDiagnostics)...)
+	degraded = degraded || synthesisDiagnostics.Rejected > 0
+	coverage := map[string]skil.CoverageState{}
+	if degraded {
+		coverage["semantic-provider"] = skil.CoverageDegraded
+	}
+	return skil.AnalyzerResult{
+		Findings: deduplicateSemantic(findings), Diagnostics: diagnostics, Coverage: coverage,
+	}, nil
 }
 func (s *Semantic) Metadata() skil.AnalyzerMetadata {
 	return skil.AnalyzerMetadata{ID: "semantic." + s.provider.ID(), Version: "1.0.0",
@@ -65,13 +82,57 @@ func (s *Semantic) Metadata() skil.AnalyzerMetadata {
 		AnalysisTypes: []string{"semantic", "semantic-provider"}, SupportedTypes: []string{"text"}}
 }
 func (s *Semantic) Analyze(ctx context.Context, ac skil.AnalysisContext) ([]skil.Finding, error) {
+	result, err := s.AnalyzeResult(ctx, ac)
+	return result.Findings, err
+}
+
+func (s *Semantic) AnalyzeResult(ctx context.Context, ac skil.AnalysisContext) (skil.AnalyzerResult, error) {
 	files, err := semanticFiles(ac)
 	if err != nil {
-		return nil, err
+		return skil.AnalyzerResult{}, err
 	}
-	return s.provider.AnalyzeUntrusted(ctx, skil.SemanticRequest{
+	findings, providerDiagnostics, err := analyzeSemanticPass(ctx, s.provider, skil.SemanticRequest{
 		ArtifactDigest: ac.Artifact.Digest, Files: files, Contract: ac.Contract, NoTools: true,
 	})
+	if err != nil {
+		return skil.AnalyzerResult{}, err
+	}
+	coverage := map[string]skil.CoverageState{}
+	if providerDiagnostics.Rejected > 0 {
+		coverage["semantic-provider"] = skil.CoverageDegraded
+	}
+	return skil.AnalyzerResult{
+		Findings:    findings,
+		Diagnostics: semanticDiagnostics("all", s.provider.ID(), providerDiagnostics),
+		Coverage:    coverage,
+	}, nil
+}
+
+func analyzeSemanticPass(ctx context.Context, provider skil.SemanticProvider, request skil.SemanticRequest) ([]skil.Finding, skil.SemanticDiagnostics, error) {
+	if detailed, ok := provider.(skil.DiagnosticSemanticProvider); ok {
+		result, err := detailed.AnalyzeUntrustedDetailed(ctx, request)
+		return result.Findings, result.Diagnostics, err
+	}
+	findings, err := provider.AnalyzeUntrusted(ctx, request)
+	return findings, skil.SemanticDiagnostics{Accepted: len(findings)}, err
+}
+
+func semanticDiagnostics(focus, provider string, diagnostics skil.SemanticDiagnostics) []skil.Diagnostic {
+	if diagnostics.Rejected == 0 {
+		return nil
+	}
+	out := []skil.Diagnostic{{
+		Component: "semantic-provider", Level: "warning",
+		Message: fmt.Sprintf("%s semantic pass from %s accepted %d findings and rejected %d; coverage is degraded",
+			focus, provider, diagnostics.Accepted, diagnostics.Rejected),
+	}}
+	for _, validationError := range diagnostics.Errors {
+		out = append(out, skil.Diagnostic{
+			Component: "semantic-provider", Level: "warning",
+			Message: fmt.Sprintf("%s semantic finding %d rejected: %s", focus, validationError.Index, validationError.Message),
+		})
+	}
+	return out
 }
 
 func semanticFiles(ac skil.AnalysisContext) (map[string]string, error) {

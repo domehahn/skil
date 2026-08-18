@@ -135,8 +135,14 @@ func (r *Registry) Scan(ctx context.Context, ac skil.AnalysisContext) (skil.Scan
 		}
 		var findings []skil.Finding
 		var observations []skil.CapabilityObservation
+		var diagnostics []skil.Diagnostic
+		var coverageOverride map[string]skil.CoverageState
 		var err error
-		if oa, ok := a.(skil.ObservationAnalyzer); ok {
+		if ra, ok := a.(skil.ResultAnalyzer); ok {
+			analysisResult, analyzeErr := ra.AnalyzeResult(ctx, ac)
+			findings, diagnostics, coverageOverride, err = analysisResult.Findings,
+				analysisResult.Diagnostics, analysisResult.Coverage, analyzeErr
+		} else if oa, ok := a.(skil.ObservationAnalyzer); ok {
 			findings, observations, err = oa.AnalyzeCapabilities(ctx, ac)
 		} else {
 			findings, err = a.Analyze(ctx, ac)
@@ -158,6 +164,7 @@ func (r *Registry) Scan(ctx context.Context, ac skil.AnalysisContext) (skil.Scan
 		}
 		result.Findings = append(result.Findings, findings...)
 		result.Observations = append(result.Observations, observations...)
+		result.Diagnostics = append(result.Diagnostics, diagnostics...)
 		if source, ok := a.(interface{ Diagnostics() []skil.Diagnostic }); ok {
 			result.Diagnostics = append(result.Diagnostics, source.Diagnostics()...)
 		}
@@ -170,6 +177,9 @@ func (r *Registry) Scan(ctx context.Context, ac skil.AnalysisContext) (skil.Scan
 		}
 		for _, typ := range meta.AnalysisTypes {
 			result.Coverage[typ] = skil.CoverageCompleted
+		}
+		for typ, state := range coverageOverride {
+			result.Coverage[typ] = state
 		}
 		if len(domainFilter) > 0 && meta.Domain != "" && filterSet[meta.Domain] {
 			result.Coverage["domain:"+meta.Domain] = skil.CoverageCompleted

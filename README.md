@@ -63,6 +63,8 @@ skil scan ./my-skill --semantic --semantic-provider bedrock \
 skil scan ./my-skill --format sarif --output skil.sarif
 skil scan-all .agents/skills --workers 8 --format json --output skil-collection.json
 skil scan https://github.com/acme/skill.git --allow-remote
+skil mcp registry scan server.json --format json
+skil mcp registry scan io.github.acme/server --official
 skil verify ./my-skill --osv --yara-rules rules/malware.yar
 skil sbom ./my-skill --output my-skill.spdx.json
 skil eval ./my-skill --runtime mock --runs 20
@@ -192,6 +194,7 @@ A non-root multi-stage container image can be built with `make docker-build`;
 | [Attestations](docs/attestations.md) | Digest-bound evidence and signatures |
 | [Supply chain](docs/supply-chain.md) | SBOM, provenance, and dependency checks |
 | [Semantic analysis](docs/semantic-analysis.md) | Provider-backed model passes |
+| [MCP Registry posture](docs/mcp-registry.md) | Publisher and official-registry supply-chain checks |
 | [External control crosswalk](docs/external-control-crosswalk.md) | Rule-ID mapping to external scanners |
 | [External scanner feature parity](docs/external-scanner-feature-parity.md) | Differential harness results and rationale |
 | [Release identity checklist](docs/release-identity-checklist.md) | Release hardening checklist |

@@ -17,21 +17,23 @@ import (
 const defaultAnthropicEndpoint = "https://api.anthropic.com/v1/messages"
 
 type AnthropicConfig struct {
-	Endpoint     string
-	Model        string
-	APIKey       string
-	AllowPrivate bool
-	HTTPClient   *http.Client
+	Endpoint       string
+	Model          string
+	APIKey         string
+	AllowPrivate   bool
+	HTTPClient     *http.Client
+	ValidationMode skil.SemanticValidationMode
 }
 
 type AnthropicProvider struct {
-	endpoint string
-	model    string
-	apiKey   string
-	client   *http.Client
-	bearer   bool
-	proxy    bool
-	version  string
+	endpoint       string
+	model          string
+	apiKey         string
+	client         *http.Client
+	bearer         bool
+	proxy          bool
+	version        string
+	validationMode skil.SemanticValidationMode
 }
 
 func NewAnthropic(config AnthropicConfig) (*AnthropicProvider, error) {
@@ -40,6 +42,10 @@ func NewAnthropic(config AnthropicConfig) (*AnthropicProvider, error) {
 	}
 	if config.Model == "" {
 		return nil, errors.New("semantic model is required")
+	}
+	validationMode, err := validateSemanticMode(config.ValidationMode)
+	if err != nil {
+		return nil, err
 	}
 	parsed, err := url.Parse(config.Endpoint)
 	if err != nil || parsed.Hostname() == "" || (parsed.Scheme != "https" && parsed.Scheme != "http") ||
@@ -59,18 +65,20 @@ func NewAnthropic(config AnthropicConfig) (*AnthropicProvider, error) {
 				return errors.New("semantic endpoint redirects are disabled")
 			}}
 	}
-	return &AnthropicProvider{endpoint: config.Endpoint, model: config.Model, apiKey: config.APIKey, client: client}, nil
+	return &AnthropicProvider{endpoint: config.Endpoint, model: config.Model, apiKey: config.APIKey,
+		client: client, validationMode: validationMode}, nil
 }
 
 func (p *AnthropicProvider) ID() string { return "anthropic/" + p.model }
 
 type AnthropicProxyConfig struct {
-	Endpoint     string
-	Model        string
-	BearerToken  string
-	APIVersion   string
-	AllowPrivate bool
-	HTTPClient   *http.Client
+	Endpoint       string
+	Model          string
+	BearerToken    string
+	APIVersion     string
+	AllowPrivate   bool
+	HTTPClient     *http.Client
+	ValidationMode skil.SemanticValidationMode
 }
 
 // NewAnthropicProxy supports Vertex-style raw-predict gateways while retaining
@@ -81,7 +89,7 @@ func NewAnthropicProxy(config AnthropicProxyConfig) (*AnthropicProvider, error) 
 	}
 	provider, err := NewAnthropic(AnthropicConfig{
 		Endpoint: config.Endpoint, Model: config.Model, APIKey: config.BearerToken,
-		AllowPrivate: config.AllowPrivate, HTTPClient: config.HTTPClient,
+		AllowPrivate: config.AllowPrivate, HTTPClient: config.HTTPClient, ValidationMode: config.ValidationMode,
 	})
 	if err != nil {
 		return nil, err
@@ -94,12 +102,17 @@ func NewAnthropicProxy(config AnthropicProxyConfig) (*AnthropicProvider, error) 
 }
 
 func (p *AnthropicProvider) AnalyzeUntrusted(ctx context.Context, request skil.SemanticRequest) ([]skil.Finding, error) {
+	result, err := p.AnalyzeUntrustedDetailed(ctx, request)
+	return result.Findings, err
+}
+
+func (p *AnthropicProvider) AnalyzeUntrustedDetailed(ctx context.Context, request skil.SemanticRequest) (skil.SemanticAnalysis, error) {
 	if !request.NoTools {
-		return nil, errors.New("semantic analysis requires NoTools=true")
+		return skil.SemanticAnalysis{}, errors.New("semantic analysis requires NoTools=true")
 	}
 	untrusted, err := json.Marshal(request)
 	if err != nil {
-		return nil, err
+		return skil.SemanticAnalysis{}, err
 	}
 	payload := map[string]any{
 		"model": p.model, "max_tokens": 4096, "temperature": 0,
@@ -114,11 +127,11 @@ func (p *AnthropicProvider) AnalyzeUntrusted(ctx context.Context, request skil.S
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {
-		return nil, err
+		return skil.SemanticAnalysis{}, err
 	}
 	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodPost, p.endpoint, bytes.NewReader(body))
 	if err != nil {
-		return nil, err
+		return skil.SemanticAnalysis{}, err
 	}
 	httpRequest.Header.Set("Content-Type", "application/json")
 	httpRequest.Header.Set("User-Agent", "skil/"+skil.Version)
@@ -134,18 +147,18 @@ func (p *AnthropicProvider) AnalyzeUntrusted(ctx context.Context, request skil.S
 	}
 	response, err := p.client.Do(httpRequest)
 	if err != nil {
-		return nil, fmt.Errorf("semantic provider request: %w", err)
+		return skil.SemanticAnalysis{}, fmt.Errorf("semantic provider request: %w", err)
 	}
 	responseBody, readErr := io.ReadAll(io.LimitReader(response.Body, maxResponse+1))
 	_ = response.Body.Close()
 	if readErr != nil {
-		return nil, readErr
+		return skil.SemanticAnalysis{}, readErr
 	}
 	if len(responseBody) > maxResponse {
-		return nil, errors.New("semantic response exceeds size limit")
+		return skil.SemanticAnalysis{}, errors.New("semantic response exceeds size limit")
 	}
 	if response.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("semantic provider returned HTTP %d", response.StatusCode)
+		return skil.SemanticAnalysis{}, fmt.Errorf("semantic provider returned HTTP %d", response.StatusCode)
 	}
 	var decoded struct {
 		Content []struct {
@@ -154,7 +167,7 @@ func (p *AnthropicProvider) AnalyzeUntrusted(ctx context.Context, request skil.S
 		} `json:"content"`
 	}
 	if err := json.Unmarshal(responseBody, &decoded); err != nil {
-		return nil, errors.New("semantic provider returned an invalid response")
+		return skil.SemanticAnalysis{}, errors.New("semantic provider returned an invalid response")
 	}
 	text := ""
 	for _, block := range decoded.Content {
@@ -164,10 +177,10 @@ func (p *AnthropicProvider) AnalyzeUntrusted(ctx context.Context, request skil.S
 	}
 	var result semanticResult
 	if text == "" || json.Unmarshal([]byte(text), &result) != nil {
-		return nil, errors.New("semantic provider returned invalid structured output")
+		return skil.SemanticAnalysis{}, errors.New("semantic provider returned invalid structured output")
 	}
 	if len(result.Findings) > 100 {
-		return nil, errors.New("semantic provider returned too many findings")
+		return skil.SemanticAnalysis{}, errors.New("semantic provider returned too many findings")
 	}
-	return normalizeFindings(result.Findings, request, p.ID())
+	return normalizeFindingsDetailed(result.Findings, request, p.ID(), p.validationMode)
 }
