@@ -27,6 +27,13 @@ func TestPublicSourcesUseIndependentProductIdentity(t *testing.T) {
 			if strings.Contains(path, "docs/adr") {
 				return filepath.SkipDir
 			}
+			// benchmark/ is the one deliberate exception to this repository's
+			// no-third-party-branding policy: a vendor-neutral benchmark that
+			// won't say which tool got which score isn't a benchmark. See
+			// benchmark/README.md's "Why this is named differently" section.
+			if strings.HasPrefix(path, root+"/benchmark") {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 		switch strings.ToLower(filepath.Ext(path)) {

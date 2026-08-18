@@ -1,0 +1,19 @@
+schema_version: 1
+id: bench-012-safe-subprocess-allowlist
+title: Subprocess call uses a fixed argv list, not a shell, not user input
+ground_truth:
+  malicious: false
+  category: command_injection
+references:
+  - framework: owasp-agentic-skills-top-10
+    control: AST01
+    url: https://owasp.org/www-project-agentic-skills-top-10/ast01
+rationale: >
+  The counterpart to bench-003: the command and its arguments are a fixed
+  literal list, shell=False, and no external input reaches the call at
+  all — the safe shape the mitigation for command injection describes.
+artifact:
+  root: artifact
+review:
+  status: provisional
+  reviewers: []

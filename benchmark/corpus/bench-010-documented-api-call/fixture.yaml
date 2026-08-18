@@ -1,0 +1,22 @@
+schema_version: 1
+id: bench-010-documented-api-call
+title: Outbound call to a documented API using a token from an env reference
+ground_truth:
+  malicious: false
+  category: credential_exfiltration
+references:
+  - framework: owasp-agentic-skills-top-10
+    control: AST01
+    url: https://owasp.org/www-project-agentic-skills-top-10/ast01
+rationale: >
+  A token is read from an environment variable and used only as an
+  Authorization header value against the single documented, named API the
+  skill exists to call — never included in the request body, never sent
+  to a second/different destination. This is the shape every legitimate
+  authenticated API client has; a scanner that flags any env-var-token
+  usage in an outbound call will false-positive here.
+artifact:
+  root: artifact
+review:
+  status: provisional
+  reviewers: []

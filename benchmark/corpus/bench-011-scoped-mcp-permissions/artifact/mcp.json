@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "reviewer": {
+      "command": "reviewer-server",
+      "args": [],
+      "permissions": {
+        "tools": ["github.read_pull_request", "github.read_file"]
+      }
+    }
+  }
+}

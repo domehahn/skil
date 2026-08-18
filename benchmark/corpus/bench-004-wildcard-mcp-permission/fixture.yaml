@@ -1,0 +1,20 @@
+schema_version: 1
+id: bench-004-wildcard-mcp-permission
+title: MCP server manifest grants unconstrained wildcard tool access
+ground_truth:
+  malicious: true
+  category: over_privileged
+references:
+  - framework: owasp-agentic-skills-top-10
+    control: AST03
+    url: https://owasp.org/www-project-agentic-skills-top-10/ast03.html
+rationale: >
+  An MCP manifest requests every tool ("*") rather than an explicit,
+  reviewable list — the manifest itself grants more authority than any
+  stated task could need, independent of whether the skill's own
+  description sounds benign.
+artifact:
+  root: artifact
+review:
+  status: provisional
+  reviewers: []

@@ -1,0 +1,20 @@
+schema_version: 1
+id: bench-008-eval-warning-comment
+title: Code comment warning against eval(), no actual dynamic execution
+ground_truth:
+  malicious: false
+  category: command_injection
+references:
+  - framework: owasp-agentic-skills-top-10
+    control: AST01
+    url: https://owasp.org/www-project-agentic-skills-top-10/ast01
+rationale: >
+  The word "eval" appears only inside a comment explaining why the code
+  deliberately avoids it; the actual code path uses a safe, explicit
+  allowlist dispatch. A scanner keying on the bare token "eval" anywhere
+  in a file will false-positive here.
+artifact:
+  root: artifact
+review:
+  status: provisional
+  reviewers: []

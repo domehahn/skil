@@ -4,3 +4,5 @@
 /.skil/
 /skil
 .DS_Store
+__pycache__/
+benchmark/results/*.json

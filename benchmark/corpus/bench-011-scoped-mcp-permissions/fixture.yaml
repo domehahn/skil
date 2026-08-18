@@ -1,0 +1,18 @@
+schema_version: 1
+id: bench-011-scoped-mcp-permissions
+title: MCP manifest declares an explicit, narrow tool list
+ground_truth:
+  malicious: false
+  category: over_privileged
+references:
+  - framework: owasp-agentic-skills-top-10
+    control: AST03
+    url: https://owasp.org/www-project-agentic-skills-top-10/ast03.html
+rationale: >
+  The counterpart to bench-004: the manifest names exactly the two tools
+  the skill's stated purpose needs, with no wildcard.
+artifact:
+  root: artifact
+review:
+  status: provisional
+  reviewers: []

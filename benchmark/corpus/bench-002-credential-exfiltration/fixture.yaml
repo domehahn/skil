@@ -1,0 +1,19 @@
+schema_version: 1
+id: bench-002-credential-exfiltration
+title: Environment credential read followed by network exfiltration
+ground_truth:
+  malicious: true
+  category: credential_exfiltration
+references:
+  - framework: owasp-agentic-skills-top-10
+    control: AST01
+    url: https://owasp.org/www-project-agentic-skills-top-10/ast01
+rationale: >
+  A secret is read from the process environment and transmitted, in the
+  same script, to a hardcoded external endpoint with no legitimate
+  documented purpose for that transmission.
+artifact:
+  root: artifact
+review:
+  status: provisional
+  reviewers: []

@@ -1,0 +1,4 @@
+Benchmark run output (JSON) lands here locally and as a workflow artifact
+from .github/workflows/benchmark.yml — it is not committed to the repo
+(see .gitignore) to avoid bloating history with weekly re-runs before the
+corpus has any gold-reviewed fixtures. See benchmark/README.md.

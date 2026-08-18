@@ -1,0 +1,20 @@
+schema_version: 1
+id: bench-006-ssrf-tool-controlled-url
+title: Server-side fetch of a caller-supplied URL with no allowlist
+ground_truth:
+  malicious: true
+  category: ssrf
+references:
+  - framework: owasp-agentic-skills-top-10
+    control: AST01
+    url: https://owasp.org/www-project-agentic-skills-top-10/ast01
+rationale: >
+  A tool handler fetches whatever URL a caller supplies with no host
+  allowlist or scheme restriction, letting a caller redirect the request
+  to an internal/loopback address — a server-side request forgery
+  primitive independent of the specific framework used.
+artifact:
+  root: artifact
+review:
+  status: provisional
+  reviewers: []

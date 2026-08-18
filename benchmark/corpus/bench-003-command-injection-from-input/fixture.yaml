@@ -1,0 +1,21 @@
+schema_version: 1
+id: bench-003-command-injection-from-input
+title: User-controlled input passed directly to a shell
+ground_truth:
+  malicious: true
+  category: command_injection
+references:
+  - framework: owasp-agentic-skills-top-10
+    control: AST01
+    url: https://owasp.org/www-project-agentic-skills-top-10/ast01
+  - framework: mitre-atlas
+    control: "Command and Scripting Interpreter"
+rationale: >
+  External input flows, unvalidated, into a shell-executing call — a
+  textbook remote command execution primitive regardless of the specific
+  language runtime a scanner's rule targets.
+artifact:
+  root: artifact
+review:
+  status: provisional
+  reviewers: []

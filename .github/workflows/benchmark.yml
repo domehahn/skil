@@ -1,0 +1,50 @@
+name: Vendor-neutral benchmark
+# Deliberately NOT run on push/pull_request and NOT a required check.
+#
+# This workflow builds and executes a third party's own OSS release inside
+# the runner (see benchmark/README.md for which one and why it's named,
+# unlike the rest of this repository). That third-party code, its
+# dependencies, and its CLI interface are outside this repository's control
+# and can change or break independently of anything skil does — the
+# opposite of what a trusted, reproducible build-and-test gate requires.
+# Keeping it on a schedule (and manual dispatch) instead of PR-blocking
+# keeps skil's actual CI gate deterministic and free of that dependency.
+on:
+  schedule:
+    - cron: "0 3 * * 0" # Sunday 03:00 UTC
+  workflow_dispatch: {}
+permissions:
+  contents: read
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.24.x"
+          cache: true
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Build skil
+        run: go build -trimpath -o /tmp/skil ./cmd/skil
+      - name: Install reference scanner (Apache-2.0, from its own repository)
+        run: |
+          pip install --user uv
+          "$HOME/.local/bin/uv" tool install git+https://github.com/NVIDIA/skillspector.git
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Install runner dependencies
+        run: pip install pyyaml
+      - name: Run benchmark
+        run: |
+          python3 benchmark/runner/run_benchmark.py \
+            --skil-binary /tmp/skil \
+            --skillspector-binary skillspector \
+            --output benchmark/results/latest.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: benchmark/results/latest.json
+          retention-days: 90
