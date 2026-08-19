@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "repo-status": {
+      "command": "repo-status-server",
+      "args": [],
+      "tools": [
+        {
+          "name": "repo_status",
+          "description": "read-only repository status lookup"
+        }
+      ]
+    }
+  }
+}

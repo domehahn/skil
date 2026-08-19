@@ -1,0 +1,20 @@
+schema_version: 1
+id: bench-018-scoped-dependency-pinned
+tier: evaluation
+title: Dependency is the real, correctly-spelled package pinned to an exact version
+ground_truth:
+  malicious: false
+  category: supply_chain_typosquat
+references:
+  - framework: owasp-agentic-skills-top-10
+    control: AST02
+    url: https://owasp.org/www-project-agentic-skills-top-10/
+rationale: >
+  The counterpart to bench-014: a correctly-spelled, well-known package
+  name pinned to an exact version is the normal, safe case a typosquat
+  detector must not also flag.
+artifact:
+  root: artifact
+review:
+  status: provisional
+  reviewers: []

@@ -127,6 +127,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--skil-binary", help="path to the skil binary")
     parser.add_argument("--skillspector-binary", help="path to the skillspector binary")
+    parser.add_argument("--cisco-skill-scanner-binary", help="path to the skill-scanner binary")
     parser.add_argument("--output", default=str(ROOT / "results" / "latest.json"))
     args = parser.parse_args()
 
@@ -144,6 +145,8 @@ def main() -> int:
         tools["skil"] = run_tool("skil_adapter", args.skil_binary, fixtures)
     if args.skillspector_binary:
         tools["skillspector"] = run_tool("skillspector_adapter", args.skillspector_binary, fixtures)
+    if args.cisco_skill_scanner_binary:
+        tools["cisco-skill-scanner"] = run_tool("cisco_skill_scanner_adapter", args.cisco_skill_scanner_binary, fixtures)
     if not tools:
         print("no tool binaries configured; nothing to run", file=sys.stderr)
         return 1

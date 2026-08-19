@@ -7,6 +7,7 @@
 [![Go Version](https://img.shields.io/github/go-mod/go-version/domehahn/skil)](https://github.com/domehahn/skil/blob/main/go.mod)
 [![License](https://img.shields.io/github/license/domehahn/skil)](https://github.com/domehahn/skil/blob/main/LICENSE)
 [![Release](https://img.shields.io/github/v/release/domehahn/skil)](https://github.com/domehahn/skil/releases)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/domehahn/skil/badge)](https://scorecard.dev/viewer/?uri=github.com/domehahn/skil)
 
 `skil` (**Skill Inspector and Linter**) is an open, vendor-neutral security,
 verification, and assurance framework for AI agent skills.

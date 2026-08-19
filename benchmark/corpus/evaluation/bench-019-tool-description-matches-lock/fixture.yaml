@@ -1,0 +1,20 @@
+schema_version: 1
+id: bench-019-tool-description-matches-lock
+tier: evaluation
+title: MCP tool description matches its reviewed lock digest exactly
+ground_truth:
+  malicious: false
+  category: supply_chain_rug_pull
+references:
+  - framework: owasp-agentic-skills-top-10
+    control: AST07
+    url: https://owasp.org/www-project-agentic-skills-top-10/
+rationale: >
+  The counterpart to bench-013: the manifest's tool description is
+  byte-identical to what was reviewed and locked — no rug-pull has
+  occurred, and a scanner comparing against the lock must not flag it.
+artifact:
+  root: artifact
+review:
+  status: provisional
+  reviewers: []

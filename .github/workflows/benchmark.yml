@@ -30,11 +30,12 @@ jobs:
           python-version: "3.12"
       - name: Build skil
         run: go build -trimpath -o /tmp/skil ./cmd/skil
-      - name: Install reference scanner (Apache-2.0, from its own repository)
+      - name: Install reference scanners (Apache-2.0, from their own repositories)
         run: |
           pip install --user uv
           "$HOME/.local/bin/uv" tool install git+https://github.com/NVIDIA/skillspector.git
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          pip install --user cisco-ai-skill-scanner
       - name: Install runner dependencies
         run: pip install pyyaml
       - name: Run benchmark
@@ -42,6 +43,7 @@ jobs:
           python3 benchmark/runner/run_benchmark.py \
             --skil-binary /tmp/skil \
             --skillspector-binary skillspector \
+            --cisco-skill-scanner-binary skill-scanner \
             --output benchmark/results/latest.json
       - uses: actions/upload-artifact@v4
         with:

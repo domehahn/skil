@@ -27,19 +27,29 @@ a result checkable.
 ## Scope of v1
 
 - **Tools**: skil vs. [NVIDIA SkillSpector](https://github.com/NVIDIA/SkillSpector)
-  (Apache-2.0) only. Both are run from their own local, OSS build — no
-  hosted/commercial API of either project. Cisco Skill Scanner and Tencent
-  AI-Infra-Guard are the planned Phase 2 / Phase 3 additions once this
-  methodology has proven itself against one adapter; Snyk Agent Scan has a
-  broader endpoint-discovery focus and a hosted-token-based standard usage
-  model that makes a direct like-for-like local comparison harder, so it's
+  and [Cisco AI Defense Skill Scanner](https://github.com/cisco-ai-defense/skill-scanner)
+  (both Apache-2.0). All three are run from their own local, OSS build/
+  install — no hosted/commercial API of any of them. Tencent AI-Infra-Guard
+  is a planned future addition; Snyk Agent Scan has a broader
+  endpoint-discovery focus and a hosted-token-based standard usage model
+  that makes a direct like-for-like local comparison harder, so it's
   intentionally out of the main benchmark for now.
 - **Track A (deterministic/offline) only.** Every adapter runs with LLM/
-  semantic analysis disabled (skil: no `--semantic` flag; the reference
-  tool: `--no-llm`). Mixing an LLM-backed run of one tool against a
-  static-only run of the other would compare two different things and call
-  it a scanner benchmark. A Track B (semantic/LLM-backed) is a distinct,
-  future addition — see the "not yet done" list in `COMPARISON.md`.
+  semantic analysis disabled (skil: no `--semantic` flag; SkillSpector:
+  `--no-llm`; Cisco Skill Scanner: the `--use-llm` flag simply isn't
+  passed). Mixing an LLM-backed run of one tool against a static-only run
+  of another would compare two different things and call it a scanner
+  benchmark. A Track B (semantic/LLM-backed) is a distinct, future
+  addition — see the "not yet done" list in `COMPARISON.md`.
+- **Known adapter limitation**: Cisco Skill Scanner errors (rather than
+  reporting zero findings) on an artifact that has no `SKILL.md`/skill
+  manifest of its own — the MCP-manifest-only fixtures in this corpus
+  (`bench-004`, `bench-011`, `bench-013`, `bench-019`). The runner reports
+  these as `errors`, excluded from precision/recall rather than silently
+  counted as a false negative — that's the runner working correctly, not a
+  bug in this benchmark. Fixing it (giving those fixtures a minimal
+  `SKILL.md`, or teaching the adapter a documented fallback) is open for a
+  future PR.
 - **No secrets, no commercial APIs**, anywhere in this benchmark or its CI
   workflow.
 
@@ -111,8 +121,9 @@ numbers per tool:
 
 - **headline_metric** — `tier: evaluation` AND `review.status: gold` only.
   This is the only number meant to be quoted anywhere (README, `COMPARISON.md`,
-  external claims). As of this benchmark's initial version, `evaluation/` is
-  empty, so the headline metric correctly reads `"n/a"` for every tool.
+  external claims). As of this benchmark's initial version, `evaluation/`
+  has fixtures but none are `gold` yet (see [Call for reviewers](#call-for-reviewers)
+  below), so the headline metric correctly reads `"n/a"` for every tool.
   That's the runner working as designed, not a bug.
 - **development_set_metric_regression_only_never_a_generalization_claim** —
   every `development/` fixture, regardless of review status. Use this to
@@ -126,23 +137,35 @@ If you review a fixture, open a PR changing its `review.status` to `gold`
 and adding yourself to `review.reviewers` (a second reviewer approves by
 doing the same in a follow-up PR, not by rubber-stamping the first PR).
 
+### Call for reviewers
+
+This benchmark cannot produce credible ground truth with one reviewer —
+that's the entire point of the two-reviewer gate above. If you're a
+security engineer, AI security researcher, DevSecOps practitioner, or
+maintainer of another agent-skill-security project willing to spend 15–30
+minutes evaluating a few fixtures under `corpus/evaluation/` with fresh
+eyes, see [issue #36](https://github.com/domehahn/skil/issues/36).
+
 ## Running it locally
 
 ```bash
 # Build skil
 go build -o /tmp/skil ./cmd/skil
 
-# Install the reference scanner (Apache-2.0, from its own repository)
+# Install the reference scanners (Apache-2.0, from their own repositories)
 uv tool install git+https://github.com/NVIDIA/skillspector.git
+pip install cisco-ai-skill-scanner
 
 pip install pyyaml
 python3 benchmark/runner/run_benchmark.py \
   --skil-binary /tmp/skil \
   --skillspector-binary skillspector \
+  --cisco-skill-scanner-binary skill-scanner \
   --output benchmark/results/latest.json
 ```
 
-Omit `--skillspector-binary` to run skil-only (no external install needed).
+Omit either `--*-binary` flag to skip that tool (no external install
+needed for a skil-only run).
 
 ## CI
 

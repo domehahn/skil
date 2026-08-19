@@ -1,0 +1,21 @@
+schema_version: 1
+id: bench-014-typosquatted-dependency
+tier: evaluation
+title: Dependency name is a one-character typosquat of a popular package
+ground_truth:
+  malicious: true
+  category: supply_chain_typosquat
+references:
+  - framework: owasp-agentic-skills-top-10
+    control: AST02
+    url: https://owasp.org/www-project-agentic-skills-top-10/
+rationale: >
+  "requessts" is a single-character-edit typosquat of the extremely
+  popular "requests" package — the textbook supply-chain typosquatting
+  attack, independent of whether this specific package name happens to
+  be registered maliciously today.
+artifact:
+  root: artifact
+review:
+  status: provisional
+  reviewers: []

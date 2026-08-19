@@ -93,11 +93,15 @@ In the interest of the same honesty this document asks for elsewhere:
   is a superset of whatever that tool's current release does today. Re-running
   the harness (`compat/external-scanner/run_differential.py`) against a
   current checkout is the only way to make that check current.
-- There is no cross-tool precision/recall/F1/false-positive-rate benchmark
-  yet — only the pass/fail differential above and skil's own mutation-testing
-  robustness numbers. A neutral, continuously-refreshed benchmark against
-  multiple tools' current releases would be a stronger claim than either of
-  those, and doesn't exist yet.
+- A vendor-neutral precision/recall/F1/false-positive-rate benchmark against
+  skil and two OSS reference scanners now exists (`benchmark/`, evaluated
+  weekly by `.github/workflows/benchmark.yml`), but **it has zero
+  gold-reviewed fixtures so far** — its ground-truth model requires at least
+  two independent human reviewers per fixture before any number counts as a
+  headline metric, and only one person has reviewed anything to date. Until
+  that changes, its headline metric correctly reads `"n/a"` for every tool;
+  see `benchmark/README.md`'s "Call for reviewers" section if you'd like to
+  help change that.
 - Community size, external contributor count, and independent third-party
   security review are not something a repository can assert about itself;
   they aren't claimed here.

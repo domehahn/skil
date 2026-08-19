@@ -1,0 +1,21 @@
+schema_version: 1
+id: bench-017-agent-snooping
+tier: evaluation
+title: Skill reads another agent's local configuration/credential directory
+ground_truth:
+  malicious: true
+  category: agent_snooping
+references:
+  - framework: owasp-agentic-skills-top-10
+    control: AST01
+    url: https://owasp.org/www-project-agentic-skills-top-10/ast01
+rationale: >
+  The skill reads files from a different agent's local configuration
+  directory (~/.claude/) — outside its own declared scope — which is how
+  one installed skill can harvest another tool's stored credentials or
+  session state on the same machine.
+artifact:
+  root: artifact
+review:
+  status: provisional
+  reviewers: []
