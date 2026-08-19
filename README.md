@@ -184,6 +184,7 @@ A non-root multi-stage container image can be built with `make docker-build`;
 | Document | Purpose |
 | --- | --- |
 | [Architecture](docs/architecture.md) | System design, pipeline, and extension interfaces |
+| [Toolchain](docs/toolchain.md) | Where skil fits among skcr/skpm/SkillForge, and the responsibility boundary between them |
 | [Skill contract](docs/skill-contract.md) | Versioned skill format and validation |
 | [Linting](docs/linting.md) | Authoring checks and profiles |
 | [Native security capabilities](docs/native-capabilities.md) | Built-in analyzers and rules |

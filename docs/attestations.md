@@ -18,3 +18,15 @@ identity, artifact digest, timestamp, normalized verdict, coverage, finding
 count, and payload digest. Policy counts a passing external scanner only after
 payload hashing, verdict evaluation, signature verification, age checks, and
 scanner-specific key binding all succeed.
+
+## Attaching an attestation to a published skill version
+
+An attestation file is otherwise just local evidence. `skpm attest
+<skill>@<version> --file attestation.json` attaches it to an already-published
+skill version as registry metadata (stored by SkillForge independently of
+the artifact bytes), and `skpm attestations <skill>@<version>` lists what's
+attached — so a consumer pulling that skill can see the evidence without
+re-running the scan. skil does not depend on skpm or SkillForge for this;
+the signed envelope stays checkable offline either way. See
+[docs/toolchain.md](toolchain.md) for the full picture of how skil relates
+to skcr, skpm, and SkillForge.
