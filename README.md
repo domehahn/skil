@@ -208,6 +208,10 @@ Additional deep-dive documents: [adversarial testing](docs/adversarial-testing.m
 [extending analyzers](docs/extending-analyzers.md), and the
 [security control matrix](docs/security-control-matrix.md).
 
+A [launch narrative](docs/launch-narrative.md) (positioning statement, draft
+announcement post) is also kept in-repo — a maintainer working document, not
+a claim about current adoption.
+
 ## CI gate
 
 ```yaml
