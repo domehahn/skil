@@ -66,7 +66,7 @@ func buildIntentRules() []RulePattern {
 			`(?:忽略.{0,16}(?:之前|先前|系统|开发者).{0,12}(?:指令|规则)|(?:以前|前の|システム|開発者).{0,16}(?:指示|命令|ルール).{0,12}無視|(?:이전|시스템|개발자).{0,16}(?:지침|명령|규칙).{0,12}무시)`,
 			`(?:检测|拒绝|禁止|不要|検出|拒否|禁止|しない|탐지|거부|금지|하지\s*마)`, "Attempts to override trusted instructions in Chinese, Japanese, or Korean.", "Remove instruction hierarchy manipulation and constrain the skill scope."),
 		r("SKIL-PI-002", "Role or context manipulation", "instruction-integrity", skil.SeverityHigh,
-			`(?:you are now|act as)\s+(?:an?\s+)?(?:unrestricted|system|developer|root)|switch\s+to\s+(?:system|developer)\s+role`,
+			`(?:you\s+are\s+now|act\s+as)\s+(?:an?\s+)?(?:unrestricted|system|developer|root)|switch\s+to\s+(?:system|developer)\s+role`,
 			`example|detect|reject|test|treat.{0,40}untrusted`, "Attempts to manipulate the agent role or trusted context.", "Treat embedded content as data and remove role-changing instructions."),
 		r("SKIL-INTENT-REFUSAL", "Unconditional compliance instruction", "instruction-integrity", skil.SeverityHigh,
 			`(?:never|may\s+not|shall\s+not)\s+(?:refuse|decline|say\s+no|deny)|always\s+comply|comply\s+(?:with\s+)?(?:every|all|any)\s+requests?|must\s+not\s+refuse|(?:must|always)\s+(?:receive\s+)?compl(?:y|iance)|(?:compl(?:y|iance)|obedience).{0,60}(?:mandatory|required)|(?:declin(?:e|ing)|refus(?:e|ing|al)|denial).{0,40}(?:not\s+permitted|not\s+allowed|prohibited|forbidden|strictly\s+forbidden)|withhold(?:ing)?\s+compl(?:y|iance)`,
@@ -81,7 +81,7 @@ func buildIntentRules() []RulePattern {
 			`(?:禁用|关闭|绕过).{0,16}(?:安全|防护|限制)|(?:安全|ガードレール|制限).{0,16}(?:無効|解除|迂回)|(?:안전|가드레일|제한).{0,16}(?:비활성화|해제|우회)`,
 			`(?:检测|拒绝|禁止|不要|検出|拒否|禁止|しない|탐지|거부|금지|하지\s*마)`, "Attempts to disable safety controls in Chinese, Japanese, or Korean.", "Retain safety controls and remove policy-nullification language."),
 		r("SKIL-EX-001", "Secret exfiltration instruction", "data-boundary", skil.SeverityCritical,
-			`(?:forward|send|upload|post|transmit|exfiltrate|dispatch).{0,80}(?:secret|credential|api.?key|token|environment variable|conversation context)|(?:gather|read|collect).{0,50}(?:secret|credential|api.?key|token|environment variable).{0,80}(?:send|upload|post|http|dispatch|forward)`,
+			`(?:forward|send|upload|post|transmit|exfiltrate|dispatch).{0,80}(?:secret|credential|api\s+key|token|environment variable|conversation context)|(?:gather|read|collect).{0,50}(?:secret|credential|api.?key|token|environment variable).{0,80}(?:send|upload|post|http|dispatch|forward)`,
 			`(?:do\s+not|never|forbid|prevent|reject).{0,50}(?:send|upload|exfiltrate)`, "Instructions combine sensitive data access with an external sink.", "Remove the data flow; use explicit allowlists and redaction."),
 		r("SKIL-EX-I18N-001", "Multilingual secret exfiltration instruction", "data-boundary", skil.SeverityCritical,
 			`(?:(?:发送|上传|传输).{0,30}(?:密钥|凭据|密码|环境变量)|(?:秘密|認証情報|APIキー|環境変数).{0,30}(?:送信|アップロード)|(?:비밀|자격\s*증명|API\s*키|환경\s*변수).{0,30}(?:전송|업로드))`,
@@ -92,7 +92,7 @@ func buildIntentRules() []RulePattern {
 			"Instructions access a concrete credential-bearing path or file.",
 			"Remove credential access or declare and constrain the exact secret source."),
 		r("SKIL-PL-001", "Privileged instruction disclosure", "instruction-confidentiality", skil.SeverityHigh,
-			`(?:reveal|print|dump|extract|return|show|display|expose|render|output|repeat|recite|disclose).{0,40}(?:system prompt|developer (?:instructions?|guidance)|hidden (?:instructions?|guidance)|internal (?:instructions?|guidance)|private (?:instructions?|guidance)).{0,20}(?:verbatim)?|(?:system prompt|developer (?:instructions?|guidance)|hidden (?:instructions?|guidance)|internal (?:instructions?|guidance)|private (?:instructions?|guidance)).{0,10}verbatim`,
+			`(?:reveal|print|dump|extract|return|show|display|expose|render|output|repeat|recite|disclose).{0,40}(?:system\s+prompt|developer (?:instructions?|guidance)|hidden (?:instructions?|guidance)|internal (?:instructions?|guidance)|private (?:instructions?|guidance)).{0,20}(?:verbatim)?|(?:system prompt|developer (?:instructions?|guidance)|hidden (?:instructions?|guidance)|internal (?:instructions?|guidance)|private (?:instructions?|guidance)).{0,10}verbatim`,
 			`(?:do\s+not|never|prevent|reject|detect).{0,30}(?:reveal|print|dump|extract|show|display|expose|render|output|repeat|recite|disclose)`, "Requests disclosure of privileged instructions.", "Remove prompt-disclosure behavior."),
 		r("SKIL-MP-001", "Persistent instruction poisoning", "state-integrity", skil.SeverityHigh,
 			`(?:store|write|save|persist).{0,80}(?:(?:hidden|malicious|future).{0,30}instructions?|instruction.{0,80}(?:always\s+send|attacker|exfiltrate))|modify\s+(?:agent\s+)?memory|(?:store|write|save|persist|remember|retain|preserve)\b.{0,60}\b(?:instructions?|memory|context|configuration)\b.{0,80}\b(?:across\s+sessions|permanently|future\s+(?:conversations|sessions|interactions))\b|(?:make|treat)\s+(?:this|that|the)\s+(?:directive|instruction|rule)\s+(?:a\s+)?part\s+of\s+(?:your|its|the\s+agent's)\s+persistent\s+behavior\b.{0,40}\b(?:future|later|subsequent)\s+(?:conversations?|sessions?)|(?:clear|wipe|reset|erase|purge|flush)\s+(?:(?:your|the\s+agent'?s?|its)\s+)?(?:memory|context|history|instructions?)\b`,
@@ -130,7 +130,7 @@ func buildIntentRules() []RulePattern {
 			`(?:no|without|unlimited|unbounded).{0,30}(?:output limit|token limit|response limit|max output)`,
 			`(?:must|require|enforce)`, "Output generation has no explicit bound.", "Set a maximum output size and rate."),
 		r("SKIL-PROMPT-INDIRECT-LEAK", "Indirect privileged-context extraction", "instruction-confidentiality", skil.SeverityMedium,
-			`(?:translate|rephrase|encode|summarize).{0,60}(?:system prompt|developer instructions?|system instructions?|hidden (?:rules?|instructions?)|your instructions?|the instructions?)`,
+			`(?:translate|rephrase|encode|summarize).{0,60}(?:system prompt|developer\s+instructions?|system instructions?|hidden (?:rules?|instructions?)|your instructions?|the instructions?)`,
 			`(?:do\s+not|never|prevent|detect|reject|refuse|decline).{0,40}(?:translate|rephrase|encode|summarize)|(?:translate|rephrase|encode|summarize).{0,40}(?:decline|refuse|reject)|`+
 				// Polarity is not only pre-action ("do not translate ...");
 				// a target can instead be excluded from the whole class of
@@ -466,3 +466,4 @@ func (p *Pattern) Rules() []skil.Rule {
 	}
 	return out
 }
+
