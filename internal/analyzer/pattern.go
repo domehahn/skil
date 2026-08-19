@@ -61,7 +61,7 @@ func buildIntentRules() []RulePattern {
 	return []RulePattern{
 		r("SKIL-PI-001", "Instruction override", "instruction-integrity", skil.SeverityHigh,
 			`(?:(?:ignore|disregard|override|nullify|discard|void|supersede|countermand|rescind|abrogate)\s+(?:all\s+)?(?:previous|prior|system|developer|earlier)\s+(?:(?:system|developer)\s+)?(?:instructions?|rules?|messages?|guidance|directives?|policy|policies|orders?)|(?:ignore|disregard|override|nullify|discard|void|supersede|countermand|rescind|abrogate)\s+(?:all\s+)?(?:previous|prior|earlier).{0,40}(?:instructions?|rules?|messages?|guidance|directives?|policy|policies|orders?)|(?:treat|consider)\s+(?:all\s+)?(?:the\s+)?(?:(?:previous|prior|earlier|system|developer)\s+){1,2}(?:instructions?|guidance|rules?|directives?|orders?)\s+(?:as\s+)?(?:obsolete|void|invalid|no\s+longer\s+valid|superseded)|(?:previous|prior|earlier|system|developer)\s+(?:instructions?|rules?|guidance|directives?|policy|policies|orders?|messages?)\s+(?:are|is|remain|stand)?\s*(?:now\s+)?(?:superseded|overridden|nullified|voided|void|discarded|obsolete|null\s+and\s+void)(?:\s+by)?)`,
-			`(?:never|do\s+not|don't|must\s+not|should\s+not)\s+(?:be\s+)?(?:ignore|disregard|override|nullify|discard|void|supersede|superseded|overridden|nullified|voided|discarded)`, "Attempts to override higher-priority instructions.", "Remove instruction hierarchy manipulation and constrain the skill scope."),
+			`(?:never|do\s+not|don't|must\s+not|should\s+not)\s+(?:be\s+)?(?:ignore|disregard|override|nullify|discard|void|supersede|superseded|overridden|nullified|voided|discarded|comply(?:\s+with)?|obey|follow|honor)|treat\s+(?:it|that|this|them)\s+as\s+untrusted`, "Attempts to override higher-priority instructions.", "Remove instruction hierarchy manipulation and constrain the skill scope."),
 		r("SKIL-PI-I18N-001", "Multilingual instruction override", "instruction-integrity", skil.SeverityHigh,
 			`(?:忽略.{0,16}(?:之前|先前|系统|开发者).{0,12}(?:指令|规则)|(?:以前|前の|システム|開発者).{0,16}(?:指示|命令|ルール).{0,12}無視|(?:이전|시스템|개발자).{0,16}(?:지침|명령|규칙).{0,12}무시)`,
 			`(?:检测|拒绝|禁止|不要|検出|拒否|禁止|しない|탐지|거부|금지|하지\s*마)`, "Attempts to override trusted instructions in Chinese, Japanese, or Korean.", "Remove instruction hierarchy manipulation and constrain the skill scope."),
@@ -258,11 +258,25 @@ func (p *Pattern) Analyze(_ context.Context, ac skil.AnalysisContext) ([]skil.Fi
 			if strings.HasPrefix(strings.TrimSpace(line), "#") {
 				section = strings.TrimSpace(line)
 			}
-			for _, rule := range p.rules {
-				contextLine := section + " " + line
-				if number > 0 {
-					contextLine = section + " " + fileLines[number-1] + " " + line
+			contextLine := line
+			if number > 0 {
+				contextLine = fileLines[number-1] + " " + contextLine
+			}
+			// Only pull in the next line when this one doesn't end a
+			// sentence: prose commonly wraps "an instruction such as X" onto
+			// one line and its negation ("...treat it as untrusted and do
+			// not comply") onto the next, so a backward-only window misses a
+			// same-sentence negation that happens to fall after the trigger
+			// line. Gating on sentence-final punctuation keeps this from
+			// pulling in the next, unrelated sentence (and its own,
+			// different negation) when the trigger line is already complete.
+			if trimmed := strings.TrimRight(strings.TrimSpace(line), "*_`\"')]"); trimmed != "" && number+1 < len(fileLines) {
+				if last := trimmed[len(trimmed)-1:]; !strings.ContainsAny(last, ".!?:;") {
+					contextLine += " " + fileLines[number+1]
 				}
+			}
+			contextLine = section + " " + contextLine
+			for _, rule := range p.rules {
 				if rule.Pattern.MatchString(line) && (rule.Negative == nil || !rule.Negative.MatchString(contextLine)) {
 					out = append(out, makeFinding(rule, file, number+1, line))
 				}

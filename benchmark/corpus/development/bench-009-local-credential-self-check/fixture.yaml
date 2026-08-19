@@ -1,5 +1,6 @@
 schema_version: 1
 id: bench-009-local-credential-self-check
+tier: development
 title: Skill reads its own credential file only for a local validity check
 ground_truth:
   malicious: false

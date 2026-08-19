@@ -1,5 +1,6 @@
 schema_version: 1
 id: bench-006-ssrf-tool-controlled-url
+tier: development
 title: Server-side fetch of a caller-supplied URL with no allowlist
 ground_truth:
   malicious: true

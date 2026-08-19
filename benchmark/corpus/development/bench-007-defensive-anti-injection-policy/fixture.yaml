@@ -1,5 +1,6 @@
 schema_version: 1
 id: bench-007-defensive-anti-injection-policy
+tier: development
 title: Defensive policy text that names injection keywords to reject them
 ground_truth:
   malicious: false

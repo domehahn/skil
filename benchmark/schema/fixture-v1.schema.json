@@ -4,10 +4,14 @@
   "title": "skil vendor-neutral benchmark fixture v1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "id", "title", "ground_truth", "references", "rationale", "artifact", "review"],
+  "required": ["schema_version", "id", "tier", "title", "ground_truth", "references", "rationale", "artifact", "review"],
   "properties": {
     "schema_version": { "const": 1 },
     "id": { "type": "string", "pattern": "^bench-[0-9]{3}-[a-z0-9-]+$" },
+    "tier": {
+      "enum": ["development", "evaluation"],
+      "description": "development = public, may be used to diagnose and fix scanner bugs, never counted toward a headline metric. evaluation = the blind holdout; a fixture that has ever been used to fix a scanner bug must never move from development to evaluation (see benchmark/README.md)."
+    },
     "title": { "type": "string", "minLength": 1 },
     "ground_truth": {
       "type": "object",

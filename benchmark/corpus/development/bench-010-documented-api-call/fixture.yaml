@@ -1,5 +1,6 @@
 schema_version: 1
 id: bench-010-documented-api-call
+tier: development
 title: Outbound call to a documented API using a token from an env reference
 ground_truth:
   malicious: false

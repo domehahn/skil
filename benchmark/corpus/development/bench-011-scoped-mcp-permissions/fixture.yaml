@@ -1,5 +1,6 @@
 schema_version: 1
 id: bench-011-scoped-mcp-permissions
+tier: development
 title: MCP manifest declares an explicit, narrow tool list
 ground_truth:
   malicious: false

@@ -71,22 +71,56 @@ a network sink (`bench-009`), and so on. These are worth more to this
 benchmark than obvious malware, because they're where false positives
 actually happen.
 
+## Development vs. evaluation
+
+```text
+corpus/
+├── development/   public, tunable, regression-only — never a headline metric
+└── evaluation/    the blind holdout — the only tier a headline metric can come from
+```
+
+This split exists for one reason: **the moment a fixture is used to diagnose
+or fix a scanner bug, it stops measuring generalization and starts measuring
+"did we regress on a known case."** Both are useful, but conflating them is
+how a benchmark quietly turns into a training set its own maintainer is
+unknowingly optimizing against.
+
+The rule, mechanically enforced by `run_benchmark.py` (`validate_tier_matches_dir`)
+and by policy for everything the tooling can't check automatically:
+
+> **A fixture that has ever been used to diagnose, reproduce, or fix a
+> scanner bug belongs in `development/` permanently. It must never move to
+> `evaluation/`, regardless of how old the bug or how thoroughly it's since
+> been fixed.**
+
+The 12 fixtures this benchmark launched with already found two real skil
+false positives (issues #33, #34) — which is exactly why all 12 are
+classified `tier: development` and always will be, even after those issues
+are fixed and the fixtures become permanent regression tests. `evaluation/`
+starts empty. Filling it requires fixtures nobody has used to tune anything
+against, which in practice means writing them somewhat independently of
+active bug-fixing work, or asking someone who isn't fixing skil's bugs to
+contribute them.
+
 ## Review status
 
 Every fixture starts at `review.status: provisional`. A fixture only
 becomes `gold` after **at least two independent human reviewers** agree
-with its `ground_truth` and `rationale`. `run_benchmark.py` computes two
+with its `ground_truth` and `rationale`. `run_benchmark.py` computes three
 numbers per tool:
 
-- **headline_metric** — gold-reviewed fixtures only. This is the number
-  meant to be quoted anywhere. As of this benchmark's initial version, the
-  corpus has **zero gold fixtures** (all 12 are provisional, authored by
-  one person), so the headline metric correctly reads `"n/a"`. That's the
-  runner working as designed, not a bug — see the header comment in
-  `runner/run_benchmark.py`.
-- **informational_metric_including_provisional_fixtures** — every fixture,
-  clearly labeled as informational. Useful for iterating on the corpus and
-  the adapters, not for public claims.
+- **headline_metric** — `tier: evaluation` AND `review.status: gold` only.
+  This is the only number meant to be quoted anywhere (README, `COMPARISON.md`,
+  external claims). As of this benchmark's initial version, `evaluation/` is
+  empty, so the headline metric correctly reads `"n/a"` for every tool.
+  That's the runner working as designed, not a bug.
+- **development_set_metric_regression_only_never_a_generalization_claim** —
+  every `development/` fixture, regardless of review status. Use this to
+  check for regressions after a fix; never cite it as evidence of detection
+  quality.
+- **evaluation_set_provisional_metric_informational_only** — `evaluation/`
+  fixtures not yet at `gold`. Useful for iterating on new holdout fixtures
+  before they're reviewed; also not a headline number.
 
 If you review a fixture, open a PR changing its `review.status` to `gold`
 and adding yourself to `review.reviewers` (a second reviewer approves by
@@ -122,7 +156,10 @@ interface staying stable.
 ## Extending the corpus
 
 See `schema/fixture-v1.schema.json` for the fixture format and
-`corpus/bench-001-instruction-override/` for a complete example. A new
-fixture PR should include both the artifact and a `rationale` a reviewer
-who has never seen skil's or the reference tool's source code could still
-evaluate.
+`corpus/development/bench-001-instruction-override/` for a complete
+example. A new fixture PR should include both the artifact, a `rationale` a
+reviewer who has never seen skil's or the reference tool's source code
+could still evaluate, and a `tier` matching which directory it lives in.
+New fixtures not tied to a specific bug diagnosis should generally start
+directly in `evaluation/` (still `provisional` until reviewed) rather than
+`development/`, so the holdout set actually grows.

@@ -1,5 +1,6 @@
 schema_version: 1
 id: bench-012-safe-subprocess-allowlist
+tier: development
 title: Subprocess call uses a fixed argv list, not a shell, not user input
 ground_truth:
   malicious: false

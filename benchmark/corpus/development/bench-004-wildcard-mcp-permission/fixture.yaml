@@ -1,5 +1,6 @@
 schema_version: 1
 id: bench-004-wildcard-mcp-permission
+tier: development
 title: MCP server manifest grants unconstrained wildcard tool access
 ground_truth:
   malicious: true

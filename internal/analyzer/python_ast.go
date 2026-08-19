@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"regexp"
 	"strings"
 
 	tree_sitter "github.com/tree-sitter/go-tree-sitter"
@@ -173,7 +174,20 @@ func (p *PythonAST) AnalyzeCapabilities(ctx context.Context, ac skil.AnalysisCon
 			if node.Kind() == "subscript" {
 				text := resolvePythonTarget(node.Utf8Text(file.Data), aliases)
 				if strings.HasPrefix(text, "os.environ[") {
-					emit(node, "os.environ", pyRule("SKIL-SEC-001", "Environment or secret read", "data-exfiltration", "Python reads an environment variable that may contain secrets.", "Declare exact variables and avoid broad secret access.", "secrets.read", skil.SeverityHigh))
+					rule := pyRule("SKIL-SEC-001", "Environment or secret read", "data-exfiltration", "Python reads an environment variable that may contain secrets.", "Declare exact variables and avoid broad secret access.", "secrets.read", skil.SeverityHigh)
+					if secretUsedOnlyForAuthentication(assignedVariableName(node, file.Data), file.Data) {
+						// The value is used exclusively as an Authorization
+						// header on a single fixed-destination GET call, with
+						// no other use anywhere in the file — the shape every
+						// legitimate authenticated API client has. This is
+						// still genuinely observed secrets.read capability
+						// usage and must remain observable, but it must not
+						// produce a Finding; see safeSubprocessCall below for
+						// the same "safe declared use is observe-only" pattern.
+						observe(node, "os.environ", "secrets.read", "", map[string]any{"node_type": node.Kind(), "authentication_only": true})
+						return
+					}
+					emit(node, "os.environ", rule)
 				}
 				return
 			}
@@ -238,6 +252,12 @@ func (p *PythonAST) AnalyzeCapabilities(ctx context.Context, ac skil.AnalysisCon
 				return
 			}
 			if !found {
+				return
+			}
+			if rule.id == "SKIL-SEC-001" && secretUsedOnlyForAuthentication(assignedVariableName(node, file.Data), file.Data) {
+				// See the identical guard on the os.environ[...] subscript
+				// case above for the rationale.
+				observe(node, target, "secrets.read", "", map[string]any{"node_type": node.Kind(), "authentication_only": true})
 				return
 			}
 			emit(node, target, rule)
@@ -471,4 +491,74 @@ func writeMode(call *tree_sitter.Node, source []byte) bool {
 		}
 	}
 	return false
+}
+
+// assignedVariableName returns the left-hand identifier of the assignment a
+// secret-read node is the right-hand side of (e.g. "secret" in
+// `secret = os.environ["X"]`), or "" if the node isn't directly assigned to
+// a simple variable (used inline, part of a larger expression, etc — the
+// authentication-only guard below intentionally does not apply in that
+// case, since there is then no single name to trace usage of).
+func assignedVariableName(node *tree_sitter.Node, source []byte) string {
+	// Node identity can't be compared with == here: each accessor call
+	// (Parent, ChildByFieldName, ...) returns a freshly allocated *Node
+	// wrapper around the same underlying tree position, so two pointers to
+	// "the same" node are never == to each other. Byte-range equality is
+	// the correct identity check for this binding.
+	start, end := node.StartByte(), node.EndByte()
+	for parent := node.Parent(); parent != nil; parent = parent.Parent() {
+		switch parent.Kind() {
+		case "assignment", "assignment_expression":
+			left := parent.ChildByFieldName("left")
+			right := parent.ChildByFieldName("right")
+			if left != nil && right != nil && right.StartByte() == start && right.EndByte() == end {
+				return left.Utf8Text(source)
+			}
+			return ""
+		case "call", "block", "module", "function_definition", "expression_statement":
+			return ""
+		}
+	}
+	return ""
+}
+
+// secretUsedOnlyForAuthentication reports whether varName's only use(s) in
+// source are as the Authorization header value of a fixed-destination GET
+// call — the shape every legitimate authenticated API client has — with no
+// other appearance anywhere in the file (no second sink, no inclusion in a
+// request body/query, no dynamic destination). This is the same invariant
+// authenticationOnlyFlow (taint.go) applies to the taint-tracked case,
+// applied here directly against the source text since this AST pass does
+// not build a full taint graph.
+func secretUsedOnlyForAuthentication(varName string, source []byte) bool {
+	if varName == "" {
+		return false
+	}
+	text := string(source)
+	callPattern := regexp.MustCompile(`(?is)\b(?:requests\.get|http\.get)\s*\([^;]*?\)`)
+	matched := false
+	remainder := text
+	for _, call := range callPattern.FindAllString(text, -1) {
+		if !strings.Contains(call, varName) {
+			continue
+		}
+		lower := strings.ToLower(call)
+		if !strings.Contains(lower, "authorization") {
+			return false
+		}
+		for _, payload := range []string{"data=", "json=", "body=", "content="} {
+			if strings.Contains(lower, payload) {
+				return false
+			}
+		}
+		matched = true
+		remainder = strings.Replace(remainder, call, "", 1)
+	}
+	if !matched {
+		return false
+	}
+	// After removing every qualifying call, varName must appear at most once
+	// more (its own assignment) — any further occurrence means it reaches
+	// somewhere this check didn't already approve.
+	return strings.Count(remainder, varName) <= 1
 }

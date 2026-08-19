@@ -1,5 +1,6 @@
 schema_version: 1
 id: bench-002-credential-exfiltration
+tier: development
 title: Environment credential read followed by network exfiltration
 ground_truth:
   malicious: true
