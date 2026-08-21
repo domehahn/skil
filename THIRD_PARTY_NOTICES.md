@@ -11,6 +11,7 @@ endorsement statement.
 | github.com/tree-sitter/tree-sitter-bash | v0.25.1 | MIT |
 | github.com/tree-sitter/tree-sitter-javascript | v0.25.0 | MIT |
 | github.com/tree-sitter/tree-sitter-python | v0.25.0 | MIT |
+| github.com/tree-sitter/tree-sitter-ruby | v0.23.1 | MIT |
 | github.com/tree-sitter/tree-sitter-typescript | v0.23.2 | MIT |
 | gopkg.in/yaml.v3 | v3.0.1 | MIT and Apache-2.0 |
 | github.com/mattn/go-pointer | v0.0.1 | MIT |
@@ -25,6 +26,7 @@ Apache-licensed portions.
 - Copyright (c) 2017 Max Brunsfeld — tree-sitter-bash
 - Copyright (c) 2014 Max Brunsfeld — tree-sitter-javascript
 - Copyright (c) 2016 Max Brunsfeld — tree-sitter-python
+- Copyright (c) 2016 Rob Rix — tree-sitter-ruby
 - Copyright (c) 2017 Max Brunsfeld — tree-sitter-typescript
 - Copyright (c) 2019 Yasuhiro Matsumoto
 - Copyright (c) 2006-2010 Kirill Simonov

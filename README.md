@@ -126,7 +126,8 @@ and `.skilignore` itself remains part of the artifact manifest.
 - discovery of root and vendor skill layouts containing `SKILL.md`
 - strict versioned YAML skill contracts
 - contextual instruction rules and Tree-sitter AST analysis for Python,
-  JavaScript, TypeScript/TSX, and Bash, including Python import-alias resolution
+  JavaScript, TypeScript/TSX, Bash, and Ruby, including Python import-alias
+  resolution
 - provider-free authoring lint with strict, portable, and publish profiles,
   collection mode, stable rules, and Terminal/JSON/Markdown/SARIF output
 - syntax-aware bounded taint analysis with multi-step alias propagation and
