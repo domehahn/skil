@@ -1,0 +1,30 @@
+schema_version: 1
+id: bench-023-utf16-charset-smuggling
+tier: development
+title: Instruction override smuggled via UTF-16LE encoding (no BOM)
+ground_truth:
+  malicious: true
+  category: prompt_injection
+references:
+  - framework: owasp-agentic-skills-top-10
+    control: AST01
+    url: https://owasp.org/www-project-agentic-skills-top-10/ast01
+  - framework: advisory
+    control: charset-smuggling
+rationale: >
+  Byte-for-byte the same instruction-override payload as bench-001, but
+  saved as UTF-16LE without a byte-order mark rather than UTF-8 — the
+  encoding an attacker minimizing telltale markers (no BOM) would use.
+  Before the charset-canonicalization fix, every "text"-scoped analyzer
+  determined applicability via a check that rejected any content with
+  embedded NUL bytes (which UTF-16 text is full of), so this artifact
+  scanned clean with zero findings and 100% inspection completeness —
+  the completeness metric was actively misleading, not just silent,
+  since the file was marked InspectionCompleted rather than
+  out_of_scope. This fixture is the regression check that a text-scoped
+  rule detects a payload regardless of its source encoding.
+artifact:
+  root: artifact
+review:
+  status: provisional
+  reviewers: []

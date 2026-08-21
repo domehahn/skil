@@ -375,8 +375,15 @@ func safeArchivePath(name string) (string, error) {
 }
 
 func newFile(path string, data []byte, executable bool) skil.File {
+	// SHA256 is the digest of the original, untranscoded bytes — computed
+	// before canonicalizeText runs, so content-addressing and attestation
+	// digests are unaffected by any text transcoding below.
 	sum := sha256.Sum256(data)
-	return skil.File{Path: filepath.ToSlash(path), Data: data, SHA256: hex.EncodeToString(sum[:]), Executable: executable}
+	canonical, encoding := canonicalizeText(data)
+	return skil.File{
+		Path: filepath.ToSlash(path), Data: canonical, SHA256: hex.EncodeToString(sum[:]),
+		Executable: executable, Encoding: encoding,
+	}
 }
 
 func excluded(path string, patterns []string) bool {

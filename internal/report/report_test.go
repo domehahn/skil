@@ -112,3 +112,42 @@ func TestCompactAndMarkdownReportsRemainAvailable(t *testing.T) {
 		}
 	}
 }
+
+func TestTerminalReportSurfacesTranscodedEncoding(t *testing.T) {
+	result := sample()
+	result.Artifact.Files = []skil.File{
+		{Path: "SKILL.md", Encoding: "utf-16le"},
+		{Path: "README.md", Encoding: "utf-8"},
+		{Path: "logo.png", Encoding: "binary"},
+	}
+	var out bytes.Buffer
+	if err := Write(&out, "terminal", result); err != nil {
+		t.Fatal(err)
+	}
+	text := out.String()
+	if !strings.Contains(text, "ENCODING NOTES") {
+		t.Fatalf("expected an ENCODING NOTES section when a file was transcoded: %s", text)
+	}
+	if !strings.Contains(text, "SKILL.md") || !strings.Contains(text, "utf-16le") {
+		t.Fatalf("expected the transcoded file and its encoding to be listed: %s", text)
+	}
+	// Plain UTF-8 and binary files are the overwhelming common case and
+	// must not clutter every report with a redundant note.
+	afterComponents := text[strings.Index(text, "COMPONENTS"):]
+	notesIdx := strings.Index(afterComponents, "ENCODING NOTES")
+	if strings.Count(afterComponents[:notesIdx], "README.md") > 1 || strings.Count(afterComponents[:notesIdx], "logo.png") > 1 {
+		t.Fatalf("utf-8/binary files should only appear in the COMPONENTS table, not ENCODING NOTES: %s", text)
+	}
+}
+
+func TestTerminalReportOmitsEncodingNotesWhenAllUTF8(t *testing.T) {
+	result := sample()
+	result.Artifact.Files = []skil.File{{Path: "SKILL.md", Encoding: "utf-8"}}
+	var out bytes.Buffer
+	if err := Write(&out, "terminal", result); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(out.String(), "ENCODING NOTES") {
+		t.Fatalf("did not expect an ENCODING NOTES section when nothing was transcoded: %s", out.String())
+	}
+}

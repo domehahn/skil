@@ -77,12 +77,24 @@ func writeTerminal(w io.Writer, r skil.ScanResult) error {
 
 	fmt.Fprintf(w, "\nCOMPONENTS (%d)\n", len(r.Artifact.Files))
 	fmt.Fprintf(w, "  %-58s %-12s %7s %10s\n", "PATH", "TYPE", "LINES", "EXECUTABLE")
+	var transcoded []skil.File
 	for _, file := range sortedFiles(r.Artifact.Files) {
 		fmt.Fprintf(w, "  %-58s %-12s %7d %10t\n",
 			boundedDisplay(file.Path, 58), componentType(file.Path), lineCount(file.Data), file.Executable)
+		if file.Encoding != "" && file.Encoding != "utf-8" && file.Encoding != "binary" {
+			transcoded = append(transcoded, file)
+		}
 	}
 	if len(r.Artifact.Files) == 0 {
 		fmt.Fprintln(w, "  (none)")
+	}
+	if len(transcoded) > 0 {
+		fmt.Fprintln(w, "\nENCODING NOTES")
+		fmt.Fprintln(w, "  The following files were not UTF-8 and were transcoded to canonical")
+		fmt.Fprintln(w, "  UTF-8 before analysis; findings below reference the transcoded text.")
+		for _, file := range transcoded {
+			fmt.Fprintf(w, "  %-58s %s\n", boundedDisplay(file.Path, 58), file.Encoding)
+		}
 	}
 
 	findings := sortedFindings(r.Findings)

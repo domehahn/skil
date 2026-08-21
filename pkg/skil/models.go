@@ -79,6 +79,14 @@ type File struct {
 	Data       []byte `json:"-"`
 	SHA256     string `json:"sha256"`
 	Executable bool   `json:"executable,omitempty"`
+	// Encoding is the text encoding internal/artifact detected for Data
+	// before transcoding it to canonical UTF-8 (e.g. "utf-16le") — see
+	// internal/artifact's canonicalizeText. Empty for files constructed
+	// without going through that loader (most direct skil.File{} literals
+	// in tests). "utf-8" for the common case: already-UTF-8 content that
+	// needed no transcoding. Absent (omitted from JSON) is not the same
+	// as "utf-8" — it means no encoding detection ran at all.
+	Encoding string `json:"encoding,omitempty"`
 }
 
 type Artifact struct {
