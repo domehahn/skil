@@ -12,9 +12,18 @@ import (
 	"github.com/domehahn/skil/internal/mcpregistry"
 )
 
+// mcp dispatches skil's "mcp" subcommand group: static registry posture
+// scanning (mcp registry scan) and dynamic runtime assurance (mcp assure).
+func (a *App) mcp(ctx context.Context, args []string) int {
+	if len(args) > 0 && args[0] == "assure" {
+		return a.mcpAssure(ctx, args[1:])
+	}
+	return a.mcpRegistry(ctx, args)
+}
+
 func (a *App) mcpRegistry(ctx context.Context, args []string) int {
 	if len(args) < 2 || args[0] != "registry" || args[1] != "scan" {
-		return a.inputError(errors.New("usage: skil mcp registry scan [file|server-name] [--official] [--format terminal|json]"))
+		return a.inputError(errors.New("usage: skil mcp registry scan [file|server-name] [--official] [--format terminal|json] | skil mcp assure <skill> --runtime-command executable"))
 	}
 	fs := newFlags("mcp registry scan", a.Err)
 	official := fs.Bool("official", false, "fetch from the official MCP Registry v0.1 API")

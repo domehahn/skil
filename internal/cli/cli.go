@@ -156,7 +156,7 @@ func (a *App) Run(ctx context.Context, args []string) int {
 	case "serve":
 		code = a.serve(ctx, args[1:])
 	case "mcp":
-		code = a.mcpRegistry(ctx, args[1:])
+		code = a.mcp(ctx, args[1:])
 	case "admission":
 		code = a.admission(ctx, args[1:])
 	case "verify":
@@ -253,6 +253,7 @@ Usage:
   skil compose <collection> [analysis flags] [--format terminal|json] [--output file]
   skil serve (--stdio | --listen 127.0.0.1:port --token-env ENV) --root <directory>
   skil mcp registry scan [file|server-name] [--official] [--format terminal|json] [--reviewed-closure contract]
+  skil mcp assure <skill> --runtime-command executable [--runtime-args a,b] [--timeout 10s] [--format terminal|json] [--output file]
   skil verify <skill> [--format json] [--osv] [--yara-rules file] [--semantic --semantic-model model] [--semantic-validation review|strict]
   skil eval <skill> [--test file] [--runtime mock|isolated] [--runtime-command executable] [--runs N] [--output file]
   skil assure <skill> --runtime-command executable [--test file] [--runs N] [--full] [--format terminal|json]

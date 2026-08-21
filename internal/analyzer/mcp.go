@@ -324,6 +324,16 @@ type mcpLockDocument struct {
 	Tools   map[string]string `json:"tools"`
 }
 
+// LoadMCPLock parses and validates .skil/mcp-tools.lock.json (tool name ->
+// hex(sha256(description)) digest), the same lock SKIL-MCP-005 checks static
+// manifest metadata against. Exported so other callers that compare against
+// this same lock from a different observation source (e.g. internal/mcpassure's
+// live JSON-RPC handshake, rather than static file parsing) reuse one
+// validated loader and digest convention instead of a second implementation.
+func LoadMCPLock(artifact skil.Artifact) (map[string]string, error) {
+	return loadMCPLock(artifact)
+}
+
 func loadMCPLock(artifact skil.Artifact) (map[string]string, error) {
 	for _, file := range artifact.Files {
 		if file.Path != ".skil/mcp-tools.lock.json" {

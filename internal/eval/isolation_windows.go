@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 	"unicode/utf16"
@@ -450,4 +451,291 @@ func copyRegularFile(source, destination string) error {
 		return copyErr
 	}
 	return closeErr
+}
+
+// windowsSession implements Session for a Windows AppContainer process
+// started by startWindowsIsolation. Unlike runWindowsIsolation (which
+// internally copies request.Stdin in full and drains stdout/stderr to
+// completion before returning), this hands the caller live pipe ends and
+// lets them drive an interactive, multi-round-trip conversation — see
+// internal/eval.Session's doc comment for why (MCP-style JSON-RPC over
+// stdio) IsolationProvider.Run's one-shot model doesn't fit.
+type windowsSession struct {
+	ctx         context.Context
+	stdinWrite  *os.File
+	stdoutRead  *os.File
+	stderrRead  *os.File
+	process     syscall.Handle
+	thread      syscall.Handle
+	job         uintptr
+	sid         uintptr
+	cleanupAttr func()
+	once        sync.Once
+}
+
+func (s *windowsSession) Stdin() io.WriteCloser { return s.stdinWrite }
+func (s *windowsSession) Stdout() io.Reader     { return s.stdoutRead }
+
+func (s *windowsSession) Wait() error {
+	done := make(chan error, 1)
+	go func() {
+		status, _, waitErr := procWaitForSingleObject.Call(uintptr(s.process), infinite)
+		if status != waitObject0 {
+			done <- fmt.Errorf("wait for Windows AppContainer process: %w", waitErr)
+			return
+		}
+		var exitCode uint32
+		if ok, _, exitErr := procGetExitCodeProcess.Call(uintptr(s.process), uintptr(unsafe.Pointer(&exitCode))); ok == 0 {
+			done <- fmt.Errorf("read Windows AppContainer exit code: %w", exitErr)
+			return
+		}
+		if exitCode != 0 {
+			done <- fmt.Errorf("Windows AppContainer process exited with code %d", exitCode)
+			return
+		}
+		done <- nil
+	}()
+	select {
+	case <-s.ctx.Done():
+		_ = s.Close()
+		<-done
+		return s.ctx.Err()
+	case err := <-done:
+		_ = s.Close()
+		return err
+	}
+}
+
+func (s *windowsSession) Close() error {
+	s.once.Do(func() {
+		procTerminateJobObject.Call(s.job, 1)
+		_ = s.stdinWrite.Close()
+		_ = s.stdoutRead.Close()
+		_ = s.stderrRead.Close()
+		procCloseHandle.Call(uintptr(s.thread))
+		procCloseHandle.Call(uintptr(s.process))
+		procCloseHandle.Call(s.job)
+		s.cleanupAttr()
+		if s.sid != 0 {
+			procFreeSid.Call(s.sid)
+		}
+	})
+	return nil
+}
+
+// startWindowsIsolation sets up the identical AppContainer profile, job
+// object (kill-on-close), and staged-adapter-copy sandbox
+// runWindowsIsolation uses, but returns live stdio pipes and process/job
+// handles wrapped as a Session instead of driving the process to
+// completion itself. It deliberately does not share code with
+// runWindowsIsolation beyond the small standalone helpers both already
+// called (appContainerAttributes, windowsEnvironment, ...): duplicating
+// the orchestration here, rather than refactoring the existing,
+// already-relied-upon blocking path, keeps this addition from risking a
+// regression in every other consumer of Run/RunWithLimits.
+func startWindowsIsolation(ctx context.Context, executable string, request IsolationRequest, _ string) (Session, error) {
+	identity := appContainerProfileNamePrefix + fmt.Sprintf("%d.%d", os.Getpid(), time.Now().UnixNano())
+	identityPtr, err := syscall.UTF16PtrFromString(identity)
+	if err != nil {
+		return nil, err
+	}
+	var sid uintptr
+	hr, _, _ := procCreateAppContainerProfile.Call(
+		uintptr(unsafe.Pointer(identityPtr)), uintptr(unsafe.Pointer(identityPtr)),
+		uintptr(unsafe.Pointer(identityPtr)), 0, 0, uintptr(unsafe.Pointer(&sid)),
+	)
+	if uint32(hr) != 0 && uint32(hr) != errorAlreadyExistsHRESULT {
+		return nil, fmt.Errorf("create Windows AppContainer profile: HRESULT 0x%08x", uint32(hr))
+	}
+	releaseProfile := func() { procDeleteAppContainerProfile.Call(uintptr(unsafe.Pointer(identityPtr))) }
+	if sid == 0 {
+		releaseProfile()
+		return nil, errors.New("Windows AppContainer profile returned no SID")
+	}
+
+	sidString, releaseSIDString, err := appContainerSIDString(sid)
+	if err != nil {
+		procFreeSid.Call(sid)
+		releaseProfile()
+		return nil, err
+	}
+	defer releaseSIDString()
+	folder, err := appContainerFolder(sidString)
+	if err != nil {
+		procFreeSid.Call(sid)
+		releaseProfile()
+		return nil, err
+	}
+	isolatedExecutable := filepath.Join(folder, "adapter.exe")
+	if err := copyRegularFile(executable, isolatedExecutable); err != nil {
+		procFreeSid.Call(sid)
+		releaseProfile()
+		return nil, fmt.Errorf("stage Windows AppContainer adapter: %w", err)
+	}
+
+	stdinRead, stdinWrite, err := os.Pipe()
+	if err != nil {
+		procFreeSid.Call(sid)
+		releaseProfile()
+		return nil, err
+	}
+	stdoutRead, stdoutWrite, err := os.Pipe()
+	if err != nil {
+		stdinRead.Close()
+		stdinWrite.Close()
+		procFreeSid.Call(sid)
+		releaseProfile()
+		return nil, err
+	}
+	stderrRead, stderrWrite, err := os.Pipe()
+	if err != nil {
+		stdinRead.Close()
+		stdinWrite.Close()
+		stdoutRead.Close()
+		stdoutWrite.Close()
+		procFreeSid.Call(sid)
+		releaseProfile()
+		return nil, err
+	}
+	abort := func(err error) (Session, error) {
+		stdinRead.Close()
+		stdinWrite.Close()
+		stdoutRead.Close()
+		stdoutWrite.Close()
+		stderrRead.Close()
+		stderrWrite.Close()
+		procFreeSid.Call(sid)
+		releaseProfile()
+		return nil, err
+	}
+	for _, file := range []*os.File{stdinRead, stdoutWrite, stderrWrite} {
+		if err := setInheritable(file); err != nil {
+			return abort(err)
+		}
+	}
+	for _, file := range []*os.File{stdinWrite, stdoutRead, stderrRead} {
+		if err := setNotInheritable(file); err != nil {
+			return abort(err)
+		}
+	}
+
+	attributeList, cleanupAttributes, err := appContainerAttributes(sid)
+	if err != nil {
+		return abort(err)
+	}
+	startup := startupInfoEx{attributeList: attributeList}
+	startup.startup.Cb = uint32(unsafe.Sizeof(startup))
+	startup.startup.Flags = startfUseStdHandles
+	startup.startup.StdInput = syscall.Handle(stdinRead.Fd())
+	startup.startup.StdOutput = syscall.Handle(stdoutWrite.Fd())
+	startup.startup.StdErr = syscall.Handle(stderrWrite.Fd())
+
+	commandLine := syscall.EscapeArg(isolatedExecutable)
+	for _, argument := range request.Args {
+		commandLine += " " + syscall.EscapeArg(argument)
+	}
+	commandPtr, err := syscall.UTF16PtrFromString(commandLine)
+	if err != nil {
+		cleanupAttributes()
+		return abort(err)
+	}
+	applicationPtr, err := syscall.UTF16PtrFromString(isolatedExecutable)
+	if err != nil {
+		cleanupAttributes()
+		return abort(err)
+	}
+	directoryPtr, err := syscall.UTF16PtrFromString(folder)
+	if err != nil {
+		cleanupAttributes()
+		return abort(err)
+	}
+	systemRoot := os.Getenv("SystemRoot")
+	if systemRoot == "" {
+		systemRoot = `C:\Windows`
+	}
+	systemDrive := filepath.VolumeName(systemRoot)
+	if systemDrive == "" {
+		systemDrive = `C:`
+	}
+	systemDirectory := filepath.Join(systemRoot, "System32")
+	environment, err := windowsEnvironment([]string{
+		"APPDATA=" + folder,
+		"ComSpec=" + filepath.Join(systemDirectory, "cmd.exe"),
+		"LOCALAPPDATA=" + folder,
+		"OS=Windows_NT",
+		"PATHEXT=.COM;.EXE;.BAT;.CMD",
+		"ProgramData=" + filepath.Join(systemDrive+`\`, "ProgramData"),
+		"SystemDrive=" + systemDrive,
+		"SystemRoot=" + systemRoot,
+		"PATH=" + systemDirectory,
+		"TMP=" + folder,
+		"TEMP=" + folder,
+		"USERPROFILE=" + folder,
+		"windir=" + systemRoot,
+	})
+	if err != nil {
+		cleanupAttributes()
+		return abort(err)
+	}
+	var processInfo syscall.ProcessInformation
+	success, _, callErr := procCreateProcess.Call(
+		uintptr(unsafe.Pointer(applicationPtr)), uintptr(unsafe.Pointer(commandPtr)),
+		0, 0, 1,
+		extendedStartupInfoPresent|createUnicodeEnvironment|createSuspended,
+		uintptr(unsafe.Pointer(&environment[0])), uintptr(unsafe.Pointer(directoryPtr)),
+		uintptr(unsafe.Pointer(&startup)), uintptr(unsafe.Pointer(&processInfo)),
+	)
+	if success == 0 {
+		cleanupAttributes()
+		return abort(fmt.Errorf("create Windows AppContainer process: %w", callErr))
+	}
+
+	job, _, jobErr := procCreateJobObject.Call(0, 0)
+	if job == 0 {
+		procTerminateProcess.Call(uintptr(processInfo.Process), 1)
+		procCloseHandle.Call(uintptr(processInfo.Process))
+		procCloseHandle.Call(uintptr(processInfo.Thread))
+		cleanupAttributes()
+		return abort(fmt.Errorf("create Windows isolation job: %w", jobErr))
+	}
+	jobLimits := jobExtendedLimitInformation{}
+	jobLimits.basicLimitInformation.limitFlags = jobObjectLimitKillOnJobClose
+	if ok, _, setErr := procSetInformationJobObject.Call(job, jobObjectExtendedLimitInfo,
+		uintptr(unsafe.Pointer(&jobLimits)), unsafe.Sizeof(jobLimits)); ok == 0 {
+		procTerminateProcess.Call(uintptr(processInfo.Process), 1)
+		procCloseHandle.Call(uintptr(processInfo.Process))
+		procCloseHandle.Call(uintptr(processInfo.Thread))
+		procCloseHandle.Call(job)
+		cleanupAttributes()
+		return abort(fmt.Errorf("configure Windows isolation job: %w", setErr))
+	}
+	if ok, _, assignErr := procAssignProcessToJobObject.Call(job, uintptr(processInfo.Process)); ok == 0 {
+		procTerminateProcess.Call(uintptr(processInfo.Process), 1)
+		procCloseHandle.Call(uintptr(processInfo.Process))
+		procCloseHandle.Call(uintptr(processInfo.Thread))
+		procCloseHandle.Call(job)
+		cleanupAttributes()
+		return abort(fmt.Errorf("assign Windows AppContainer to job: %w", assignErr))
+	}
+	if resumed, _, resumeErr := procResumeThread.Call(uintptr(processInfo.Thread)); resumed == 0xffffffff {
+		procTerminateJobObject.Call(job, 1)
+		procCloseHandle.Call(uintptr(processInfo.Process))
+		procCloseHandle.Call(uintptr(processInfo.Thread))
+		procCloseHandle.Call(job)
+		cleanupAttributes()
+		return abort(fmt.Errorf("resume Windows AppContainer process: %w", resumeErr))
+	}
+
+	// The child now owns the read end of stdin and the write ends of
+	// stdout/stderr; close this process's copies so EOF propagates
+	// correctly once the child exits.
+	_ = stdinRead.Close()
+	_ = stdoutWrite.Close()
+	_ = stderrWrite.Close()
+
+	return &windowsSession{
+		ctx: ctx, stdinWrite: stdinWrite, stdoutRead: stdoutRead, stderrRead: stderrRead,
+		process: syscall.Handle(processInfo.Process), thread: syscall.Handle(processInfo.Thread),
+		job: job, sid: sid, cleanupAttr: cleanupAttributes,
+	}, nil
 }

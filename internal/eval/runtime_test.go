@@ -1,6 +1,7 @@
 package eval
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -387,6 +388,15 @@ func TestProcessRuntimeDelegatesHardMemoryLimit(t *testing.T) {
 func TestIsolatedAdapterHelper(t *testing.T) {
 	if len(os.Args) < 2 || os.Args[1] != "-test.run=TestIsolatedAdapterHelper" {
 		return
+	}
+	if helperArgument("stream-echo") != "" {
+		scanner := bufio.NewScanner(os.Stdin)
+		writer := bufio.NewWriter(os.Stdout)
+		for scanner.Scan() {
+			fmt.Fprintf(writer, "echo: %s\n", scanner.Text())
+			writer.Flush()
+		}
+		os.Exit(0)
 	}
 	for _, argument := range os.Args {
 		if argument == "allocate" {

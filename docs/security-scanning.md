@@ -74,6 +74,21 @@ isolation. The combined result passes only when scan, verification, behavioral
 evaluation, containment, and the host-mediated capability gateway all pass for
 the same artifact digest.
 
+`skil mcp assure <skill> --runtime-command executable` closes a gap static
+analysis structurally cannot: `SKIL-MCP-005` can only compare an MCP
+manifest *file* against `.skil/mcp-tools.lock.json`, but a server can present
+one description in that manifest and a different one over the wire. Dynamic
+assurance launches the operator-supplied MCP server command inside the same
+sandboxed isolation `skil assure` uses (never an artifact-declared command
+run automatically), performs the real `initialize` /
+`notifications/initialized` / `tools/list` / `prompts/list` / `resources/list`
+JSON-RPC-over-stdio handshake, and flags any tool (`SKIL-MCP-011`) whose
+live description hashes to something other than its locked digest, or that
+was never declared in the lock at all — a rug pull confirmed by execution,
+not just by parsing. Every round trip is timeout-bounded and every response
+frame size-bounded, so a hung or oversized-response server fails closed
+rather than stalling or exhausting the caller.
+
 Dependency inventory covers `requirements.txt`, `pyproject.toml`,
 `poetry.lock`, `uv.lock`, `package.json`, `package-lock.json`, `go.mod`,
 `Cargo.toml`, `Cargo.lock`, `Gemfile.lock`, and Maven `pom.xml`. Parsing is
