@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- Added charset-smuggling defense: content encoded as UTF-16 (with or
+  without a byte-order mark) or UTF-8-with-BOM is now detected and
+  transcoded to canonical UTF-8 once, at artifact load time, before any
+  analyzer runs. Previously, every "text"-scoped analyzer determined
+  applicability via a check that rejected any content with embedded NUL
+  bytes — which UTF-16 text is full of — so a prompt-injection payload
+  saved as UTF-16 reached zero rules and scanned clean at 100% inspection
+  completeness (a genuinely misleading result, not just a silent skip:
+  the file was marked as inspected, not out-of-scope). The detected
+  encoding is recorded on each file (`skil.File.Encoding`) and surfaced
+  in both the JSON and terminal reports, so the transcoding decision is
+  itself evidence, not a hidden step. Binary content round-trips
+  completely unchanged. See `benchmark/corpus/development/bench-023-utf16-charset-smuggling`.
 - Fixed `SKIL-BOUNDARY-MCP-CONFIG` false-positiving on a skill reading and
   summarizing its own declared `mcp.json` for the user, indistinguishable
   from reading another agent's MCP configuration (#35). Added negative-
