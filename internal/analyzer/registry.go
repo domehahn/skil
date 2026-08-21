@@ -190,6 +190,7 @@ func (r *Registry) Scan(ctx context.Context, ac skil.AnalysisContext) (skil.Scan
 			result.Findings = append(result.Findings, advisory)
 		}
 	}
+	result.Findings = append(result.Findings, correlateThreatChains(result.Findings, result.Observations)...)
 	result.Completeness = summarizeInspection(result.Inspection)
 	for _, file := range ac.Artifact.Files {
 		result.Analyzability = append(result.Analyzability, classifyAnalyzability(file, ac.Artifact.Files))

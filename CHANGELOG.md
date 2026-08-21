@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+- Added Deterministic Threat-Chain Correlation: every scan now runs a
+  fixed, reviewable catalog of named attack patterns over its own already-
+  computed findings and capability observations — each pattern a specific
+  combination of existing rule IDs that must *all* independently fire in
+  the same skill. `SKIL-CHAIN-INJECT-EXEC` (a hidden/encoded instruction
+  plus a confirmed taint flow to an execution sink), `SKIL-CHAIN-SUPPLY-
+  CHAIN-COMPROMISE` (a mutable/unpinned dependency or MCP tool identity
+  plus a suspicious or malicious dependency), `SKIL-CHAIN-DECEPTIVE-
+  MULTIAGENT` (false-identity/false-memory instructions plus unvalidated
+  cross-agent output forwarding), and `SKIL-CHAIN-DECEPTIVE-CREDENTIAL-
+  HARVEST` (Unicode-deceptive presentation plus a credential/secret
+  collection finding). Each is deterministic and fully explainable — no
+  semantic/ML scoring — with evidence listing exactly which constituent
+  findings satisfied it. This is the intra-skill counterpart to `skil
+  compose`'s cross-skill capability correlation. See
+  `benchmark/corpus/development/bench-025-threat-chain-supply-chain-compromise`.
+
 - Added `skil mcp assure <skill> --runtime-command executable`: Dynamic MCP
   Assurance. Launches the operator-supplied MCP server command inside skil's
   existing sandboxed isolation (the same one `skil assure` uses; skil never
