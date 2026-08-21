@@ -142,7 +142,7 @@ func confinedWorkspacePath(root, relative string) (string, error) {
 }
 
 func canonicalRelativePath(value string) (string, error) {
-	if value == "" || strings.ContainsRune(value, 0) || filepath.IsAbs(value) {
+	if value == "" || strings.ContainsRune(value, 0) || filepath.IsAbs(value) || isRootedPath(value) {
 		return "", errors.New("path must be a non-empty relative string")
 	}
 	path := filepath.ToSlash(filepath.Clean(value))
@@ -150,6 +150,21 @@ func canonicalRelativePath(value string) (string, error) {
 		return "", errors.New("path must be canonical and traversal-free")
 	}
 	return path, nil
+}
+
+// isRootedPath reports whether value is anchored to some filesystem root
+// that filepath.IsAbs would miss on the current platform. filepath.IsAbs is
+// platform-specific: on Windows it requires a volume name (a drive letter,
+// e.g. "C:\"), so a POSIX-style path like "/tmp/escape" or "\tmp\escape" is
+// NOT absolute per Go's definition there — even though Windows itself
+// resolves such a path relative to the current drive's root, i.e. anchored
+// outside whatever directory the caller intended to confine it to. Without
+// this check, a workspace/artifact tool's path confinement silently accepts
+// these as ordinary relative paths on Windows while rejecting the
+// equivalent path on Linux/macOS (where IsAbs already catches it) — the
+// same tool call is "safe" on one OS and an escape on another.
+func isRootedPath(value string) bool {
+	return strings.HasPrefix(value, "/") || strings.HasPrefix(value, "\\")
 }
 
 type IsolatedCommandTool struct {
@@ -419,7 +434,7 @@ func canonicalArtifactPath(arguments map[string]any) (string, error) {
 		return "", errors.New("artifact.read requires exactly one path argument")
 	}
 	value, ok := arguments["path"].(string)
-	if !ok || value == "" || strings.ContainsRune(value, 0) || filepath.IsAbs(value) {
+	if !ok || value == "" || strings.ContainsRune(value, 0) || filepath.IsAbs(value) || isRootedPath(value) {
 		return "", errors.New("artifact.read path must be a non-empty relative string")
 	}
 	path := filepath.ToSlash(filepath.Clean(value))

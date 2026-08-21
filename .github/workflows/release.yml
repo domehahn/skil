@@ -45,7 +45,18 @@ jobs:
       - name: Install Linux native isolation
         if: matrix.os == 'linux'
         shell: bash
-        run: sudo apt-get update && sudo apt-get install -y bubblewrap util-linux
+        # The sysctl reset matches ci.yml's assurance-e2e job: recent
+        # Ubuntu 24.04 runner images restrict unprivileged user namespace
+        # creation via AppArmor by default, which makes bubblewrap fail
+        # with "No permissions to create new namespace" even though
+        # bubblewrap itself installed fine. Without this, the release
+        # assurance gate below fails on every run.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bubblewrap util-linux
+          if sysctl -n kernel.apparmor_restrict_unprivileged_userns >/dev/null 2>&1; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
       - name: Build release assurance adapter
         shell: bash
         env:
@@ -58,9 +69,27 @@ jobs:
         env:
           EXECUTABLE_SUFFIX: ${{ matrix.executable_suffix }}
         run: |
+          set +e
           go run ./cmd/skil assure tests/fixtures/goal-boundary-containment \
             --runtime-command ".release-gate/assurance-adapter${EXECUTABLE_SUFFIX}" \
             --format json --output .release-gate/assurance.json
+          code=$?
+          set -e
+          if [ "$code" -ne 0 ]; then
+            # go run's own error ("exit status N") carries no detail about
+            # *why* the gate failed, so surface the assurance report's
+            # verdict fields directly on failure.
+            jq '{
+              status,
+              scan_status: .scan.status,
+              verification_status: .verification.status,
+              evaluation_status: .evaluation.status,
+              coverage: .evaluation.coverage,
+              violations: [.evaluation.runs[]?.violations[]?],
+              runtime_errors: [.evaluation.runs[]?.trace.errors[]?]
+            }' .release-gate/assurance.json
+            exit "$code"
+          fi
           grep -q '"runtime_enforcement": true' .release-gate/assurance.json
           grep -q '"containment": "completed"' .release-gate/assurance.json
           grep -q '"native_isolation": "completed"' .release-gate/assurance.json
@@ -117,6 +146,11 @@ jobs:
       id-token: write
       attestations: write
     steps:
+      # gh release create --generate-notes needs a local git checkout to
+      # walk commit history against; this job otherwise only downloads
+      # artifacts, so without this step it fails with "fatal: not a git
+      # repository".
+      - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
         with:
           pattern: skil-*
