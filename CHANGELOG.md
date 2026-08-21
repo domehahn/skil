@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Added a `.pyc` compiled-Python-bytecode analyzer: decodes the PEP 552
+  header (Python version, invalidation mode), correlates each `.pyc` with
+  an accompanying `.py` source in the same artifact when present, and
+  flags `SKIL-PYC-SOURCE-MISMATCH` when a timestamp-based header's
+  recorded source size doesn't match that source's actual byte length —
+  the case of a `.pyc` shipped next to a `.py` it wasn't compiled from. A
+  `.pyc` with no accompanying source is `opaque` in the analyzability
+  ledger; one with source present is `partial`.
+
 - Added an analyzability model, distinct from inspection completeness:
   each scan now reports, per file, whether its content was actually
   visible to analysis (`full`/`partial`/`opaque`) rather than just

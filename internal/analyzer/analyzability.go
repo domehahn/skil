@@ -10,20 +10,36 @@ import "github.com/domehahn/skil/pkg/skil"
 // to skip in the first place, so nothing in the inspection ledger flags
 // it as a gap, yet skil cannot read a single instruction of what it does.
 //
-// v1 draws the line at exactly one signal: whether canonicalizeText (see
-// internal/artifact) recognized the file as text. That is deliberately
-// the only thing this function claims — it does not yet attempt to
-// distinguish "text that failed to parse as an AST" (partial) from "text
-// fully understood" (full), and it does not yet correlate compiled
-// bytecode with an available source file. AnalyzabilityPartial exists in
-// the schema for exactly those future refinements; nothing emits it yet.
-func classifyAnalyzability(file skil.File) skil.AnalyzabilityRecord {
+// v1 draws the line at two signals. The primary one: whether
+// canonicalizeText (see internal/artifact) recognized the file as text.
+// That alone does not yet distinguish "text that failed to parse as an
+// AST" (partial) from "text fully understood" (full) — nothing emits
+// that distinction yet. The second, narrower signal: a recognized .pyc
+// file (see pyc.go) with an accompanying .py source present in this
+// artifact is partial rather than opaque — the bytecode itself is still
+// unread, but its declared source is available for every other analyzer
+// to inspect, which a compiled binary with no source never offers.
+func classifyAnalyzability(file skil.File, allFiles []skil.File) skil.AnalyzabilityRecord {
 	record := skil.AnalyzabilityRecord{
 		Path: file.Path, Encoding: file.Encoding, Executable: file.Executable, SHA256: file.SHA256,
 	}
 	if isText(file) {
 		record.State = skil.AnalyzabilityFull
 		return record
+	}
+	if extension(file.Path) == "pyc" {
+		if header, ok := parsePycHeader(file.Data); ok {
+			if source, hasSource := findPycSource(file.Path, allFiles); hasSource {
+				record.State = skil.AnalyzabilityPartial
+				record.BinaryKind = "Python compiled bytecode (.pyc, " + header.PythonVersion + ")"
+				record.Reason = "accompanying source " + source.Path + " is present in this artifact; the compiled bytecode itself is not decompiled or read"
+				return record
+			}
+			record.State = skil.AnalyzabilityOpaque
+			record.BinaryKind = "Python compiled bytecode (.pyc, " + header.PythonVersion + ")"
+			record.Reason = "no accompanying .py source in this artifact; skil does not decompile bytecode"
+			return record
+		}
 	}
 	record.State = skil.AnalyzabilityOpaque
 	record.BinaryKind = disguisedBinaryKind(file.Data)

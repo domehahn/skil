@@ -129,6 +129,22 @@ section. `File.SHA256` is always the digest of the original, untranscoded
 bytes, so content-addressing and attestation digests are unaffected.
 Binary content round-trips completely unchanged.
 
+Compiled Python bytecode (`.pyc`): the PEP 552 header is decoded (magic
+number → a best-effort Python version label, falling back to "unknown
+(magic 0x____)" rather than a wrong guess; invalidation mode: timestamp-
+based, checked-hash, or unchecked-hash). A `.pyc` with no accompanying
+`.py` source in the same artifact is `opaque` in the analyzability
+ledger — skil does not decompile bytecode. One with a source present is
+`partial`: for the common timestamp-based invalidation mode, the
+header's recorded source-file size is compared against the accompanying
+source's actual byte length in this artifact, and a mismatch raises
+`SKIL-PYC-SOURCE-MISMATCH` (HIGH) — the concrete case of a `.pyc` that
+wasn't compiled from the source it ships next to, which a reviewer
+reading only the `.py` file would miss. Hash-based `.pyc` files are not
+cryptographically verified against their source (reimplementing
+CPython's exact source-hashing scheme incorrectly would be worse than
+not attempting it) — only the timestamp-based size check is performed.
+
 `scan-all` discovers concrete `SKILL.md` roots below a local or explicitly
 allowed remote collection and returns one independently digest-bound result per
 skill. `--workers` provides bounded parallelism while preserving discovery

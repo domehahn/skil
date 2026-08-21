@@ -21,6 +21,7 @@ func BuiltinRules() []skil.Rule {
 	out = append(out, NewIdentity().Rules()...)
 	out = append(out, NewLateral().Rules()...)
 	out = append(out, NewAsset().Rules()...)
+	out = append(out, NewPyC().Rules()...)
 	out = append(out, nativeSupplementalRules()...)
 	byID := make(map[string]skil.Rule, len(out))
 	for _, rule := range out {
@@ -128,6 +129,9 @@ func NativeControlImplementations() map[string]ControlImplementation {
 	}
 	for _, rule := range NewAsset().Rules() {
 		out[rule.ID] = ControlImplementation{Engine: "builtin.asset"}
+	}
+	for _, rule := range NewPyC().Rules() {
+		out[rule.ID] = ControlImplementation{Engine: "builtin.pyc"}
 	}
 	for _, rule := range NewHiddenInstruction().Rules() {
 		out[rule.ID] = ControlImplementation{Engine: "builtin.hidden-instruction"}

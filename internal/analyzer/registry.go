@@ -19,7 +19,7 @@ func DefaultRegistry(vuln skil.VulnerabilityProvider) *Registry {
 		NewPattern(), NewPythonAST(), NewStructuredAST(), NewTaint(), NewDependency(vuln), NewMCP(), NewBoundary(), NewUnicode(),
 		NewLocalSemantic(), NewModelArtifact(), NewSecret(), NewBuild(), NewIdentity(), NewLateral(), NewAsset(),
 		NewSkill(), NewToolCapability(), NewDataDataset(), NewRAGContext(), NewMultiAgent(), NewAuditEvidence(), NewPolicyEnforcement(),
-		NewHiddenInstruction(), NewTrigger(), NewResourceConfig(), NewCredentialFlow(), NewDataClassification(),
+		NewHiddenInstruction(), NewTrigger(), NewResourceConfig(), NewCredentialFlow(), NewDataClassification(), NewPyC(),
 	}
 	return &Registry{analyzers: items}
 }
@@ -192,7 +192,7 @@ func (r *Registry) Scan(ctx context.Context, ac skil.AnalysisContext) (skil.Scan
 	}
 	result.Completeness = summarizeInspection(result.Inspection)
 	for _, file := range ac.Artifact.Files {
-		result.Analyzability = append(result.Analyzability, classifyAnalyzability(file))
+		result.Analyzability = append(result.Analyzability, classifyAnalyzability(file, ac.Artifact.Files))
 	}
 	result.Analyzable = summarizeAnalyzability(result.Analyzability)
 	sort.Slice(result.Findings, func(i, j int) bool {
