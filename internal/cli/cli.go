@@ -79,6 +79,7 @@ type analysisFlags struct {
 	semanticValidation   *string
 	semanticRuns         *int
 	requireComplete      *bool
+	failOnIncomplete     *bool
 	allowRemote          *bool
 	dependencyReputation *string
 	domain               *string
@@ -108,6 +109,7 @@ func bindAnalysisFlags(fs *flag.FlagSet) analysisFlags {
 		semanticValidation:   fs.String("semantic-validation", "review", "semantic output validation: review or strict"),
 		semanticRuns:         fs.Int("semantic-runs", 1, "independent semantic passes per request; a finding is kept only if a majority agree (Semantic Multi-Run Consensus)"),
 		requireComplete:      fs.Bool("require-complete", false, "fail the gate unless every applicable inspection work item completed"),
+		failOnIncomplete:     fs.Bool("fail-on-incomplete", false, "fail the gate if the scan exceeded its analysis budget (raw/expanded bytes, findings, inspection events, or wall time)"),
 		allowRemote:          fs.Bool("allow-remote", false, "explicitly permit a public HTTPS archive or Git source"),
 		dependencyReputation: fs.String("dependency-reputation", "", "trusted offline package-reputation JSON"),
 		domain:               fs.String("domain", "", "only run analyzers matching this taxonomy domain (comma-separated)"),
@@ -252,7 +254,7 @@ Usage:
   skil validate <skill> [--format json]
   skil lint <skill> [--strict|--profile default|strict|portable|publish] [--format terminal|json|markdown|sarif] [--output file]
   skil lint-all <collection> [--profile default|strict|portable|publish] [--workers N] [--format terminal|json|markdown] [--output file]
-   skil scan <skill> [--full] [--static-only] [--osv] [--yara-rules file|--yara-rules-dir dir] [--semantic --semantic-model model] [--semantic-validation review|strict] [--semantic-runs N] [--require-complete] [--allow-remote]
+   skil scan <skill> [--full] [--static-only] [--osv] [--yara-rules file|--yara-rules-dir dir] [--semantic --semantic-model model] [--semantic-validation review|strict] [--semantic-runs N] [--require-complete] [--fail-on-incomplete] [--allow-remote]
               [--format terminal|json|markdown|sarif] [--compact] [--output file] [--baseline file] [--show-suppressed=false] [--domain domain] [--list-domains]
   skil scan-all <collection> [analysis flags] [--workers N] [--format terminal|json|markdown] [--output file]
   skil compose <collection> [analysis flags] [--format terminal|json] [--output file]
@@ -1814,6 +1816,10 @@ func (a *App) performScanConfiguredExcluding(
 		result.Artifact.Repository = source
 	}
 	if err == nil && flags.requireComplete != nil && *flags.requireComplete && result.Completeness.Completeness < 1 {
+		result.Status = skil.StatusFail
+		result.Verdict = skil.VerdictBlock
+	}
+	if err == nil && flags.failOnIncomplete != nil && *flags.failOnIncomplete && len(result.Budget.Exceeded) > 0 {
 		result.Status = skil.StatusFail
 		result.Verdict = skil.VerdictBlock
 	}

@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+- Added a global `AnalysisBudget`: every scan now draws from a single
+  shared resource ceiling (raw bytes, expanded bytes from nested
+  containers, findings, inspection events, wall time) instead of each
+  analyzer/subsystem only enforcing its own local, independent bound.
+  Only wall time is actually enforced mid-scan (a context deadline derived
+  from the budget — an analyzer whose deadline expires is explicitly
+  `skipped`, distinguished from the caller's own context being cancelled,
+  and the scan still completes and reports rather than hard-failing); the
+  other dimensions are measured against the completed scan and reported,
+  since silently truncating findings or content mid-analysis would itself
+  be a correctness risk. Any dimension exceeded raises `Status` to at
+  least `WARN`, adds an `analysis-budget` diagnostic, and is recorded
+  per-dimension (used/limit) in the new `analysis_budget` field
+  (`skil.AnalysisBudgetUsage`). New `--fail-on-incomplete` CLI flag and
+  `deny_budget_exhausted: true` policy field turn an exceeded budget into
+  a hard gate failure. Defaults are generous enough that no realistic
+  skill scan hits them — this is a backstop against a pathological or
+  adversarial artifact, not a routine constraint or a set of dials meant
+  for daily tuning.
+
 - Added Nested Artifact Virtualization: a ZIP-compatible container (`.zip`,
   or an Open XML document — `.docx`/`.xlsx`/`.pptx`) found as a regular
   file inside the artifact is itself bounded-expanded at load time, and

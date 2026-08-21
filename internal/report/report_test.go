@@ -189,3 +189,33 @@ func TestTerminalReportOmitsAnalyzabilitySectionWhenNoFiles(t *testing.T) {
 		t.Fatalf("did not expect an ANALYZABILITY section for an empty artifact: %s", out.String())
 	}
 }
+
+func TestTerminalReportSurfacesExceededAnalysisBudget(t *testing.T) {
+	result := sample()
+	result.Budget = skil.AnalysisBudgetUsage{
+		RawBytes: skil.BudgetDimension{Used: 100, Limit: 100},
+		Findings: skil.BudgetDimension{Used: 20_000, Limit: 10_000},
+		WallTime: skil.BudgetDimension{Used: 130_000, Limit: 120_000},
+		Exceeded: []string{"findings", "wall_time"},
+	}
+	var out bytes.Buffer
+	if err := Write(&out, "terminal", result); err != nil {
+		t.Fatal(err)
+	}
+	text := out.String()
+	if !strings.Contains(text, "ANALYSIS BUDGET") || !strings.Contains(text, "Exceeded: findings, wall_time") {
+		t.Fatalf("expected an ANALYSIS BUDGET section listing the exceeded dimensions: %s", text)
+	}
+}
+
+func TestTerminalReportOmitsAnalysisBudgetSectionWhenWithinBudget(t *testing.T) {
+	result := sample()
+	result.Budget = skil.AnalysisBudgetUsage{RawBytes: skil.BudgetDimension{Used: 10, Limit: 100}}
+	var out bytes.Buffer
+	if err := Write(&out, "terminal", result); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(out.String(), "ANALYSIS BUDGET") {
+		t.Fatalf("did not expect an ANALYSIS BUDGET section when nothing was exceeded: %s", out.String())
+	}
+}

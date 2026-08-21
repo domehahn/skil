@@ -172,6 +172,22 @@ containers are virtualized in this first pass; a `.tar.gz` found as an
 ordinary file inside an artifact is not (the top-level artifact *package*
 format already supports `.tgz` independently of this).
 
+Every scan draws from a single shared `AnalysisBudget` (raw bytes, expanded
+bytes from nested containers, findings, inspection events, wall time) — a
+resource backstop against a pathological or adversarial artifact, not a
+routine constraint (the defaults are generous enough no realistic skill
+scan hits them). Only the wall-time dimension is actually enforced mid-scan
+(via a context deadline: an analyzer whose own deadline expires is skipped
+rather than left to run unbounded, with the analysis budget's own deadline
+distinguished from any deadline the caller's own context carried); the
+other dimensions are measured against the completed scan and reported,
+since silently truncating findings or file content mid-analysis would
+itself be a correctness risk. Any dimension exceeded raises the scan's
+`Status` to at least `WARN`, adds an `analysis-budget` diagnostic, and is
+recorded per-dimension (used/limit) in `analysis_budget`. `--fail-on-incomplete`
+turns an exceeded budget into a hard gate failure; a reviewed policy can
+enforce the same with `deny_budget_exhausted: true`.
+
 Charset smuggling: content encoded as UTF-16 (with or without a byte-order
 mark) or UTF-8-with-BOM is detected and transcoded to canonical UTF-8 once,
 at artifact load time, before any analyzer runs — every "text"-scoped

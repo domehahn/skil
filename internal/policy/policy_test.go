@@ -89,6 +89,30 @@ func TestPolicyAllowsOpaqueNonExecutableContentByDefault(t *testing.T) {
 	}
 }
 
+func TestPolicyDeniesBudgetExhaustedWhenConfigured(t *testing.T) {
+	result := Check(Policy{Version: 1, MaximumSeverity: "CRITICAL", DenyBudgetExhausted: true}, Input{
+		Scan: skil.ScanResult{
+			Maximum: skil.SeverityInfo,
+			Budget:  skil.AnalysisBudgetUsage{Exceeded: []string{"findings", "wall_time"}},
+		},
+	})
+	if result.Decision != "DENY" || len(result.Violations) != 1 || result.Violations[0].Observed != "findings, wall_time" {
+		t.Fatalf("expected exactly one violation naming the exceeded dimensions: %#v", result)
+	}
+}
+
+func TestPolicyAllowsBudgetExhaustedByDefault(t *testing.T) {
+	result := Check(Policy{Version: 1, MaximumSeverity: "CRITICAL"}, Input{
+		Scan: skil.ScanResult{
+			Maximum: skil.SeverityInfo,
+			Budget:  skil.AnalysisBudgetUsage{Exceeded: []string{"findings"}},
+		},
+	})
+	if result.Decision != "ALLOW" {
+		t.Fatalf("expected ALLOW: an exceeded budget must not deny unless deny_budget_exhausted is set: %#v", result)
+	}
+}
+
 func TestPolicyDeniesRevokedArtifactDigest(t *testing.T) {
 	p := Policy{Version: 1, MaximumSeverity: "CRITICAL", RevokedArtifactDigests: []string{"deadbeef"}}
 	result := Check(p, Input{Scan: skil.ScanResult{

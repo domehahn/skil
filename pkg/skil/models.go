@@ -242,6 +242,7 @@ type ScanResult struct {
 	Analyzability []AnalyzabilityRecord    `json:"analyzability_ledger,omitempty"`
 	Analyzable    AnalyzabilitySummary     `json:"analyzability_summary"`
 	Diagnostics   []Diagnostic             `json:"diagnostics,omitempty"`
+	Budget        AnalysisBudgetUsage      `json:"analysis_budget"`
 	GeneratedAt   time.Time                `json:"generated_at"`
 }
 
@@ -259,6 +260,58 @@ type AnalysisContext struct {
 	Artifact     Artifact
 	Contract     *SkillContract
 	DomainFilter []string // empty = all domains; non-empty = only run analyzers matching these domains
+	// Budget bounds the whole scan's aggregate resource consumption
+	// (bytes analyzed, findings, inspection events, wall time) — a single
+	// shared ceiling across every analyzer, not a per-analyzer-local one.
+	// Nil uses DefaultAnalysisBudget.
+	Budget *AnalysisBudget
+}
+
+// AnalysisBudget is the shared resource ceiling one scan's analyzers
+// collectively draw from. Any dimension being exceeded raises the scan's
+// overall Status to at least WARN and is recorded in AnalysisBudgetUsage —
+// deliberately observability-and-gating rather than mid-scan truncation
+// for every dimension: MaxWallTime is the one dimension actually enforced
+// (via a context deadline derived from it, so every analyzer's own
+// existing ctx.Err() checks stop real work early); the others are
+// measured against the completed scan and reported, since silently
+// truncating findings or file content mid-analysis would itself be a
+// correctness risk skil's fail-closed philosophy exists to avoid.
+type AnalysisBudget struct {
+	MaxRawBytes         int64
+	MaxExpandedBytes    int64
+	MaxFindings         int
+	MaxInspectionEvents int
+	MaxWallTime         time.Duration
+}
+
+// DefaultAnalysisBudget is generous enough that no realistic skill scan
+// hits it under normal use; it exists as a backstop against a pathological
+// or adversarial artifact, not a routine constraint.
+func DefaultAnalysisBudget() AnalysisBudget {
+	return AnalysisBudget{
+		MaxRawBytes: 100 << 20, MaxExpandedBytes: 150 << 20,
+		MaxFindings: 10_000, MaxInspectionEvents: 200_000, MaxWallTime: 2 * time.Minute,
+	}
+}
+
+// AnalysisBudgetUsage reports exactly what one scan consumed against
+// AnalysisBudget, dimension by dimension, so the budget's role in a
+// scan's outcome is as inspectable as any finding's evidence.
+type AnalysisBudgetUsage struct {
+	RawBytes         BudgetDimension `json:"raw_bytes"`
+	ExpandedBytes    BudgetDimension `json:"expanded_bytes"`
+	Findings         BudgetDimension `json:"findings"`
+	InspectionEvents BudgetDimension `json:"inspection_events"`
+	WallTime         BudgetDimension `json:"wall_time"`
+	// Exceeded lists which dimensions (by JSON field name above) were
+	// over budget; empty means the whole scan stayed within budget.
+	Exceeded []string `json:"exceeded,omitempty"`
+}
+
+type BudgetDimension struct {
+	Used  int64 `json:"used"`
+	Limit int64 `json:"limit"`
 }
 
 type Analyzer interface {
