@@ -30,7 +30,7 @@ func TestDefaultRegistryScanPopulatesAnalyzabilityLedger(t *testing.T) {
 
 func TestClassifyAnalyzabilityUTF8TextIsFull(t *testing.T) {
 	file := skil.File{Path: "SKILL.md", Data: []byte("hello"), Encoding: "utf-8"}
-	record := classifyAnalyzability(file)
+	record := classifyAnalyzability(file, nil)
 	if record.State != skil.AnalyzabilityFull {
 		t.Fatalf("state = %q, want full: %#v", record.State, record)
 	}
@@ -43,7 +43,7 @@ func TestClassifyAnalyzabilityRecognizedExecutableIsOpaqueWithBinaryKind(t *test
 	// "MZ" DOS header prefix, as a real PE would start with.
 	data := append([]byte{'M', 'Z', 0x90, 0x00, 0x03, 0x00, 0x00, 0x00}, make([]byte, 32)...)
 	file := skil.File{Path: "tool.exe", Data: data, Encoding: "binary", Executable: true}
-	record := classifyAnalyzability(file)
+	record := classifyAnalyzability(file, nil)
 	if record.State != skil.AnalyzabilityOpaque {
 		t.Fatalf("state = %q, want opaque", record.State)
 	}
@@ -58,7 +58,7 @@ func TestClassifyAnalyzabilityRecognizedExecutableIsOpaqueWithBinaryKind(t *test
 func TestClassifyAnalyzabilityUnrecognizedBinaryIsOpaqueWithoutBinaryKind(t *testing.T) {
 	data := []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52}
 	file := skil.File{Path: "logo.png", Data: data, Encoding: "binary"}
-	record := classifyAnalyzability(file)
+	record := classifyAnalyzability(file, nil)
 	if record.State != skil.AnalyzabilityOpaque {
 		t.Fatalf("state = %q, want opaque", record.State)
 	}

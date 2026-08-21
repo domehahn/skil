@@ -1,0 +1,24 @@
+schema_version: 1
+id: bench-024-pyc-source-mismatch
+tier: development
+title: Compiled .pyc bytecode does not match its declared accompanying source
+ground_truth:
+  malicious: true
+  category: supply_chain_integrity
+references:
+  - framework: advisory
+    control: pyc-bytecode-integrity
+rationale: >
+  scripts/tool.pyc's PEP 552 header (a real header from py_compile,
+  hand-edited to change only the recorded source size) declares a
+  source-file size of 32 bytes; the accompanying scripts/tool.py in this
+  artifact is 78 bytes — the compiled bytecode was not produced from the
+  source file it ships next to. This is exactly the case a reviewer
+  approving a skill by reading its .py source, while the shipped .pyc
+  actually executes something else, would miss without a coherence
+  check between the two.
+artifact:
+  root: artifact
+review:
+  status: provisional
+  reviewers: []
