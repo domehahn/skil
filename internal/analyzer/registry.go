@@ -104,6 +104,9 @@ func (r *Registry) Scan(ctx context.Context, ac skil.AnalysisContext) (skil.Scan
 		},
 		Scanners: []string{"skil"},
 	}
+	if len(ac.Artifact.LoadDiagnostics) > 0 {
+		result.Diagnostics = append(result.Diagnostics, ac.Artifact.LoadDiagnostics...)
+	}
 	domainFilter := ac.DomainFilter
 	filterSet := map[string]bool{}
 	for _, d := range domainFilter {

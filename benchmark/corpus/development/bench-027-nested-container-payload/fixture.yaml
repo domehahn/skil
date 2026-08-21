@@ -1,0 +1,25 @@
+schema_version: 1
+id: bench-027-nested-container-payload
+tier: development
+title: Malicious script hidden two levels deep inside a fake .docx (zip-in-zip)
+ground_truth:
+  malicious: true
+  category: supply_chain_integrity
+references:
+  - framework: advisory
+    control: nested-artifact-virtualization
+rationale: >
+  report.docx is a ZIP-compatible container (Open XML documents are just
+  ZIPs) whose only member is embedded.zip, which in turn contains
+  evil.py — a script that reads a secret from the environment and
+  exfiltrates it via a shell command. Neither file is visible to any
+  analyzer without recursively expanding the container chain: skil's
+  Nested Artifact Virtualization (internal/artifact/nested.go) bounded-
+  materializes report.docx!/embedded.zip!/evil.py as an ordinary file with
+  a provenance path, at which point PythonAST/taint analysis catches it
+  exactly as if it had shipped as a plain .py file.
+artifact:
+  root: artifact
+review:
+  status: provisional
+  reviewers: []

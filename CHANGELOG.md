@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+- Added Nested Artifact Virtualization: a ZIP-compatible container (`.zip`,
+  or an Open XML document — `.docx`/`.xlsx`/`.pptx`) found as a regular
+  file inside the artifact is itself bounded-expanded at load time, and
+  its members are added as additional files with a provenance path
+  (`report.docx!/embedded.zip!/evil.py`) — so a payload hidden inside a
+  container-inside-a-container reaches the same AST/taint/dependency/
+  MCP/secret/semantic analysis any ordinary file does, instead of only
+  ever being visible as one opaque binary blob. Each materialized file
+  records its nesting depth (`File.container_depth`) and its immediate
+  parent's raw-byte digest (`File.container_parent_sha256`); the
+  container itself is still scanned/reported as an ordinary opaque binary
+  file exactly as before — virtualization is purely additive. A single
+  shared budget bounds every container virtualized for one artifact (not
+  per-container): depth 3, 1,000 total materialized members, 25 MiB total
+  materialized bytes, 1 MiB per member, 100:1 compression ratio (a
+  zip-bomb defense), 5s wall-clock time. Any bound reached produces a
+  `nested-container` diagnostic rather than silently skipping content or
+  failing the scan. See `internal/artifact/nested.go` and
+  `benchmark/corpus/development/bench-027-nested-container-payload`.
+
 - Added Ruby AST analysis (`builtin.ruby-ast`, `.rb` files): a dedicated
   tree-sitter-ruby syntax-tree analyzer, extending Tree-sitter AST coverage
   (previously Python, JavaScript, TypeScript/TSX, Bash) to a fifth

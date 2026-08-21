@@ -148,6 +148,30 @@ deny shipping executable content skil couldn't inspect with
 recognized as executable/archive or carrying the executable bit, not on
 ordinary opaque binary data like images or fonts.
 
+Nested Artifact Virtualization: a ZIP-compatible container (`.zip`, or an
+Open XML document — `.docx`/`.xlsx`/`.pptx`, which is just a ZIP with a
+specific internal structure) found as a regular file inside the artifact is
+itself bounded-expanded, at artifact load time, and its members are added as
+additional files with a provenance path recording exactly where they came
+from (`report.docx!/embedded.zip!/evil.py`) — so a payload hidden inside a
+container-inside-a-container reaches the same AST, taint, dependency, MCP,
+secret, and semantic analysis any ordinary file does, rather than only ever
+being visible as one opaque binary blob. Each materialized file records its
+nesting depth (`container_depth`) and its immediate parent's raw-byte digest
+(`container_parent_sha256`); the container itself is still scanned and
+reported as an ordinary (opaque) binary file exactly as it always was —
+virtualization is purely additive, never a replacement. Bounds are a single
+shared budget across every container virtualized for one artifact, not
+per-container: nesting depth (3), total materialized members (1,000), total
+materialized bytes (25 MiB), a single member (1 MiB), compression ratio
+(100:1, a zip-bomb defense), and wall-clock time (5s). Any bound reached
+produces a `nested-container` diagnostic (visible in the terminal report's
+LIMITATIONS & DIAGNOSTICS section and JSON `diagnostics`) rather than either
+silently skipping the content or failing the whole scan. Only ZIP-family
+containers are virtualized in this first pass; a `.tar.gz` found as an
+ordinary file inside an artifact is not (the top-level artifact *package*
+format already supports `.tgz` independently of this).
+
 Charset smuggling: content encoded as UTF-16 (with or without a byte-order
 mark) or UTF-8-with-BOM is detected and transcoded to canonical UTF-8 once,
 at artifact load time, before any analyzer runs — every "text"-scoped

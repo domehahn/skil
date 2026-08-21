@@ -66,6 +66,14 @@ func Load(source string, opts Options) (skil.Artifact, error) {
 	if len(files) == 0 {
 		return skil.Artifact{}, errors.New("source contains no scannable regular files")
 	}
+	// Nested Artifact Virtualization: a .zip/.docx/.xlsx/.pptx/... found as
+	// a regular file inside the artifact is itself bounded-expanded and
+	// added as additional files with a provenance path — see
+	// internal/artifact/nested.go's package doc for the full bounds. This
+	// runs for every source kind (directory, zip/tgz package, single file)
+	// uniformly, since it operates on whatever files were already loaded.
+	nested, loadDiagnostics := VirtualizeNestedContainers(files)
+	files = append(files, nested...)
 	sort.Slice(files, func(i, j int) bool { return files[i].Path < files[j].Path })
 	h := sha256.New()
 	for _, file := range files {
@@ -84,7 +92,7 @@ func Load(source string, opts Options) (skil.Artifact, error) {
 	}
 	return skil.Artifact{
 		Name: name, Source: source, Digest: hex.EncodeToString(h.Sum(nil)), PackageDigest: packageDigest,
-		Files: files, Timestamp: time.Now().UTC(),
+		Files: files, Timestamp: time.Now().UTC(), LoadDiagnostics: loadDiagnostics,
 	}, nil
 }
 
