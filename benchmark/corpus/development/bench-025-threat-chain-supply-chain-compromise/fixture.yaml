@@ -1,0 +1,25 @@
+schema_version: 1
+id: bench-025-threat-chain-supply-chain-compromise
+tier: development
+title: Unpinned, typosquat-named dependency correlates into a threat chain
+ground_truth:
+  malicious: true
+  category: supply_chain_integrity
+references:
+  - framework: advisory
+    control: threat-chain-correlation
+rationale: >
+  pyproject.toml declares "reqeusts" (edit-distance 1 from the popular
+  package "requests") with no version pin at all. Each half is already its
+  own finding (SKIL-DEP-001 unpinned, SKIL-DEP-002 suspicious name), but
+  neither alone tells a reviewer this is a concrete supply-chain
+  compromise stage: an identity that can silently change (unpinned) AND
+  content already worth distrusting (typosquat) in the same dependency.
+  Deterministic Threat-Chain Correlation (SKIL-CHAIN-SUPPLY-CHAIN-COMPROMISE)
+  exists specifically to surface that combined narrative as one finding
+  rather than two independent, easy-to-triage-separately ones.
+artifact:
+  root: artifact
+review:
+  status: provisional
+  reviewers: []

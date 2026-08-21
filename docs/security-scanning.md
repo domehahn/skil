@@ -89,6 +89,20 @@ not just by parsing. Every round trip is timeout-bounded and every response
 frame size-bounded, so a hung or oversized-response server fails closed
 rather than stalling or exhausting the caller.
 
+Deterministic Threat-Chain Correlation runs once per scan, after every
+analyzer has produced its findings and capability observations, and checks
+a fixed, reviewable catalog of named attack patterns — each one a specific
+combination of existing rule IDs that must *all* independently fire in the
+same skill. A hidden/encoded instruction is one finding and a confirmed
+taint flow to an execution sink is another; together they are
+`SKIL-CHAIN-INJECT-EXEC`, because the injected instruction now has a
+concrete place to run rather than a merely theoretical one. This is
+deliberately not a general graph/taint engine or a semantic/ML score: a
+chain firing is exactly as explainable and reproducible as any single rule,
+and its evidence lists exactly which constituent findings satisfied it.
+`skil compose` remains the cross-skill counterpart; threat chains correlate
+within one skill's own already-computed results.
+
 Dependency inventory covers `requirements.txt`, `pyproject.toml`,
 `poetry.lock`, `uv.lock`, `package.json`, `package-lock.json`, `go.mod`,
 `Cargo.toml`, `Cargo.lock`, `Gemfile.lock`, and Maven `pom.xml`. Parsing is
