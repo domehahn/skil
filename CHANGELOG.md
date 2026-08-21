@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+- Added Semantic Multi-Run Consensus (`--semantic-runs N`, default `1`, a
+  pure pass-through at no extra cost): repeats every model-backed semantic
+  pass `N` independent times and keeps a finding only when a strict
+  majority of the `N` runs agree on it (same rule, same location) —
+  a single model call is inherently sampling-noise-prone, and a finding
+  only a minority of runs reported is dropped entirely rather than
+  down-weighted. A kept finding's confidence is rescaled by its agreement
+  ratio, with the exact tally recorded in its evidence
+  (`consensus_runs`/`consensus_total`). The aggregation itself is a pure,
+  deterministic count over already-returned results — no additional model
+  call — so the "was this finding kept" decision stays as explainable and
+  reproducible as every other rule, even though the underlying per-run
+  model calls aren't. Implemented as `internal/provider/consensus`, a
+  decorator around any `skil.SemanticProvider`, so it applies uniformly to
+  every semantic-provider backend without analyzer-level changes. See
+  `docs/semantic-analysis.md`.
+
 - Added `skil discover [--home dir] [--format terminal|json]`: an
   inventory of AI-agent skill and MCP-server components already installed
   on the local machine, in the well-known per-tool locations Claude Code,
