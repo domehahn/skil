@@ -87,6 +87,18 @@ type File struct {
 	// needed no transcoding. Absent (omitted from JSON) is not the same
 	// as "utf-8" — it means no encoding detection ran at all.
 	Encoding string `json:"encoding,omitempty"`
+	// ContainerDepth is 0 for a file loaded directly from the top-level
+	// artifact, and N for a file materialized by
+	// internal/artifact.VirtualizeNestedContainers from the Nth level of
+	// nested ZIP-compatible container virtualization (a .zip/.docx/.xlsx/
+	// .pptx/... found as a regular file inside the artifact, itself
+	// containing further files — possibly itself another such container).
+	ContainerDepth int `json:"container_depth,omitempty"`
+	// ContainerParentSHA256 is the raw-byte SHA-256 (the same convention
+	// as SHA256 below: computed before any text canonicalization) of the
+	// immediate container file this File was materialized from. Empty at
+	// ContainerDepth 0.
+	ContainerParentSHA256 string `json:"container_parent_sha256,omitempty"`
 }
 
 type Artifact struct {
@@ -100,6 +112,13 @@ type Artifact struct {
 	Commit        string    `json:"source_commit,omitempty"`
 	Builder       string    `json:"builder,omitempty"`
 	Timestamp     time.Time `json:"timestamp"`
+	// LoadDiagnostics carries any non-fatal condition encountered while
+	// building Files — currently only nested-container virtualization
+	// bounds (a container skipped or truncated by depth/member/byte/
+	// compression-ratio/time limits). A bound being hit is deliberately
+	// not a load error (the rest of the artifact still loads and scans
+	// normally) but must still be visible, not silently absorbed.
+	LoadDiagnostics []Diagnostic `json:"load_diagnostics,omitempty"`
 }
 
 // SubjectDigest returns the immutable transport digest when one exists and the
