@@ -383,6 +383,7 @@ func allControls() []Control {
 		{ID: "MCP-008", Title: "Token Passthrough / Audience Binding Violation", Domain: MCPSecurity, SKILRule: "SKIL-MCP-008"},
 		{ID: "MCP-009", Title: "Tool-Controlled URL Fetch (SSRF)", Domain: MCPSecurity, SKILRule: "SKIL-MCP-009"},
 		{ID: "MCP-010", Title: "Overly Broad OAuth Scope", Domain: MCPSecurity, SKILRule: "SKIL-MCP-010"},
+		{ID: "MCP-011", Title: "Dynamic Metadata Rug Pull", Domain: MCPSecurity, SKILRule: "SKIL-MCP-011"},
 
 		// 5. Code Security
 		{ID: "CODE-001", Title: "Dynamic Execution Detection", Domain: CodeSecurity, SKILRule: "SKIL-SH-001"},

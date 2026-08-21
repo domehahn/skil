@@ -92,6 +92,13 @@ func nativeSupplementalRules() []skil.Rule {
 		// internal/compose's package doc for why a cross-skill finding
 		// needs a different code path than every other native rule.
 		{ID: "SKIL-COMPOSE-TOXIC-FLOW", Title: "Cross-skill secret-to-network flow via a shared resource", Category: "supply-chain-integrity", Severity: skil.SeverityCritical, Analysis: "compose", Description: "A skill with credential/secret-read access writes a resource that a different skill with network egress reads — a flow neither skill shows in isolation.", Remediation: "Remove the shared resource, or scope one of the two skills' capabilities so the flow cannot form."},
+		// SKIL-MCP-011 is listed here for discoverability via `skil rules
+		// list`, but its enforcement path is internal/mcpassure.Run (the
+		// `skil mcp assure` command), not registry.Scan's static-only
+		// pipeline — it requires actually launching the operator-supplied
+		// MCP server command and observing its live JSON-RPC handshake,
+		// which SKIL-MCP-005's static manifest-vs-lock comparison cannot do.
+		{ID: "SKIL-MCP-011", Title: "Dynamic MCP tool metadata mismatch", Category: "tool-protocol", Severity: skil.SeverityCritical, Analysis: "mcp-assure", Description: "A tool's live, dynamically-observed metadata (over the actual MCP JSON-RPC handshake) disagrees with its reviewed entry in .skil/mcp-tools.lock.json, or was never declared in it at all.", Remediation: "Re-review the tool's live behavior and update the lock only after approval; investigate any tool the server exposes that was never reviewed."},
 	}
 }
 
@@ -191,6 +198,7 @@ func NativeControlImplementations() map[string]ControlImplementation {
 		"SKIL-MEMORY-FALSE-RESET":          {Engine: "builtin.pattern"},
 		"SKIL-MEMORY-FALSE-REPRESENTATION": {Engine: "builtin.pattern"},
 		"SKIL-COMPOSE-TOXIC-FLOW":          {Engine: "compose.Analyze (skil compose)"},
+		"SKIL-MCP-011":                     {Engine: "mcpassure.Run (skil mcp assure)"},
 	}
 	for id, implementation := range engines {
 		out[id] = implementation

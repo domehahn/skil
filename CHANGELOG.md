@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+- Added `skil mcp assure <skill> --runtime-command executable`: Dynamic MCP
+  Assurance. Launches the operator-supplied MCP server command inside skil's
+  existing sandboxed isolation (the same one `skil assure` uses; skil never
+  executes an artifact-declared command on its own), performs the real
+  `initialize`/`notifications/initialized`/`tools/list`/`prompts/list`/
+  `resources/list` JSON-RPC-over-stdio handshake, and compares what the
+  server actually declares live against `.skil/mcp-tools.lock.json`. Flags
+  `SKIL-MCP-011` for any tool whose live description hashes to something
+  other than its locked digest, or that the server exposes without ever
+  having been declared in the lock — a rug pull confirmed by execution, not
+  just static manifest parsing, which cannot see a server present one
+  description in a file and a different one over the wire. Every request
+  is timeout-bounded and every response frame size-bounded, so a hung or
+  oversized-response server fails closed. Required a new
+  `internal/eval.Session`/`StreamingIsolationProvider` streaming-stdio
+  extension to skil's native isolation layer (darwin `sandbox-exec`, Linux
+  `bwrap`, Windows AppContainer), alongside the existing one-shot
+  `IsolationProvider.Run`, since a multi-round-trip protocol handshake
+  doesn't fit Run's fixed-stdin-in/drain-stdout-at-exit model.
+
 - Added `skil compose <collection>`: scans every skill in a collection
   individually, then correlates their capability observations across
   skills for combinations that are only a risk in composition — a skill
