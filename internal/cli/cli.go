@@ -199,6 +199,8 @@ func (a *App) Run(ctx context.Context, args []string) int {
 		code = a.inspect(args[1:])
 	case "sbom":
 		code = a.sbom(args[1:])
+	case "discover":
+		code = a.discover(args[1:])
 	default:
 		fmt.Fprintf(a.Err, "unknown command %q\n", args[0])
 		a.help()
@@ -277,6 +279,7 @@ Usage:
   skil capabilities
   skil inspect <skill>
   skil sbom <skill> [--output sbom.spdx.json]
+  skil discover [--home dir] [--format terminal|json] [--output file]
 
 Exit codes: 0 passed, 1 security/policy gate failed, 2 invalid input/config, 3 internal failure.
 `)
