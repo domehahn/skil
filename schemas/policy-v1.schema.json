@@ -10,6 +10,8 @@
     "maximum_severity": {"enum": ["INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL"]},
     "required_analysis": {"type": "array", "items": {"type": "string"}},
     "minimum_inspection_completeness": {"type": "number", "minimum": 0, "maximum": 1},
+    "minimum_analyzability": {"type": "number", "minimum": 0, "maximum": 1},
+    "deny_opaque_executable_content": {"type": "boolean"},
     "forbidden_capabilities": {"type": "array", "items": {"type": "string"}},
     "allowed_capabilities": {"type": "array", "items": {"type": "string"}},
     "forbidden_rules": {"type": "array", "items": {"type": "string"}},

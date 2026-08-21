@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Added an analyzability model, distinct from inspection completeness:
+  each scan now reports, per file, whether its content was actually
+  visible to analysis (`full`/`partial`/`opaque`) rather than just
+  whether every applicable analyzer ran. A recognized executable/archive
+  format gets its kind recorded (`binary_kind`); policies can enforce
+  `minimum_analyzability` and `deny_opaque_executable_content`.
+
 - Added charset-smuggling defense: content encoded as UTF-16 (with or
   without a byte-order mark) or UTF-8-with-BOM is now detected and
   transcoded to canonical UTF-8 once, at artifact load time, before any

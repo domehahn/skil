@@ -151,3 +151,41 @@ func TestTerminalReportOmitsEncodingNotesWhenAllUTF8(t *testing.T) {
 		t.Fatalf("did not expect an ENCODING NOTES section when nothing was transcoded: %s", out.String())
 	}
 }
+
+func TestTerminalReportSurfacesAnalyzabilityAndListsOpaqueFiles(t *testing.T) {
+	result := sample()
+	result.Analyzable = skil.AnalyzabilitySummary{Files: 2, Full: 1, Opaque: 1, Coverage: 0.5}
+	result.Analyzability = []skil.AnalyzabilityRecord{
+		{Path: "SKILL.md", State: skil.AnalyzabilityFull},
+		{Path: "tool.exe", State: skil.AnalyzabilityOpaque, BinaryKind: "Windows PE executable"},
+	}
+	var out bytes.Buffer
+	if err := Write(&out, "terminal", result); err != nil {
+		t.Fatal(err)
+	}
+	text := out.String()
+	if !strings.Contains(text, "ANALYZABILITY") || !strings.Contains(text, "Coverage      50.0%") {
+		t.Fatalf("expected an ANALYZABILITY section with coverage: %s", text)
+	}
+	if !strings.Contains(text, "tool.exe") || !strings.Contains(text, "Windows PE executable") {
+		t.Fatalf("expected the opaque file and its binary kind to be listed: %s", text)
+	}
+	if strings.Contains(text, "SKILL.md") && strings.Count(text, "SKILL.md") > 1 {
+		// SKILL.md appears once in COMPONENTS; it must not also be listed
+		// under the opaque-files detail since it is fully analyzable.
+		t.Fatalf("fully-analyzable file should not appear in the opaque-files list: %s", text)
+	}
+}
+
+func TestTerminalReportOmitsAnalyzabilitySectionWhenNoFiles(t *testing.T) {
+	result := sample()
+	result.Analyzable = skil.AnalyzabilitySummary{}
+	result.Analyzability = nil
+	var out bytes.Buffer
+	if err := Write(&out, "terminal", result); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(out.String(), "ANALYZABILITY") {
+		t.Fatalf("did not expect an ANALYZABILITY section for an empty artifact: %s", out.String())
+	}
+}

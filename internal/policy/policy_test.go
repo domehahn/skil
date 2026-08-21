@@ -35,6 +35,60 @@ func TestPolicyDeniesIncompleteInspection(t *testing.T) {
 	}
 }
 
+func TestPolicyDeniesLowAnalyzability(t *testing.T) {
+	result := Check(Policy{Version: 1, MaximumSeverity: "CRITICAL", MinimumAnalyzability: .9}, Input{
+		Scan: skil.ScanResult{
+			Maximum:    skil.SeverityInfo,
+			Analyzable: skil.AnalyzabilitySummary{Files: 2, Full: 1, Opaque: 1, Coverage: .5},
+		},
+	})
+	if result.Decision != "DENY" || len(result.Violations) != 1 ||
+		result.Violations[0].Rule != "minimum-analyzability" {
+		t.Fatalf("unexpected policy result: %#v", result)
+	}
+}
+
+func TestPolicyAllowsSufficientAnalyzability(t *testing.T) {
+	result := Check(Policy{Version: 1, MaximumSeverity: "CRITICAL", MinimumAnalyzability: .5}, Input{
+		Scan: skil.ScanResult{
+			Maximum:    skil.SeverityInfo,
+			Analyzable: skil.AnalyzabilitySummary{Files: 2, Full: 1, Opaque: 1, Coverage: .5},
+		},
+	})
+	if result.Decision != "ALLOW" {
+		t.Fatalf("expected ALLOW at exactly the minimum, got: %#v", result)
+	}
+}
+
+func TestPolicyDeniesOpaqueExecutableContentWhenConfigured(t *testing.T) {
+	result := Check(Policy{Version: 1, MaximumSeverity: "CRITICAL", DenyOpaqueExecutableContent: true}, Input{
+		Scan: skil.ScanResult{
+			Maximum: skil.SeverityInfo,
+			Analyzability: []skil.AnalyzabilityRecord{
+				{Path: "tool.exe", State: skil.AnalyzabilityOpaque, BinaryKind: "Windows PE executable", Reason: "opaque"},
+				{Path: "logo.png", State: skil.AnalyzabilityOpaque, Reason: "opaque"},
+			},
+		},
+	})
+	if result.Decision != "DENY" || len(result.Violations) != 1 || result.Violations[0].Observed != "tool.exe" {
+		t.Fatalf("expected exactly one violation for the executable, not the inert binary: %#v", result)
+	}
+}
+
+func TestPolicyAllowsOpaqueNonExecutableContentByDefault(t *testing.T) {
+	result := Check(Policy{Version: 1, MaximumSeverity: "CRITICAL", DenyOpaqueExecutableContent: true}, Input{
+		Scan: skil.ScanResult{
+			Maximum: skil.SeverityInfo,
+			Analyzability: []skil.AnalyzabilityRecord{
+				{Path: "logo.png", State: skil.AnalyzabilityOpaque, Reason: "opaque"},
+			},
+		},
+	})
+	if result.Decision != "ALLOW" {
+		t.Fatalf("expected ALLOW: opaque non-executable content should not trip deny_opaque_executable_content: %#v", result)
+	}
+}
+
 func TestPolicyDeniesRevokedArtifactDigest(t *testing.T) {
 	p := Policy{Version: 1, MaximumSeverity: "CRITICAL", RevokedArtifactDigests: []string{"deadbeef"}}
 	result := Check(p, Input{Scan: skil.ScanResult{
