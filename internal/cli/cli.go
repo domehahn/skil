@@ -30,6 +30,7 @@ import (
 	"github.com/domehahn/skil/internal/lockfile"
 	"github.com/domehahn/skil/internal/packagecheck"
 	"github.com/domehahn/skil/internal/policy"
+	"github.com/domehahn/skil/internal/provider/consensus"
 	"github.com/domehahn/skil/internal/provider/osv"
 	reputationprovider "github.com/domehahn/skil/internal/provider/reputation"
 	semanticprovider "github.com/domehahn/skil/internal/provider/semantic"
@@ -76,6 +77,7 @@ type analysisFlags struct {
 	semanticRegion       *string
 	semanticAPIVersion   *string
 	semanticValidation   *string
+	semanticRuns         *int
 	requireComplete      *bool
 	allowRemote          *bool
 	dependencyReputation *string
@@ -104,6 +106,7 @@ func bindAnalysisFlags(fs *flag.FlagSet) analysisFlags {
 		semanticRegion:       fs.String("semantic-region", "us-west-2", "cloud region for the Bedrock semantic provider"),
 		semanticAPIVersion:   fs.String("semantic-api-version", "", "optional Anthropic proxy API version"),
 		semanticValidation:   fs.String("semantic-validation", "review", "semantic output validation: review or strict"),
+		semanticRuns:         fs.Int("semantic-runs", 1, "independent semantic passes per request; a finding is kept only if a majority agree (Semantic Multi-Run Consensus)"),
 		requireComplete:      fs.Bool("require-complete", false, "fail the gate unless every applicable inspection work item completed"),
 		allowRemote:          fs.Bool("allow-remote", false, "explicitly permit a public HTTPS archive or Git source"),
 		dependencyReputation: fs.String("dependency-reputation", "", "trusted offline package-reputation JSON"),
@@ -249,14 +252,14 @@ Usage:
   skil validate <skill> [--format json]
   skil lint <skill> [--strict|--profile default|strict|portable|publish] [--format terminal|json|markdown|sarif] [--output file]
   skil lint-all <collection> [--profile default|strict|portable|publish] [--workers N] [--format terminal|json|markdown] [--output file]
-   skil scan <skill> [--full] [--static-only] [--osv] [--yara-rules file|--yara-rules-dir dir] [--semantic --semantic-model model] [--semantic-validation review|strict] [--require-complete] [--allow-remote]
+   skil scan <skill> [--full] [--static-only] [--osv] [--yara-rules file|--yara-rules-dir dir] [--semantic --semantic-model model] [--semantic-validation review|strict] [--semantic-runs N] [--require-complete] [--allow-remote]
               [--format terminal|json|markdown|sarif] [--compact] [--output file] [--baseline file] [--show-suppressed=false] [--domain domain] [--list-domains]
   skil scan-all <collection> [analysis flags] [--workers N] [--format terminal|json|markdown] [--output file]
   skil compose <collection> [analysis flags] [--format terminal|json] [--output file]
   skil serve (--stdio | --listen 127.0.0.1:port --token-env ENV) --root <directory>
   skil mcp registry scan [file|server-name] [--official] [--format terminal|json] [--reviewed-closure contract]
   skil mcp assure <skill> --runtime-command executable [--runtime-args a,b] [--timeout 10s] [--format terminal|json] [--output file]
-  skil verify <skill> [--format json] [--osv] [--yara-rules file] [--semantic --semantic-model model] [--semantic-validation review|strict]
+  skil verify <skill> [--format json] [--osv] [--yara-rules file] [--semantic --semantic-model model] [--semantic-validation review|strict] [--semantic-runs N]
   skil eval <skill> [--test file] [--runtime mock|isolated] [--runtime-command executable] [--runs N] [--output file]
   skil assure <skill> --runtime-command executable [--test file] [--runs N] [--full] [--format terminal|json]
   skil attest <skill> [--output file] [--eval-result file] [--signing-key key.pem] [analysis flags]
@@ -1953,6 +1956,18 @@ func (a *App) analysisRegistry(ctx context.Context, flags analysisFlags) (*analy
 		}
 		if err != nil {
 			return nil, err
+		}
+		if *flags.semanticRuns < 1 {
+			return nil, errors.New("--semantic-runs must be at least 1")
+		}
+		if *flags.semanticRuns > 1 {
+			a.logMu.Lock()
+			fmt.Fprintf(a.Err, "semantic multi-run consensus: %d independent passes per request; a finding is kept only if a majority agree\n", *flags.semanticRuns)
+			a.logMu.Unlock()
+			provider, err = consensus.New(provider, *flags.semanticRuns)
+			if err != nil {
+				return nil, err
+			}
 		}
 		semanticAnalyzer, err := analyzer.NewSemanticSuite(provider)
 		if err != nil {

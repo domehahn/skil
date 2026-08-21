@@ -41,3 +41,27 @@ rejection is reported in `diagnostics` and `semantic-provider` coverage becomes
 any invalid finding must fail the complete semantic pass. Structural response
 errors, response-size violations, provider failures, and more than 100 findings
 always fail in both modes.
+
+## Semantic Multi-Run Consensus
+
+A single model call is inherently sampling-noise-prone: the same prompt
+against the same content can produce a different finding set from one call to
+the next, for reasons having nothing to do with the content itself.
+`--semantic-runs N` (default `1`, a pure pass-through at no extra cost) repeats
+every semantic pass `N` independent times and keeps a finding only when a
+strict majority of the `N` runs found it at the same rule and location — a
+finding one run reports but the rest don't is dropped entirely, not merely
+down-weighted. A kept finding's confidence is rescaled by its agreement ratio
+(`runs that found it / N`), and its evidence records the exact tally
+(`consensus_runs`, `consensus_total`) so the decision is as inspectable as any
+other finding's evidence.
+
+The aggregation itself is fully deterministic given the `N` runs' outputs —
+counting agreement across already-returned results, no additional model call
+involved — so "was this finding kept" stays exactly as explainable and
+reproducible as every other rule in skil, even though the underlying per-run
+model calls are not reproducible themselves. `--semantic-runs` multiplies both
+cost and wall-clock latency by `N` (`internal/provider/consensus` runs
+sequentially, not in parallel, to stay simple and respect provider rate
+limits): use it for a release gate or a periodic re-review, not routine
+interactive scanning.
