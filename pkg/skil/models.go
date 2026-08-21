@@ -158,6 +158,55 @@ type Diagnostic struct {
 	Message   string `json:"message"`
 }
 
+type AnalyzabilityState string
+
+const (
+	AnalyzabilityFull AnalyzabilityState = "full"
+	// AnalyzabilityPartial is reserved for a file whose content is
+	// partly but not fully visible to analysis — e.g. source that
+	// failed to parse but still ran through pattern/regex rules, or
+	// (not yet implemented) compiled bytecode correlated with an
+	// available source file. No analyzer currently emits it; it exists
+	// so AnalyzabilitySummary's schema doesn't need to change when one
+	// does.
+	AnalyzabilityPartial AnalyzabilityState = "partial"
+	AnalyzabilityOpaque  AnalyzabilityState = "opaque"
+)
+
+// AnalyzabilityRecord classifies how visible one file's actual content
+// was to analysis — a narrower question than InspectionWorkItem's "did
+// an applicable analyzer run": a file can have every applicable analyzer
+// report InspectionCompleted while its content remains opaque (e.g. a
+// binary format skil has no parser for) rather than substantively
+// inspected. Coverage completeness alone can't distinguish those two
+// cases; this can.
+type AnalyzabilityRecord struct {
+	Path string `json:"path"`
+	// Encoding mirrors File.Encoding: "utf-8"/"utf-8-bom"/"utf-16le"/
+	// "utf-16be" for text, "binary" for anything canonicalizeText
+	// couldn't decode as text.
+	Encoding string `json:"encoding,omitempty"`
+	// BinaryKind identifies a recognized executable/archive format
+	// (e.g. "Windows PE executable") for a binary file, empty when the
+	// binary format wasn't recognized or the file is text.
+	BinaryKind string             `json:"binary_kind,omitempty"`
+	Executable bool               `json:"executable,omitempty"`
+	State      AnalyzabilityState `json:"state"`
+	Reason     string             `json:"reason,omitempty"`
+	SHA256     string             `json:"sha256"`
+}
+
+// AnalyzabilitySummary aggregates AnalyzabilityRecords the same way
+// InspectionSummary aggregates the inspection ledger. Coverage credits a
+// partial record at half weight: (full + 0.5*partial) / files.
+type AnalyzabilitySummary struct {
+	Files    int     `json:"files"`
+	Full     int     `json:"full"`
+	Partial  int     `json:"partial"`
+	Opaque   int     `json:"opaque"`
+	Coverage float64 `json:"coverage"`
+}
+
 type ScanResult struct {
 	SchemaVersion string                   `json:"schema_version"`
 	Artifact      Artifact                 `json:"artifact"`
@@ -171,6 +220,8 @@ type ScanResult struct {
 	Scanners      []string                 `json:"scanners"`
 	Inspection    []InspectionWorkItem     `json:"inspection_ledger,omitempty"`
 	Completeness  InspectionSummary        `json:"inspection_summary"`
+	Analyzability []AnalyzabilityRecord    `json:"analyzability_ledger,omitempty"`
+	Analyzable    AnalyzabilitySummary     `json:"analyzability_summary"`
 	Diagnostics   []Diagnostic             `json:"diagnostics,omitempty"`
 	GeneratedAt   time.Time                `json:"generated_at"`
 }

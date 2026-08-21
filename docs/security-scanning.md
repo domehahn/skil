@@ -103,6 +103,32 @@ applicable work into a blocking verdict. Policies can enforce the same property
 with `minimum_inspection_completeness: 1`; signed native attestations bind both
 the summary and the exact ledger digest.
 
+Inspection completeness answers "did every applicable analyzer run" — a
+different question from whether a file's actual content was visible to
+analysis at all. A binary format has no applicable text analyzer to skip in
+the first place, so it can't lower completeness, yet skil cannot read a
+single instruction of what it does. Each scan also contains an
+analyzability ledger (`AnalyzabilityRecord` per file, `state` one of
+`full`/`partial`/`opaque`) and summary (`analyzability_summary`, with a
+blended `coverage` ratio) that captures exactly that. A recognized
+executable or archive format (PE, ELF, Mach-O, ZIP) gets its `binary_kind`
+recorded; any other binary content is opaque without one. Policies can
+enforce a minimum with `minimum_analyzability: <ratio>`, and specifically
+deny shipping executable content skil couldn't inspect with
+`deny_opaque_executable_content: true` — the latter only fires on content
+recognized as executable/archive or carrying the executable bit, not on
+ordinary opaque binary data like images or fonts.
+
+Charset smuggling: content encoded as UTF-16 (with or without a byte-order
+mark) or UTF-8-with-BOM is detected and transcoded to canonical UTF-8 once,
+at artifact load time, before any analyzer runs — every "text"-scoped
+analyzer sees the artifact's actual content regardless of source encoding.
+The detected encoding is recorded per file (`encoding` field) and, when a
+file was transcoded, called out in the terminal report's "ENCODING NOTES"
+section. `File.SHA256` is always the digest of the original, untranscoded
+bytes, so content-addressing and attestation digests are unaffected.
+Binary content round-trips completely unchanged.
+
 `scan-all` discovers concrete `SKILL.md` roots below a local or explicitly
 allowed remote collection and returns one independently digest-bound result per
 skill. `--workers` provides bounded parallelism while preserving discovery

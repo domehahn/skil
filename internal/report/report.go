@@ -136,6 +136,32 @@ func writeTerminal(w io.Writer, r skil.ScanResult) error {
 	fmt.Fprintf(w, "  Failed        %d\n", r.Completeness.Failed)
 	fmt.Fprintf(w, "  Out of scope  %d\n", r.Completeness.OutOfScope)
 
+	// Distinct from inspection completeness above: a file can have every
+	// applicable analyzer report "completed" (nothing was skipped) while
+	// its actual content stayed opaque to analysis — e.g. a binary format
+	// with no applicable text analyzer to skip in the first place. This
+	// answers "was the content visible", not "did the analyzers run".
+	if r.Analyzable.Files > 0 {
+		fmt.Fprintln(w, "\nANALYZABILITY")
+		fmt.Fprintf(w, "  Coverage      %.1f%%\n", r.Analyzable.Coverage*100)
+		fmt.Fprintf(w, "  Files         %d\n", r.Analyzable.Files)
+		fmt.Fprintf(w, "  Full          %d\n", r.Analyzable.Full)
+		fmt.Fprintf(w, "  Partial       %d\n", r.Analyzable.Partial)
+		fmt.Fprintf(w, "  Opaque        %d\n", r.Analyzable.Opaque)
+		if r.Analyzable.Opaque > 0 {
+			for _, record := range sortedAnalyzability(r.Analyzability) {
+				if record.State != skil.AnalyzabilityOpaque {
+					continue
+				}
+				label := record.BinaryKind
+				if label == "" {
+					label = "unrecognized binary"
+				}
+				fmt.Fprintf(w, "    %-58s %s\n", boundedDisplay(record.Path, 58), label)
+			}
+		}
+	}
+
 	fmt.Fprintln(w, "\nANALYZER STATUS")
 	fmt.Fprintf(w, "  %-34s %-14s %5s %-35s\n", "ANALYZER", "STATUS", "ITEMS", "REASON")
 	statuses := analyzerStatuses(r.Inspection)
@@ -318,6 +344,12 @@ func sortedFindings(findings []skil.Finding) []skil.Finding {
 
 func sortedFiles(files []skil.File) []skil.File {
 	out := append([]skil.File(nil), files...)
+	sort.Slice(out, func(i, j int) bool { return out[i].Path < out[j].Path })
+	return out
+}
+
+func sortedAnalyzability(records []skil.AnalyzabilityRecord) []skil.AnalyzabilityRecord {
+	out := append([]skil.AnalyzabilityRecord(nil), records...)
 	sort.Slice(out, func(i, j int) bool { return out[i].Path < out[j].Path })
 	return out
 }

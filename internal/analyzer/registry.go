@@ -191,6 +191,10 @@ func (r *Registry) Scan(ctx context.Context, ac skil.AnalysisContext) (skil.Scan
 		}
 	}
 	result.Completeness = summarizeInspection(result.Inspection)
+	for _, file := range ac.Artifact.Files {
+		result.Analyzability = append(result.Analyzability, classifyAnalyzability(file))
+	}
+	result.Analyzable = summarizeAnalyzability(result.Analyzability)
 	sort.Slice(result.Findings, func(i, j int) bool {
 		a, b := result.Findings[i], result.Findings[j]
 		if a.Location.File != b.Location.File {

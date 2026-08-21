@@ -20,10 +20,21 @@ import (
 )
 
 type Policy struct {
-	Version                         int                 `json:"version" yaml:"version"`
-	MaximumSeverity                 string              `json:"maximum_severity" yaml:"maximum_severity"`
-	RequiredAnalysis                []string            `json:"required_analysis,omitempty" yaml:"required_analysis,omitempty"`
-	MinimumInspectionCompleteness   float64             `json:"minimum_inspection_completeness,omitempty" yaml:"minimum_inspection_completeness,omitempty"`
+	Version                       int      `json:"version" yaml:"version"`
+	MaximumSeverity               string   `json:"maximum_severity" yaml:"maximum_severity"`
+	RequiredAnalysis              []string `json:"required_analysis,omitempty" yaml:"required_analysis,omitempty"`
+	MinimumInspectionCompleteness float64  `json:"minimum_inspection_completeness,omitempty" yaml:"minimum_inspection_completeness,omitempty"`
+	// MinimumAnalyzability and DenyOpaqueExecutableContent gate on
+	// skil.AnalyzabilitySummary/AnalyzabilityRecord (see
+	// internal/analyzer's classifyAnalyzability) — a narrower question
+	// than inspection completeness: not "did every applicable analyzer
+	// run" but "was the file's actual content visible to analysis at
+	// all". A pure-binary artifact with no text-scoped analyzer to skip
+	// can score 100% inspection completeness while being completely
+	// opaque; these two checks are how a policy catches that case
+	// specifically.
+	MinimumAnalyzability            float64             `json:"minimum_analyzability,omitempty" yaml:"minimum_analyzability,omitempty"`
+	DenyOpaqueExecutableContent     bool                `json:"deny_opaque_executable_content,omitempty" yaml:"deny_opaque_executable_content,omitempty"`
 	ForbiddenCapabilities           []string            `json:"forbidden_capabilities,omitempty" yaml:"forbidden_capabilities,omitempty"`
 	AllowedCapabilities             []string            `json:"allowed_capabilities,omitempty" yaml:"allowed_capabilities,omitempty"`
 	ForbiddenRules                  []string            `json:"forbidden_rules,omitempty" yaml:"forbidden_rules,omitempty"`
@@ -123,6 +134,18 @@ func Check(p Policy, in Input) Result {
 		in.Scan.Completeness.Completeness < p.MinimumInspectionCompleteness {
 		add("inspection-completeness", p.MinimumInspectionCompleteness, in.Scan.Completeness.Completeness,
 			"applicable inspection work did not meet the required completion ratio")
+	}
+	if p.MinimumAnalyzability > 0 && in.Scan.Analyzable.Coverage < p.MinimumAnalyzability {
+		add("minimum-analyzability", p.MinimumAnalyzability, in.Scan.Analyzable.Coverage,
+			"too much of the artifact's content was opaque to analysis")
+	}
+	if p.DenyOpaqueExecutableContent {
+		for _, record := range in.Scan.Analyzability {
+			if record.State == skil.AnalyzabilityOpaque && (record.BinaryKind != "" || record.Executable) {
+				add("deny-opaque-executable-content", false, record.Path,
+					"artifact contains executable or archive content skil could not inspect: "+record.Reason)
+			}
+		}
 	}
 	for _, rule := range p.ForbiddenRules {
 		for _, f := range in.Scan.Findings {
