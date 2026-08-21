@@ -17,6 +17,14 @@
   attestations, SLSA-v1 provenance, and external scanner evidence.
 - Added concrete allowlist comparison, least-privilege warnings, complete
   behavioral assertion enforcement, and a host runtime capability gateway.
+- Changed attestation/evidence-bundle/package-statement signing to sign a
+  canonical JSON form (recursively key-sorted, exact-precision numeric
+  literals) instead of Go's struct-declaration-order marshal, so that
+  external verifiers (e.g. `skpm`, `SkillForge`) can independently validate
+  a skil-produced signature from the wire JSON alone, without depending on
+  skil's Go types. This changes the signed byte sequence for these types;
+  signatures produced by earlier builds will not verify against this
+  version and vice versa.
 
 ## 0.1.0 - 2026-07-28
 

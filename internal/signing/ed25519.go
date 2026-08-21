@@ -1,6 +1,7 @@
 package signing
 
 import (
+	"bytes"
 	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/sha256"
@@ -236,17 +237,49 @@ func VerifyEvidenceBundle(bundle skil.EvidenceBundle, trustedKeys map[string]str
 
 func attestationPayload(attestation skil.Attestation) ([]byte, error) {
 	attestation.Signature = nil
-	return json.Marshal(attestation)
+	return CanonicalJSON(attestation)
 }
 
 func evidencePayload(bundle skil.EvidenceBundle) ([]byte, error) {
 	bundle.Signature = nil
-	return json.Marshal(bundle)
+	return CanonicalJSON(bundle)
 }
 
 func packagePayload(statement skil.PackageStatement) ([]byte, error) {
 	statement.Signature = nil
-	return json.Marshal(statement)
+	return CanonicalJSON(statement)
+}
+
+// CanonicalJSON serializes v into a canonical JSON form that any
+// independent verifier can reproduce from the wire bytes alone, without
+// knowing skil's internal Go struct shapes. Go's encoding/json marshals a
+// struct in its *declaration order*, which is stable for a fixed version of
+// skil but not self-describing — a verifier living in another repository
+// (skpm, SkillForge) would have to mirror skil's exact struct definitions,
+// field for field, to reproduce byte-identical signed payloads, and would
+// silently break on any future schema change.
+//
+// Canonicalization removes that coupling: v is marshaled normally (so
+// type-specific encoding, e.g. RFC 3339 timestamps, is preserved), then
+// decoded into a generic any using json.Number (so numeric literals keep
+// their exact original digit sequence instead of being coerced through
+// float64) and re-marshaled. encoding/json marshals map[string]any with
+// keys sorted lexicographically, which makes the result independent of
+// struct field order — an external verifier only needs the JSON object
+// itself (with the "signature" field removed) and this same two-step
+// canonicalization to recompute the exact bytes that were signed.
+func CanonicalJSON(v any) ([]byte, error) {
+	raw, err := json.Marshal(v)
+	if err != nil {
+		return nil, err
+	}
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.UseNumber()
+	var generic any
+	if err := dec.Decode(&generic); err != nil {
+		return nil, err
+	}
+	return json.Marshal(generic)
 }
 
 func verify(payload []byte, signature skil.Signature, trustedKeys map[string]string) error {
