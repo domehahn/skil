@@ -466,4 +466,3 @@ func (p *Pattern) Rules() []skil.Rule {
 	}
 	return out
 }
-
