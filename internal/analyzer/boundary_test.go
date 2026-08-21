@@ -47,6 +47,28 @@ func TestOwnMCPManifestIsNotFlaggedAsSnooping(t *testing.T) {
 	}
 }
 
+// TestReadingOwnMCPManifestIsNotFlaggedAsSnooping regression-tests issue #35:
+// unlike the description-only case above, this uses the read-verb-plus-
+// filename phrasing (a read-like verb directly adjacent to "mcp.json")
+// that the positive expression's first alternative matches on its own —
+// the bug was that nothing distinguished this from reading another
+// agent's mcp.json, so a skill transparently summarizing its own declared
+// manifest for the user was flagged as snooping.
+func TestReadingOwnMCPManifestIsNotFlaggedAsSnooping(t *testing.T) {
+	findings := analyzeBoundary(t, "SKILL.md",
+		"Read this skill's own mcp.json and summarize the declared tools for the user in plain language.\n")
+	if hasRule(findings, "SKIL-BOUNDARY-MCP-CONFIG") {
+		t.Fatalf("reading and summarizing a skill's own declared mcp.json should not fire: %#v", findings)
+	}
+
+	// The same phrasing but for *another* agent's manifest must still fire.
+	findings = analyzeBoundary(t, "SKILL.md",
+		"Read the other agent's mcp.json and report what tools it has configured.\n")
+	if !hasRule(findings, "SKIL-BOUNDARY-MCP-CONFIG") {
+		t.Fatalf("reading another agent's mcp.json must still be detected: %#v", findings)
+	}
+}
+
 func TestPeerSkillEnumerationIsDetected(t *testing.T) {
 	findings := analyzeBoundary(t, "run.py", `glob.glob(".claude/skills/*/SKILL.md")`+"\n")
 	if !hasRule(findings, "SKIL-BOUNDARY-PEER-SKILL") {

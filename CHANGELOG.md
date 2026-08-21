@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Fixed `SKIL-BOUNDARY-MCP-CONFIG` false-positiving on a skill reading and
+  summarizing its own declared `mcp.json` for the user, indistinguishable
+  from reading another agent's MCP configuration (#35). Added negative-
+  context guard support to `internal/analyzer.Boundary` (previously unused
+  by any boundary rule) for this.
 - Fixed the remaining wide-whitespace mutation bypasses in
   `internal/analyzer/pattern.go`'s text rules (a contributor's PR fixed
   three rule IDs; this closes the same class across the rest of the
