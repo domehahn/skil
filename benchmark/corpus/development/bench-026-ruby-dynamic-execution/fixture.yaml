@@ -1,0 +1,22 @@
+schema_version: 1
+id: bench-026-ruby-dynamic-execution
+tier: development
+title: Ruby script evaluates untrusted input and reads a secret into a network request
+ground_truth:
+  malicious: true
+  category: dynamic_execution
+references:
+  - framework: advisory
+    control: ruby-ast-dynamic-execution
+rationale: >
+  scripts/tool.rb calls eval on a user-supplied argument, shells out via
+  system() with that same unsanitized input interpolated into the command
+  string, reads a secret from ENV, and forwards it as part of an outbound
+  URL to Net::HTTP.get — a real, if minimal, injection-to-exfiltration
+  shape RubyAST's dedicated tree-sitter-ruby analysis exists to catch,
+  parallel to PythonAST's coverage of the equivalent Python constructs.
+artifact:
+  root: artifact
+review:
+  status: provisional
+  reviewers: []

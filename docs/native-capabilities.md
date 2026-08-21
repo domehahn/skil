@@ -6,7 +6,7 @@ is organized around trust boundaries rather than a third-party rule catalog.
 | Layer | Native implementation |
 | --- | --- |
 | Instruction integrity | contextual manipulation, unconditional-compliance, warning-removal, and guardrail-nullification controls |
-| Code behavior | Tree-sitter AST analysis for Python, JavaScript, TypeScript, TSX, and Bash; reflective execution controls; whole-artifact function-summary taint propagation |
+| Code behavior | Tree-sitter AST analysis for Python, JavaScript, TypeScript, TSX, Bash, and Ruby; reflective execution controls; whole-artifact function-summary taint propagation |
 | Data boundaries | environment/secret reads, filesystem access, outbound connections, generated-output trust |
 | Dependencies | deterministic inventory for Go, JavaScript, Python, Rust, Ruby, and Maven; pinning, suspicious-name heuristics, reputation providers, and opt-in OSV queries |
 | Tool protocols | structured JSON/YAML MCP permission and metadata validation with conservative text fallback |

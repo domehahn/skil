@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+- Added Ruby AST analysis (`builtin.ruby-ast`, `.rb` files): a dedicated
+  tree-sitter-ruby syntax-tree analyzer, extending Tree-sitter AST coverage
+  (previously Python, JavaScript, TypeScript/TSX, Bash) to a fifth
+  language. `SKIL-RB-001` (dynamic execution: `eval`, `instance_eval`,
+  `class_eval`, `module_eval`), `SKIL-RB-002` (process execution: `system`,
+  `exec`, backtick/`%x{}` literals, `IO.popen`, `Open3`), `SKIL-RB-003`
+  (unsafe deserialization: `Marshal.load`/`.restore`, unsafe
+  `YAML`/`Psych.load`), and `SKIL-RB-004` (reflective dispatch: `send`/
+  `__send__`/`public_send` with a non-literal method-name argument — a
+  literal symbol/string argument is not flagged, since that's just an
+  alternate literal-call syntax, not actual reflection). Reuses the
+  existing `SKIL-NET-001`/`SKIL-SEC-001` vocabulary for network egress
+  (`Net::HTTP`, open-uri, HTTParty) and environment/secret reads (`ENV[]`,
+  `ENV.fetch`), consistent with how those same controls already apply
+  across every other language, so capability verification treats a Ruby
+  finding's declared capability the same way it already treats every other
+  language's. Deliberately proportionate scope for an on-demand additional
+  language: unlike `PythonAST`, it does not track import aliases or
+  reflective variables, resolving only literal call targets directly from
+  the syntax tree. See
+  `benchmark/corpus/development/bench-026-ruby-dynamic-execution`.
+
 - Added Semantic Multi-Run Consensus (`--semantic-runs N`, default `1`, a
   pure pass-through at no extra cost): repeats every model-backed semantic
   pass `N` independent times and keeps a finding only when a strict

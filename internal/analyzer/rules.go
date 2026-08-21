@@ -22,6 +22,7 @@ func BuiltinRules() []skil.Rule {
 	out = append(out, NewLateral().Rules()...)
 	out = append(out, NewAsset().Rules()...)
 	out = append(out, NewPyC().Rules()...)
+	out = append(out, NewRubyAST().Rules()...)
 	out = append(out, nativeSupplementalRules()...)
 	byID := make(map[string]skil.Rule, len(out))
 	for _, rule := range out {
@@ -99,6 +100,14 @@ func nativeSupplementalRules() []skil.Rule {
 		// MCP server command and observing its live JSON-RPC handshake,
 		// which SKIL-MCP-005's static manifest-vs-lock comparison cannot do.
 		{ID: "SKIL-MCP-011", Title: "Dynamic MCP tool metadata mismatch", Category: "tool-protocol", Severity: skil.SeverityCritical, Analysis: "mcp-assure", Description: "A tool's live, dynamically-observed metadata (over the actual MCP JSON-RPC handshake) disagrees with its reviewed entry in .skil/mcp-tools.lock.json, or was never declared in it at all.", Remediation: "Re-review the tool's live behavior and update the lock only after approval; investigate any tool the server exposes that was never reviewed."},
+		// SKIL-RB-001/002/003 are emitted from builtin.ruby-ast's rubyCalls
+		// call-target table rather than returned by RubyAST.Rules() itself
+		// (only SKIL-RB-004 is), mirroring PythonAST/SKIL-PY-001..004's
+		// same split between a canonical rule declaration here and the
+		// dynamic per-call-target rule construction in the analyzer.
+		{ID: "SKIL-RB-001", Title: "Dynamic Ruby execution", Category: "dynamic-execution", Severity: skil.SeverityHigh, Analysis: "ast", Description: "Ruby evaluates dynamic source text (eval, instance_eval, class_eval, module_eval).", Remediation: "Replace dynamic evaluation with a constrained parser."},
+		{ID: "SKIL-RB-002", Title: "Ruby process execution", Category: "dynamic-execution", Severity: skil.SeverityHigh, Analysis: "ast", Description: "Ruby starts an operating-system process (system, exec, backtick/%x{} literal, IO.popen, Open3).", Remediation: "Use a constrained API and explicit argument allowlists."},
+		{ID: "SKIL-RB-003", Title: "Unsafe Ruby deserialization", Category: "dynamic-execution", Severity: skil.SeverityHigh, Analysis: "ast", Description: "Marshal or unsafe YAML/Psych loading may instantiate arbitrary Ruby objects or execute behavior while deserializing untrusted input.", Remediation: "Use a non-executable data format, or YAML.safe_load/Psych.safe_load with an explicit permitted-class allowlist."},
 		// Deterministic Threat-Chain Correlation: each SKIL-CHAIN-* rule
 		// fires only when every one of a fixed, reviewable set of
 		// existing rule IDs is independently present in the same scan —
@@ -155,6 +164,9 @@ func NativeControlImplementations() map[string]ControlImplementation {
 	}
 	for _, rule := range NewPyC().Rules() {
 		out[rule.ID] = ControlImplementation{Engine: "builtin.pyc"}
+	}
+	for _, id := range []string{"SKIL-RB-001", "SKIL-RB-002", "SKIL-RB-003", "SKIL-RB-004"} {
+		out[id] = ControlImplementation{Engine: "builtin.ruby-ast"}
 	}
 	for _, rule := range NewHiddenInstruction().Rules() {
 		out[rule.ID] = ControlImplementation{Engine: "builtin.hidden-instruction"}
