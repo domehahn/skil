@@ -24,14 +24,20 @@ func TestPublicSourcesUseIndependentProductIdentity(t *testing.T) {
 			case ".git", ".agents", ".github", ".agentic", ".codex":
 				return filepath.SkipDir
 			}
-			if strings.Contains(path, "docs/adr") {
+			// filepath.WalkDir yields OS-native-separator paths (backslash
+			// on Windows); the exclusions below are written with forward
+			// slashes, so compare against a slash-normalized form or they
+			// silently never match on Windows, walking into directories
+			// meant to be skipped.
+			slashPath := filepath.ToSlash(path)
+			if strings.Contains(slashPath, "docs/adr") {
 				return filepath.SkipDir
 			}
 			// benchmark/ is the one deliberate exception to this repository's
 			// no-third-party-branding policy: a vendor-neutral benchmark that
 			// won't say which tool got which score isn't a benchmark. See
 			// benchmark/README.md's "Why this is named differently" section.
-			if strings.HasPrefix(path, root+"/benchmark") {
+			if strings.HasPrefix(slashPath, filepath.ToSlash(root)+"/benchmark") {
 				return filepath.SkipDir
 			}
 			return nil

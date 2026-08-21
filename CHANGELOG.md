@@ -4,6 +4,15 @@
 
 ## 0.2.0 - 2026-08-21
 
+- Fixed the workspace/artifact tool path-confinement check accepting
+  POSIX-style rooted paths (e.g. `/tmp/escape`) as ordinary relative paths
+  on Windows: `filepath.IsAbs` alone doesn't catch them there, since it
+  requires a drive letter to consider a path absolute on that platform.
+  Also fixed two Windows-only false test failures caused by
+  `\`-vs-`/` path-separator mismatches, and pinned line endings to LF via
+  `.gitattributes` so content-hash-sensitive fixtures and generated-doc
+  comparisons stay byte-identical across platforms. Found and fixed while
+  cutting this release's first real cross-platform CI run.
 - Added a shared optional-analyzer pipeline for scan, verification,
   attestation, policy evaluation, and installation.
 - Added common manifest/lock dependency inventory and deterministic SPDX 2.3
