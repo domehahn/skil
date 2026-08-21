@@ -151,6 +151,8 @@ func (a *App) Run(ctx context.Context, args []string) int {
 		code = a.scan(ctx, args[1:])
 	case "scan-all":
 		code = a.scanAll(ctx, args[1:])
+	case "compose":
+		code = a.compose(ctx, args[1:])
 	case "serve":
 		code = a.serve(ctx, args[1:])
 	case "mcp":
@@ -248,6 +250,7 @@ Usage:
    skil scan <skill> [--full] [--static-only] [--osv] [--yara-rules file|--yara-rules-dir dir] [--semantic --semantic-model model] [--semantic-validation review|strict] [--require-complete] [--allow-remote]
               [--format terminal|json|markdown|sarif] [--compact] [--output file] [--baseline file] [--show-suppressed=false] [--domain domain] [--list-domains]
   skil scan-all <collection> [analysis flags] [--workers N] [--format terminal|json|markdown] [--output file]
+  skil compose <collection> [analysis flags] [--format terminal|json] [--output file]
   skil serve (--stdio | --listen 127.0.0.1:port --token-env ENV) --root <directory>
   skil mcp registry scan [file|server-name] [--official] [--format terminal|json] [--reviewed-closure contract]
   skil verify <skill> [--format json] [--osv] [--yara-rules file] [--semantic --semantic-model model] [--semantic-validation review|strict]

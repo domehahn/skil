@@ -150,3 +150,17 @@ allowed remote collection and returns one independently digest-bound result per
 skill. `--workers` provides bounded parallelism while preserving discovery
 order in JSON and Markdown output. A shared OSV cache requires `--workers 1` to
 avoid cross-scan cache replacement.
+
+`compose <collection>` scans the same discovered skills individually, then
+correlates their `CapabilityObservation`s across skills for combinations
+that are only a risk in composition: a skill with credential/secret-read
+access that writes a resource (a file path, by concrete value), and a
+*different* skill with network-outbound access that reads that same
+resource. Neither skill's own `scan` result names this — each only
+observes its own capabilities — so this is a genuinely new signal, not a
+restatement of `SKIL-SEC-001`/`SKIL-NET-001`-style single-skill findings.
+It emits `SKIL-COMPOSE-TOXIC-FLOW` (CRITICAL) per linked pair. This does
+not build a general cross-skill taint/data-flow graph — it correlates
+existing per-skill capability observations by shared concrete resource
+value, which needs no new analysis machinery. Requires at least two
+skills in the collection.
