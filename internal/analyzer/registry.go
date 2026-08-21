@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/domehahn/skil/pkg/skil"
 )
@@ -90,6 +91,13 @@ func (r *Registry) DomainCoverage() map[string]skil.CoverageState {
 
 func (r *Registry) Scan(ctx context.Context, ac skil.AnalysisContext) (skil.ScanResult, error) {
 	nativeRules := nativeRuleIDs()
+	budget := skil.DefaultAnalysisBudget()
+	if ac.Budget != nil {
+		budget = *ac.Budget
+	}
+	wallStart := time.Now()
+	budgetCtx, cancelBudget := context.WithTimeout(ctx, budget.MaxWallTime)
+	defer cancelBudget()
 	result := skil.ScanResult{
 		SchemaVersion: "1.0.0", Artifact: ac.Artifact, Findings: []skil.Finding{},
 		Coverage: map[string]skil.CoverageState{
@@ -124,6 +132,20 @@ func (r *Registry) Scan(ctx context.Context, ac skil.AnalysisContext) (skil.Scan
 		if len(domainFilter) > 0 && meta.Domain != "" && !filterSet[meta.Domain] {
 			continue
 		}
+		if ctx.Err() == nil && budgetCtx.Err() != nil {
+			// The wall-time budget is already exhausted: skip this
+			// analyzer entirely rather than starting work that would
+			// only be interrupted partway through, and record it as
+			// explicitly skipped (not out_of_scope, not failed) so the
+			// reason is unambiguous in the inspection ledger.
+			for _, file := range ac.Artifact.Files {
+				result.Inspection = append(result.Inspection, skil.InspectionWorkItem{
+					Analyzer: meta.ID, Version: meta.Version, File: file.Path,
+					Outcome: skil.InspectionSkipped, Reason: "analysis budget: wall-time limit exceeded",
+				})
+			}
+			continue
+		}
 		start := len(result.Inspection)
 		for _, file := range ac.Artifact.Files {
 			item := skil.InspectionWorkItem{
@@ -142,15 +164,31 @@ func (r *Registry) Scan(ctx context.Context, ac skil.AnalysisContext) (skil.Scan
 		var coverageOverride map[string]skil.CoverageState
 		var err error
 		if ra, ok := a.(skil.ResultAnalyzer); ok {
-			analysisResult, analyzeErr := ra.AnalyzeResult(ctx, ac)
+			analysisResult, analyzeErr := ra.AnalyzeResult(budgetCtx, ac)
 			findings, diagnostics, coverageOverride, err = analysisResult.Findings,
 				analysisResult.Diagnostics, analysisResult.Coverage, analyzeErr
 		} else if oa, ok := a.(skil.ObservationAnalyzer); ok {
-			findings, observations, err = oa.AnalyzeCapabilities(ctx, ac)
+			findings, observations, err = oa.AnalyzeCapabilities(budgetCtx, ac)
 		} else {
-			findings, err = a.Analyze(ctx, ac)
+			findings, err = a.Analyze(budgetCtx, ac)
 		}
 		if err != nil {
+			if ctx.Err() == nil && budgetCtx.Err() != nil {
+				// The analyzer failed specifically because the budget's
+				// wall-time deadline (not the caller's own ctx) expired
+				// mid-analysis — a soft degradation the overall scan
+				// still completes and reports (Status raised to at least
+				// WARN below), not a hard Scan() failure. A caller-level
+				// ctx cancellation independent of the budget still falls
+				// through to the hard-failure path beneath this branch.
+				for index := start; index < len(result.Inspection); index++ {
+					if result.Inspection[index].Outcome == skil.InspectionCompleted {
+						result.Inspection[index].Outcome = skil.InspectionSkipped
+						result.Inspection[index].Reason = "analysis budget: wall-time limit exceeded mid-analysis"
+					}
+				}
+				continue
+			}
 			for index := start; index < len(result.Inspection); index++ {
 				if result.Inspection[index].Outcome == skil.InspectionCompleted {
 					result.Inspection[index].Outcome = skil.InspectionFailed
@@ -211,7 +249,57 @@ func (r *Registry) Scan(ctx context.Context, ac skil.AnalysisContext) (skil.Scan
 	})
 	result.Maximum, result.RiskScore, result.Status = Risk(result.Findings, result.Coverage)
 	result.Verdict = Verdict(result.Maximum, result.RiskScore, result.Coverage)
+	result.Budget = computeBudgetUsage(ac.Artifact, budget, result, wallStart, ctx.Err() == nil && budgetCtx.Err() != nil)
+	if len(result.Budget.Exceeded) > 0 {
+		if result.Status == skil.StatusPass {
+			result.Status = skil.StatusWarn
+		}
+		result.Diagnostics = append(result.Diagnostics, skil.Diagnostic{
+			Component: "analysis-budget", Level: "warning",
+			Message: fmt.Sprintf("scan exceeded its analysis budget in: %s", strings.Join(result.Budget.Exceeded, ", ")),
+		})
+	}
 	return result, nil
+}
+
+// computeBudgetUsage measures what one completed (or budget-interrupted)
+// scan consumed against budget, dimension by dimension. wallTimeExceeded
+// is passed in explicitly (rather than re-derived here) since it depends
+// on distinguishing the injected budget deadline from the caller's own
+// ctx, which only Scan's own two context values can tell apart.
+func computeBudgetUsage(artifact skil.Artifact, budget skil.AnalysisBudget, result skil.ScanResult, wallStart time.Time, wallTimeExceeded bool) skil.AnalysisBudgetUsage {
+	var rawBytes, expandedBytes int64
+	for _, file := range artifact.Files {
+		if file.ContainerDepth > 0 {
+			expandedBytes += int64(len(file.Data))
+		} else {
+			rawBytes += int64(len(file.Data))
+		}
+	}
+	elapsed := time.Since(wallStart)
+	usage := skil.AnalysisBudgetUsage{
+		RawBytes:         skil.BudgetDimension{Used: rawBytes, Limit: budget.MaxRawBytes},
+		ExpandedBytes:    skil.BudgetDimension{Used: expandedBytes, Limit: budget.MaxExpandedBytes},
+		Findings:         skil.BudgetDimension{Used: int64(len(result.Findings)), Limit: int64(budget.MaxFindings)},
+		InspectionEvents: skil.BudgetDimension{Used: int64(len(result.Inspection)), Limit: int64(budget.MaxInspectionEvents)},
+		WallTime:         skil.BudgetDimension{Used: elapsed.Milliseconds(), Limit: budget.MaxWallTime.Milliseconds()},
+	}
+	if usage.RawBytes.Limit > 0 && usage.RawBytes.Used > usage.RawBytes.Limit {
+		usage.Exceeded = append(usage.Exceeded, "raw_bytes")
+	}
+	if usage.ExpandedBytes.Limit > 0 && usage.ExpandedBytes.Used > usage.ExpandedBytes.Limit {
+		usage.Exceeded = append(usage.Exceeded, "expanded_bytes")
+	}
+	if usage.Findings.Limit > 0 && usage.Findings.Used > usage.Findings.Limit {
+		usage.Exceeded = append(usage.Exceeded, "findings")
+	}
+	if usage.InspectionEvents.Limit > 0 && usage.InspectionEvents.Used > usage.InspectionEvents.Limit {
+		usage.Exceeded = append(usage.Exceeded, "inspection_events")
+	}
+	if wallTimeExceeded {
+		usage.Exceeded = append(usage.Exceeded, "wall_time")
+	}
+	return usage
 }
 
 func makeFinding(rule RulePattern, file skil.File, line int, matched string) skil.Finding {

@@ -162,6 +162,17 @@ func writeTerminal(w io.Writer, r skil.ScanResult) error {
 		}
 	}
 
+	if len(r.Budget.Exceeded) > 0 {
+		fmt.Fprintln(w, "\nANALYSIS BUDGET (exceeded)")
+		fmt.Fprintf(w, "  %-20s %14s %14s\n", "DIMENSION", "USED", "LIMIT")
+		fmt.Fprintf(w, "  %-20s %14d %14d\n", "raw_bytes", r.Budget.RawBytes.Used, r.Budget.RawBytes.Limit)
+		fmt.Fprintf(w, "  %-20s %14d %14d\n", "expanded_bytes", r.Budget.ExpandedBytes.Used, r.Budget.ExpandedBytes.Limit)
+		fmt.Fprintf(w, "  %-20s %14d %14d\n", "findings", r.Budget.Findings.Used, r.Budget.Findings.Limit)
+		fmt.Fprintf(w, "  %-20s %14d %14d\n", "inspection_events", r.Budget.InspectionEvents.Used, r.Budget.InspectionEvents.Limit)
+		fmt.Fprintf(w, "  %-20s %11dms %11dms\n", "wall_time", r.Budget.WallTime.Used, r.Budget.WallTime.Limit)
+		fmt.Fprintf(w, "  Exceeded: %s\n", strings.Join(r.Budget.Exceeded, ", "))
+	}
+
 	fmt.Fprintln(w, "\nANALYZER STATUS")
 	fmt.Fprintf(w, "  %-34s %-14s %5s %-35s\n", "ANALYZER", "STATUS", "ITEMS", "REASON")
 	statuses := analyzerStatuses(r.Inspection)

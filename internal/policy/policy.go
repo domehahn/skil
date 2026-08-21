@@ -33,8 +33,15 @@ type Policy struct {
 	// can score 100% inspection completeness while being completely
 	// opaque; these two checks are how a policy catches that case
 	// specifically.
-	MinimumAnalyzability            float64             `json:"minimum_analyzability,omitempty" yaml:"minimum_analyzability,omitempty"`
-	DenyOpaqueExecutableContent     bool                `json:"deny_opaque_executable_content,omitempty" yaml:"deny_opaque_executable_content,omitempty"`
+	MinimumAnalyzability        float64 `json:"minimum_analyzability,omitempty" yaml:"minimum_analyzability,omitempty"`
+	DenyOpaqueExecutableContent bool    `json:"deny_opaque_executable_content,omitempty" yaml:"deny_opaque_executable_content,omitempty"`
+	// DenyBudgetExhausted gates on skil.AnalysisBudgetUsage.Exceeded — a
+	// scan that ran out of its shared analysis budget (raw/expanded
+	// bytes, findings, inspection events, or wall time) partway through
+	// is incomplete in a way inspection completeness/analyzability alone
+	// don't capture: the scan's own resource ceiling, not any single
+	// file's applicability, is what cut it short.
+	DenyBudgetExhausted             bool                `json:"deny_budget_exhausted,omitempty" yaml:"deny_budget_exhausted,omitempty"`
 	ForbiddenCapabilities           []string            `json:"forbidden_capabilities,omitempty" yaml:"forbidden_capabilities,omitempty"`
 	AllowedCapabilities             []string            `json:"allowed_capabilities,omitempty" yaml:"allowed_capabilities,omitempty"`
 	ForbiddenRules                  []string            `json:"forbidden_rules,omitempty" yaml:"forbidden_rules,omitempty"`
@@ -146,6 +153,10 @@ func Check(p Policy, in Input) Result {
 					"artifact contains executable or archive content skil could not inspect: "+record.Reason)
 			}
 		}
+	}
+	if p.DenyBudgetExhausted && len(in.Scan.Budget.Exceeded) > 0 {
+		add("deny-budget-exhausted", false, strings.Join(in.Scan.Budget.Exceeded, ", "),
+			"scan exceeded its analysis budget before completing")
 	}
 	for _, rule := range p.ForbiddenRules {
 		for _, f := range in.Scan.Findings {
