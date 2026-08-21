@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Fixed the remaining wide-whitespace mutation bypasses in
+  `internal/analyzer/pattern.go`'s text rules (a contributor's PR fixed
+  three rule IDs; this closes the same class across the rest of the
+  file's multi-word phrases) and promoted wide-whitespace to a hard
+  per-rule invariant in `TestMutationRobustnessOfTextRules`, alongside
+  case mutations.
+
 ## 0.2.0 - 2026-08-21
 
 - Fixed the workspace/artifact tool path-confinement check accepting
