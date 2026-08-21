@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.2.0 - 2026-08-21
+
 - Added a shared optional-analyzer pipeline for scan, verification,
   attestation, policy evaluation, and installation.
 - Added common manifest/lock dependency inventory and deterministic SPDX 2.3
