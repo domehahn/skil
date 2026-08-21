@@ -191,6 +191,7 @@ A non-root multi-stage container image can be built with `make docker-build`;
 | [Security model](docs/security-model.md) | Threat assumptions and trust boundaries |
 | [Threat model](docs/threat-model.md) | Assets, attack surface, and countermeasures |
 | [Known limitations](docs/security-scanning.md) | Static-scanning scope and blind spots |
+| [CI and pre-commit integration](docs/ci-integration.md) | Official GitHub Action and pre-commit hooks |
 | [Verification](docs/verification.md) | Declared-vs-observed capability checks |
 | [Policy](docs/policy.md) | Explainable install-time decisions |
 | [Attestations](docs/attestations.md) | Digest-bound evidence and signatures |
@@ -214,6 +215,13 @@ announcement post) is also kept in-repo — a maintainer working document, not
 a claim about current adoption.
 
 ## CI gate
+
+An official GitHub Action (`uses: domehahn/skil@v0.2.0`) downloads a
+release binary verified against its build attestation, runs `skil scan`,
+and uploads SARIF to code scanning — see
+[CI and pre-commit integration](docs/ci-integration.md) for inputs and a
+pre-commit hook alternative. For a hand-rolled gate, or a runner the action
+doesn't cover:
 
 ```yaml
 env:
