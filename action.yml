@@ -1,0 +1,145 @@
+name: 'skil scan'
+description: 'Statically analyze an AI agent skill for security issues and upload SARIF results to GitHub code scanning.'
+author: 'skil'
+branding:
+  icon: 'shield'
+  color: 'blue'
+
+inputs:
+  path:
+    description: 'Path to the skill (for command=scan) or collection directory (for command=scan-all) to analyze.'
+    required: false
+    default: '.'
+  command:
+    description: "skil subcommand to run: 'scan' for one skill directory, 'scan-all' for a collection of skills."
+    required: false
+    default: 'scan'
+  version:
+    description: "skil release tag to install (e.g. 'v0.2.0'). Defaults to the repository's latest release."
+    required: false
+    default: 'latest'
+  args:
+    description: 'Additional arguments passed through verbatim to the skil command (e.g. --osv --semantic).'
+    required: false
+    default: ''
+  sarif-file:
+    description: 'Path to write the SARIF report to.'
+    required: false
+    default: 'skil-results.sarif'
+  upload-sarif:
+    description: "Whether to upload the SARIF report to GitHub code scanning. Requires the 'security-events: write' permission on the calling workflow."
+    required: false
+    default: 'true'
+  fail-on-findings:
+    description: "Whether this action step fails when skil's own gate fails (exit code 1). Set to 'false' to always upload SARIF and let code scanning alerts be the review mechanism instead of failing the workflow step."
+    required: false
+    default: 'true'
+  verify-attestation:
+    description: 'Verify the downloaded skil binary against its GitHub Artifact Attestation (build provenance) before running it, in addition to its published checksum. Requires the calling workflow to have the default GITHUB_TOKEN available.'
+    required: false
+    default: 'true'
+
+outputs:
+  exit-code:
+    description: "skil's exit code: 0 passed, 1 security/policy gate failed, 2 invalid input/config, 3 internal failure."
+    value: ${{ steps.scan.outputs.exit-code }}
+  sarif-path:
+    description: 'Path to the generated SARIF report.'
+    value: ${{ inputs.sarif-file }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Resolve skil release and platform
+      id: resolve
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        REQUESTED_VERSION: ${{ inputs.version }}
+      run: |
+        set -euo pipefail
+        case "${{ runner.os }}" in
+          Linux) os=linux; arch=amd64; binary=skil ;;
+          macOS) os=darwin; arch=arm64; binary=skil ;;
+          Windows) os=windows; arch=amd64; binary=skil.exe ;;
+          *) echo "::error::unsupported runner.os '${{ runner.os }}'"; exit 1 ;;
+        esac
+        version="$REQUESTED_VERSION"
+        if [ "$version" = "latest" ]; then
+          version=$(gh release view --repo domehahn/skil --json tagName --jq .tagName)
+        fi
+        echo "os=$os" >> "$GITHUB_OUTPUT"
+        echo "arch=$arch" >> "$GITHUB_OUTPUT"
+        echo "binary=$binary" >> "$GITHUB_OUTPUT"
+        echo "version=$version" >> "$GITHUB_OUTPUT"
+        echo "archive=skil_${version}_${os}_${arch}.tar.gz" >> "$GITHUB_OUTPUT"
+
+    - name: Download skil ${{ steps.resolve.outputs.version }}
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        set -euo pipefail
+        mkdir -p "$RUNNER_TEMP/skil-install"
+        gh release download "${{ steps.resolve.outputs.version }}" --repo domehahn/skil \
+          --dir "$RUNNER_TEMP/skil-install" \
+          --pattern "${{ steps.resolve.outputs.archive }}" \
+          --pattern "checksums.txt" \
+          --clobber
+
+    # A tool that itself exists to catch supply-chain compromise should not
+    # trust its own distribution channel on checksum alone: verify the
+    # actual GitHub Artifact Attestation (SLSA build provenance) that
+    # release.yml produces, proving the archive was built by that exact
+    # workflow from that exact tag, before falling back to (in addition
+    # to, not instead of) a plain checksum check.
+    - name: Verify build attestation
+      if: inputs.verify-attestation == 'true'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        set -euo pipefail
+        gh attestation verify "$RUNNER_TEMP/skil-install/${{ steps.resolve.outputs.archive }}" \
+          --repo domehahn/skil \
+          --signer-workflow "domehahn/skil/.github/workflows/release.yml" \
+          --deny-self-hosted-runners
+
+    - name: Verify checksum and extract
+      shell: bash
+      run: |
+        set -euo pipefail
+        cd "$RUNNER_TEMP/skil-install"
+        grep " ${{ steps.resolve.outputs.archive }}\$" checksums.txt | sha256sum -c -
+        tar -xzf "${{ steps.resolve.outputs.archive }}"
+        echo "$RUNNER_TEMP/skil-install" >> "$GITHUB_PATH"
+
+    - name: Run skil ${{ inputs.command }}
+      id: scan
+      shell: bash
+      run: |
+        set +e
+        "${{ steps.resolve.outputs.binary }}" ${{ inputs.command }} "${{ inputs.path }}" \
+          --format sarif --output "${{ inputs.sarif-file }}" ${{ inputs.args }}
+        code=$?
+        set -e
+        echo "exit-code=$code" >> "$GITHUB_OUTPUT"
+        if [ "$code" -eq 2 ] || [ "$code" -eq 3 ]; then
+          echo "::error::skil exited with code $code (invalid input/config or internal failure); see the step log above"
+          exit "$code"
+        fi
+
+    - name: Upload SARIF to code scanning
+      if: inputs.upload-sarif == 'true'
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: ${{ inputs.sarif-file }}
+
+    - name: Enforce skil's security/policy gate
+      if: inputs.fail-on-findings == 'true'
+      shell: bash
+      run: |
+        if [ "${{ steps.scan.outputs.exit-code }}" = "1" ]; then
+          echo "::error::skil's security/policy gate failed; see ${{ inputs.sarif-file }} or the uploaded code scanning alerts for findings"
+          exit 1
+        fi

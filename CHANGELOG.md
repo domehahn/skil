@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- Added an official GitHub Action (`action.yml`, `uses: domehahn/skil@...`)
+  and pre-commit hooks (`.pre-commit-hooks.yaml`: `skil-lint`,
+  `skil-lint-all`, `skil-scan`). The action downloads the release archive
+  matching the runner's OS/arch, verifies it against both its GitHub
+  Artifact Attestation (build provenance) and its published checksum
+  before running it, runs `skil scan`/`scan-all` with SARIF output,
+  uploads results to GitHub code scanning, and fails the step on skil's own
+  gate failure (each independently configurable). The pre-commit hooks use
+  `language: golang`, building skil from the exact pinned `rev` rather than
+  trusting a separately distributed binary. See
+  `docs/ci-integration.md`. Verified end-to-end in CI (`action-self-test`
+  job) on Linux, macOS, and Windows against both a clean and a malicious
+  fixture, including that `fail-on-findings` actually fails the step.
+
 - Added Deterministic Threat-Chain Correlation: every scan now runs a
   fixed, reviewable catalog of named attack patterns over its own already-
   computed findings and capability observations — each pattern a specific

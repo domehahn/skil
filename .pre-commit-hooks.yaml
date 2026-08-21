@@ -1,0 +1,42 @@
+# Hook definitions for the pre-commit framework (https://pre-commit.com).
+# A consuming repository references this file by pointing at this repo:
+#
+#   repos:
+#     - repo: https://github.com/domehahn/skil
+#       rev: v0.2.0
+#       hooks:
+#         - id: skil-lint          # repo root IS a single skill (SKILL.md at the root)
+#         # or, for a repo containing multiple skill directories:
+#         - id: skil-lint-all
+#
+# `language: golang` means pre-commit builds `skil` itself (via `go install
+# ./cmd/skil`) from this exact pinned rev — no separately distributed
+# binary or Docker image to trust, and always the exact version tested by
+# this project's own CI, not something the pre-commit-hooks author had to
+# remember to update.
+- id: skil-lint
+  name: skil lint
+  description: Statically analyze an AI agent skill's SKILL.md and manifest for security and authoring issues before commit. Use when this repository root is itself one skill.
+  entry: skil lint
+  language: golang
+  files: ''
+  pass_filenames: false
+  args: ['.']
+
+- id: skil-lint-all
+  name: skil lint-all
+  description: Statically analyze every skill in a collection before commit. Use when this repository contains multiple skill directories.
+  entry: skil lint-all
+  language: golang
+  files: ''
+  pass_filenames: false
+  args: ['.']
+
+- id: skil-scan
+  name: skil scan (security gate)
+  description: Run skil's full security scan (beyond lint's authoring checks) and fail the commit on a security/policy gate failure. Use when this repository root is itself one skill.
+  entry: skil scan
+  language: golang
+  files: ''
+  pass_filenames: false
+  args: ['.']
