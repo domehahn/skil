@@ -85,6 +85,13 @@ func nativeSupplementalRules() []skil.Rule {
 		{ID: "SKIL-PI-MD-HIDDEN-COMMENT", Title: "Hidden instruction in Markdown comment reference", Category: "instruction-integrity", Severity: skil.SeverityCritical, Analysis: "pattern", Description: "A Markdown comment reference (`[//]: #(...)`) contains security-sensitive instructions invisible when rendered.", Remediation: "Remove hidden instructions or make them visible for review."},
 		{ID: "SKIL-PI-MD-SUSPICIOUS-COMMENT", Title: "Markdown comment reference with unusual length", Category: "instruction-integrity", Severity: skil.SeverityMedium, Analysis: "pattern", Description: "An unusually long Markdown comment reference may conceal instructions or data.", Remediation: "Review and remove unreasonably large comments."},
 		{ID: "SKIL-TRIGGER-BAITING", Title: "Keyword baiting trigger", Category: "activation-integrity", Severity: skil.SeverityMedium, Analysis: "trigger", Description: "A trigger uses a common code or data keyword increasing unintentional activation risk.", Remediation: "Use a narrow, domain-specific trigger phrase."},
+		// SKIL-COMPOSE-TOXIC-FLOW is listed here for discoverability via
+		// `skil rules list`, but its enforcement path is
+		// internal/compose.Analyze (the `skil compose` command), not
+		// registry.Scan's single-artifact pipeline — see
+		// internal/compose's package doc for why a cross-skill finding
+		// needs a different code path than every other native rule.
+		{ID: "SKIL-COMPOSE-TOXIC-FLOW", Title: "Cross-skill secret-to-network flow via a shared resource", Category: "supply-chain-integrity", Severity: skil.SeverityCritical, Analysis: "compose", Description: "A skill with credential/secret-read access writes a resource that a different skill with network egress reads — a flow neither skill shows in isolation.", Remediation: "Remove the shared resource, or scope one of the two skills' capabilities so the flow cannot form."},
 	}
 }
 
@@ -183,6 +190,7 @@ func NativeControlImplementations() map[string]ControlImplementation {
 		"SKIL-CAP-DECLARATION-MISSING":     {Engine: "registry.conformance"},
 		"SKIL-MEMORY-FALSE-RESET":          {Engine: "builtin.pattern"},
 		"SKIL-MEMORY-FALSE-REPRESENTATION": {Engine: "builtin.pattern"},
+		"SKIL-COMPOSE-TOXIC-FLOW":          {Engine: "compose.Analyze (skil compose)"},
 	}
 	for id, implementation := range engines {
 		out[id] = implementation

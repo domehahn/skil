@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Added `skil compose <collection>`: scans every skill in a collection
+  individually, then correlates their capability observations across
+  skills for combinations that are only a risk in composition — a skill
+  with credential/secret access that writes a resource a *different*
+  skill with network egress reads. Emits `SKIL-COMPOSE-TOXIC-FLOW`
+  (CRITICAL) per linked pair, a signal no single skill's own scan can
+  express since each only observes its own capabilities.
+
 - Added a `.pyc` compiled-Python-bytecode analyzer: decodes the PEP 552
   header (Python version, invalidation mode), correlates each `.pyc` with
   an accompanying `.py` source in the same artifact when present, and
