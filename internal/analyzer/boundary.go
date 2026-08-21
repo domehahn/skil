@@ -22,6 +22,18 @@ func NewBoundary() *Boundary {
 			Remediation: remediation,
 		}, Pattern: regexp.MustCompile("(?i)" + expression), Confidence: .96}
 	}
+	// ruleWithNegative is rule() plus a negative-context guard, for the rare
+	// boundary rule whose positive expression alone can't tell "another
+	// agent's/skill's resource" apart from "this skill's own" — e.g.
+	// SKIL-BOUNDARY-MCP-CONFIG matching a skill that reads and summarizes
+	// its own declared mcp.json for the user. Checked against the same
+	// line the positive pattern matched, which is where this phrasing
+	// naturally appears (see internal/analyzer.(*Boundary).Analyze).
+	ruleWithNegative := func(id, title, category string, severity skil.Severity, expression, negative, description, remediation string) RulePattern {
+		p := rule(id, title, category, severity, expression, description, remediation)
+		p.Negative = regexp.MustCompile("(?i)" + negative)
+		return p
+	}
 	return &Boundary{rules: []RulePattern{
 		rule("SKIL-BOUNDARY-METADATA", "Cloud workload identity endpoint access", "infrastructure-boundary", skil.SeverityCritical,
 			`(?:169\.254\.169\.254|metadata\.google\.internal|100\.100\.100\.200|fd00:ec2::254).{0,100}(?:latest|metadata|identity|token|credential)|(?:latest/meta-data|computeMetadata/v1)|link[- ]local\s+metadata`,
@@ -43,8 +55,17 @@ func NewBoundary() *Boundary {
 			`(?:peek\s+(?:at\s+)?|read|open|scan|collect|upload|watch).{0,100}(?:\.codex|\.claude|\.cursor|\.gemini|\.continue|agent[_ -]?(?:history|memory|session|transcript)|conversation[_ -]?(?:history|log))`,
 			"Instructions or code access another agent's private state, history, or control files.",
 			"Restrict reads to the current artifact and exchange data only through an explicit, auditable interface."),
-		rule("SKIL-BOUNDARY-MCP-CONFIG", "Agent MCP configuration snooping", "agent-boundary", skil.SeverityHigh,
+		ruleWithNegative("SKIL-BOUNDARY-MCP-CONFIG", "Agent MCP configuration snooping", "agent-boundary", skil.SeverityHigh,
 			`(?:open|read|access|load|inspect|cat|less|head|grep|interrogate)\s*\(?['"]?[^\n]{0,60}mcp(?:_config)?\.json|\.(?:codex|claude|gemini|cursor)/mcp(?:_config)?\.json|(?:list|enumerate|discover|interrogate)\s+(?:all\s+)?(?:available\s+)?(?:the\s+)?(?:agent'?s?\s+)?mcp\s+(?:servers?|tools?|services?|configuration)|mcp(?:_config)?\.json[^\n]{0,80}(?:api[_ -]?key|token|secret|url|endpoint)`,
+			// A skill reading and summarizing its own declared mcp.json for
+			// the user is benign, transparent, in-scope behavior — the
+			// counterpart to SKIL-BOUNDARY-AGENT-STATE requiring an
+			// explicit other-agent directory marker. Only suppress the
+			// narrow "own manifest" phrasing, not any mention of "agent" —
+			// the enumerate/interrogate-other-servers branch above must
+			// still fire even when the sentence also happens to say "own"
+			// elsewhere (e.g. "the agent's own installed MCP servers").
+			`(?:this|the)\s+skill'?s?\s+own\s+mcp(?:_config)?\.json|\bits\s+own\s+(?:declared\s+)?mcp(?:_config)?\.json`,
 			"Content reads or enumerates the broader agent's MCP server configuration rather than the skill's own declared MCP manifest.",
 			"Restrict access to the skill's own declared MCP configuration; do not read or enumerate other MCP server config."),
 		rule("SKIL-BOUNDARY-PEER-SKILL", "Peer skill enumeration or access", "agent-boundary", skil.SeverityMedium,
@@ -114,7 +135,7 @@ func (b *Boundary) Analyze(_ context.Context, ac skil.AnalysisContext) ([]skil.F
 		}
 		for lineNumber, text := range lines(file.Data) {
 			for _, control := range b.rules {
-				if control.Pattern.MatchString(text) {
+				if control.Pattern.MatchString(text) && (control.Negative == nil || !control.Negative.MatchString(text)) {
 					findings = append(findings, makeFinding(control, file, lineNumber+1, text))
 				}
 			}
