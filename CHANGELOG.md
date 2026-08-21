@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- Added `skil discover [--home dir] [--format terminal|json]`: an
+  inventory of AI-agent skill and MCP-server components already installed
+  on the local machine, in the well-known per-tool locations Claude Code,
+  Claude Desktop, Cursor, VS Code, and Windsurf use — a different question
+  from `scan-all`'s "every skill inside a directory I already pointed you
+  at". Read-only and never executes anything: skill-tree locations are
+  walked for `SKILL.md` (reading only far enough to extract a display
+  name), and MCP-config locations are parsed as JSON to extract each
+  declared server's name/command/args — the operator reviews the inventory
+  and explicitly runs `skil scan` or `skil mcp assure` on whatever they
+  choose to analyze. A missing location or a malformed config file is
+  reported as absent, not a hard failure, so one bad file never hides
+  everything else found. See `docs/local-discovery.md`.
+
 - Added an official GitHub Action (`action.yml`, `uses: domehahn/skil@...`)
   and pre-commit hooks (`.pre-commit-hooks.yaml`: `skil-lint`,
   `skil-lint-all`, `skil-scan`). The action downloads the release archive

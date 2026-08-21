@@ -192,6 +192,7 @@ A non-root multi-stage container image can be built with `make docker-build`;
 | [Threat model](docs/threat-model.md) | Assets, attack surface, and countermeasures |
 | [Known limitations](docs/security-scanning.md) | Static-scanning scope and blind spots |
 | [CI and pre-commit integration](docs/ci-integration.md) | Official GitHub Action and pre-commit hooks |
+| [Local component discovery](docs/local-discovery.md) | `skil discover`: known-location inventory of installed skills and MCP servers |
 | [Verification](docs/verification.md) | Declared-vs-observed capability checks |
 | [Policy](docs/policy.md) | Explainable install-time decisions |
 | [Attestations](docs/attestations.md) | Digest-bound evidence and signatures |
