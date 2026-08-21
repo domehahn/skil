@@ -1,0 +1,16 @@
+# skil hashes file content in several places that must be
+# platform-independent: package/SBOM builds, attestation/evidence
+# payloads, and test fixtures with pinned checksums.txt digests. Without
+# this file, a checkout on Windows (where git's core.autocrlf commonly
+# defaults to true) silently rewrites LF line endings to CRLF, changing
+# those files' bytes and therefore their digests — this is exactly what
+# broke tests/fixtures/*/checksums.txt on a real Windows CI run.
+#
+# Normalize line endings to LF for text files on checkout, on every
+# platform, regardless of the local core.autocrlf setting.
+* text=auto eol=lf
+
+# Keep archive-like fixtures untouched either way.
+*.tgz binary
+*.tar.gz binary
+*.zip binary
