@@ -100,6 +100,13 @@ func nativeSupplementalRules() []skil.Rule {
 		// MCP server command and observing its live JSON-RPC handshake,
 		// which SKIL-MCP-005's static manifest-vs-lock comparison cannot do.
 		{ID: "SKIL-MCP-011", Title: "Dynamic MCP tool metadata mismatch", Category: "tool-protocol", Severity: skil.SeverityCritical, Analysis: "mcp-assure", Description: "A tool's live, dynamically-observed metadata (over the actual MCP JSON-RPC handshake) disagrees with its reviewed entry in .skil/mcp-tools.lock.json, or was never declared in it at all.", Remediation: "Re-review the tool's live behavior and update the lock only after approval; investigate any tool the server exposes that was never reviewed."},
+		// SKIL-MCP-012 is the MCP Surface Lock v2 counterpart to
+		// SKIL-MCP-011: a separate, additive lock (.skil/mcp-surface.lock.json,
+		// internal/mcpassure/surface.go) whose digests cover an entire
+		// reviewed tool/prompt/resource/server object (including a tool's
+		// input schema), not just a tool's description — catching a rug
+		// pull that keeps the description unchanged but alters the schema.
+		{ID: "SKIL-MCP-012", Title: "Dynamic MCP surface mismatch", Category: "tool-protocol", Severity: skil.SeverityCritical, Analysis: "mcp-assure", Description: "A tool's, prompt's, resource's, or the server's own live, dynamically-observed full object disagrees with its reviewed entry in .skil/mcp-surface.lock.json, or was never declared in it at all.", Remediation: "Re-review the live object (including any input schema) and update the surface lock only after approval; investigate any tool/prompt/resource the server exposes that was never reviewed."},
 		// SKIL-RB-001/002/003 are emitted from builtin.ruby-ast's rubyCalls
 		// call-target table rather than returned by RubyAST.Rules() itself
 		// (only SKIL-RB-004 is), mirroring PythonAST/SKIL-PY-001..004's
@@ -220,6 +227,7 @@ func NativeControlImplementations() map[string]ControlImplementation {
 		"SKIL-MEMORY-FALSE-REPRESENTATION":        {Engine: "builtin.pattern"},
 		"SKIL-COMPOSE-TOXIC-FLOW":                 {Engine: "compose.Analyze (skil compose)"},
 		"SKIL-MCP-011":                            {Engine: "mcpassure.Run (skil mcp assure)"},
+		"SKIL-MCP-012":                            {Engine: "mcpassure.CompareSurfaceToLock (skil mcp assure)"},
 		"SKIL-CHAIN-INJECT-EXEC":                  {Engine: "builtin.chains"},
 		"SKIL-CHAIN-SUPPLY-CHAIN-COMPROMISE":      {Engine: "builtin.chains"},
 		"SKIL-CHAIN-DECEPTIVE-MULTIAGENT":         {Engine: "builtin.chains"},
