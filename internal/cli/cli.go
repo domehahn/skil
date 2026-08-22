@@ -37,6 +37,7 @@ import (
 	"github.com/domehahn/skil/internal/report"
 	"github.com/domehahn/skil/internal/sbom"
 	"github.com/domehahn/skil/internal/signing"
+	"github.com/domehahn/skil/internal/transitive"
 	"github.com/domehahn/skil/internal/verification"
 	"github.com/domehahn/skil/pkg/skil"
 	"github.com/domehahn/skil/schemas"
@@ -256,6 +257,7 @@ Usage:
   skil lint-all <collection> [--profile default|strict|portable|publish] [--workers N] [--format terminal|json|markdown] [--output file]
    skil scan <skill> [--full] [--static-only] [--osv] [--yara-rules file|--yara-rules-dir dir] [--semantic --semantic-model model] [--semantic-validation review|strict] [--semantic-runs N] [--require-complete] [--fail-on-incomplete] [--allow-remote]
               [--format terminal|json|markdown|sarif] [--compact] [--output file] [--baseline file] [--show-suppressed=false] [--domain domain] [--list-domains]
+              [--transitive [--transitive-depth N] [--transitive-allow-prefix p1,p2] [--transitive-deny-prefix p1,p2]]
   skil scan-all <collection> [analysis flags] [--workers N] [--format terminal|json|markdown] [--output file]
   skil compose <collection> [analysis flags] [--format terminal|json] [--output file]
   skil serve (--stdio | --listen 127.0.0.1:port --token-env ENV) --root <directory>
@@ -508,6 +510,10 @@ func (a *App) scan(ctx context.Context, args []string) int {
 	baselinePath := fs.String("baseline", "", "baseline file")
 	showSuppressed := fs.Bool("show-suppressed", true, "include baseline-suppressed findings in reports")
 	compact := fs.Bool("compact", false, "use the legacy one-line-per-finding terminal report")
+	transitiveFlag := fs.Bool("transitive", false, "follow external HTTPS references the skill's own content points at, recursively scanning each one (always off unless set; never on by default)")
+	transitiveDepth := fs.Int("transitive-depth", transitive.DefaultDepth, "how many reference hops to follow (capped regardless of value)")
+	transitiveAllow := fs.String("transitive-allow-prefix", "", "comma-separated URL prefixes; if set, only matching references are followed")
+	transitiveDeny := fs.String("transitive-deny-prefix", "", "comma-separated URL prefixes that are never followed, overriding any allow-prefix match")
 	analysis := bindAnalysisFlags(fs)
 	if code := parse(fs, args, 1); code != ExitOK {
 		return code
@@ -523,6 +529,19 @@ func (a *App) scan(ctx context.Context, args []string) int {
 	)
 	if err != nil {
 		return a.inputError(err)
+	}
+	if *transitiveFlag {
+		registry, err := a.analysisRegistry(ctx, analysis)
+		if err != nil {
+			return a.inputError(err)
+		}
+		scanner := func(ctx context.Context, path string) (skil.ScanResult, error) {
+			childResult, _, err := a.performScanWithRegistry(ctx, path, "", registry)
+			return childResult, err
+		}
+		result.References = transitive.Run(ctx, result.Artifact, transitive.Options{
+			Depth: *transitiveDepth, AllowPrefixes: splitNonEmpty(*transitiveAllow), DenyPrefixes: splitNonEmpty(*transitiveDeny),
+		}, httpsReferenceFetcher(), scanner)
 	}
 	if *compact && *format != "terminal" && *format != "" {
 		return a.inputError(errors.New("--compact is supported only with terminal output"))

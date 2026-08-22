@@ -173,6 +173,22 @@ func writeTerminal(w io.Writer, r skil.ScanResult) error {
 		fmt.Fprintf(w, "  Exceeded: %s\n", strings.Join(r.Budget.Exceeded, ", "))
 	}
 
+	if len(r.References) > 0 {
+		fmt.Fprintln(w, "\nTRANSITIVE REFERENCES")
+		for _, node := range r.References {
+			status := "skipped"
+			detail := node.SkipReason
+			if node.Fetched {
+				status = "fetched"
+				detail = "sha256:" + node.Digest
+				if node.Scan != nil {
+					detail += " status=" + string(node.Scan.Status)
+				}
+			}
+			fmt.Fprintf(w, "  [depth %d] %-6s %-58s %s\n", node.Depth, status, boundedDisplay(node.URL, 58), detail)
+		}
+	}
+
 	fmt.Fprintln(w, "\nANALYZER STATUS")
 	fmt.Fprintf(w, "  %-34s %-14s %5s %-35s\n", "ANALYZER", "STATUS", "ITEMS", "REASON")
 	statuses := analyzerStatuses(r.Inspection)
