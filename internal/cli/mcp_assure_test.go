@@ -25,8 +25,57 @@ func TestMCPAssureRequiresLock(t *testing.T) {
 	code := New(&stdout, &stderr).Run(context.Background(), []string{
 		"mcp", "assure", fixture(t, "example"), "--runtime-command", "/synthetic/mcp-server",
 	})
-	if code != ExitInput || !strings.Contains(stderr.String(), "mcp-tools.lock.json") {
+	if code != ExitInput || !strings.Contains(stderr.String(), "mcp-tools.lock.json") || !strings.Contains(stderr.String(), "mcp-surface.lock.json") {
 		t.Fatalf("mcp assure accepted a skill with no metadata lock: code=%d stderr=%s", code, stderr.String())
+	}
+}
+
+// TestMCPAssureDetectsSurfaceMismatchAgainstRealSandbox proves the MCP
+// Surface Lock v2 path end-to-end: a surface lock declaring a different
+// tool name than the one the real server actually exposes is flagged as
+// undeclared under SKIL-MCP-012, using only .skil/mcp-surface.lock.json
+// (no mcp-tools.lock.json at all), confirming the two locks are
+// independently usable.
+func TestMCPAssureDetectsSurfaceMismatchAgainstRealSandbox(t *testing.T) {
+	if os.Getenv("SKIL_REQUIRE_NATIVE_ISOLATION") != "1" {
+		t.Skip("native isolation integration test requires SKIL_REQUIRE_NATIVE_ISOLATION=1")
+	}
+	skillDir := t.TempDir()
+	skillMD := "# Fixture skill for mcp assure\n\nUsed only to exercise skil mcp assure end-to-end.\n"
+	if err := os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(skillMD), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(skillDir, ".skil"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// Declares a tool name the real server (TestMCPServerHelper) never
+	// exposes ("read_file" is what it actually exposes), so the real
+	// exposed tool is reported as undeclared under the surface lock.
+	document := `{"version":1,"tools":{"a_different_tool_name":"` + strings.Repeat("a", 64) + `"}}`
+	if err := os.WriteFile(filepath.Join(skillDir, ".skil", "mcp-surface.lock.json"), []byte(document), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	code := New(&stdout, &stderr).Run(context.Background(), []string{
+		"mcp", "assure", skillDir,
+		"--runtime-command", os.Args[0],
+		"--runtime-args", "-test.run=TestMCPServerHelper,--,mcp-server",
+		"--format", "json",
+	})
+	if code != ExitGateFail {
+		t.Fatalf("expected a gate failure for the undeclared tool: code=%d stdout=%s stderr=%s", code, stdout.String(), stderr.String())
+	}
+	var result mcpAssuranceResult
+	if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
+		t.Fatalf("parse mcp assure JSON output: %v\n%s", err, stdout.String())
+	}
+	if result.Passed || len(result.Mismatches) != 0 || len(result.SurfaceMismatches) != 1 {
+		t.Fatalf("unexpected assurance result: %#v", result)
+	}
+	if result.SurfaceMismatches[0].Component != "tool" || result.SurfaceMismatches[0].Name != "read_file" ||
+		result.SurfaceMismatches[0].Kind != "undeclared" {
+		t.Fatalf("unexpected surface mismatch: %#v", result.SurfaceMismatches[0])
 	}
 }
 

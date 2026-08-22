@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+- Added MCP Surface Lock v2 (`.skil/mcp-surface.lock.json`,
+  `SKIL-MCP-012`): a separate, additive lock alongside the existing
+  description-only `.skil/mcp-tools.lock.json`
+  (`SKIL-MCP-005`/`SKIL-MCP-011`). Each entry is a canonical-JSON digest of
+  an entire reviewed live object from `skil mcp assure`'s handshake — a
+  tool's name, description, *and input schema*; a prompt's name and
+  description; a resource's uri, name, and description; and the server's
+  own name, version, and protocol version — not just a tool's description
+  string. A rug pull that keeps a tool's description unchanged but alters
+  its input schema is invisible to the description-only lock but caught
+  here. Reuses `internal/signing.CanonicalJSON`, the same canonicalization
+  skil's signed evidence/attestations already use. Both locks can coexist;
+  `skil mcp assure` loads and compares against whichever is present (at
+  least one is required), merging both sets of mismatches into its output
+  (`mismatches` and the new `surface_mismatches`). Scope: `outputSchema`,
+  tool `annotations`, and a resource's `mimeType` are not yet part of the
+  canonical object hashed (the live-discovery client doesn't parse them
+  yet) — a natural future extension once real demand for it appears.
+
 - Added Transitive External Reference Scanning
   (`skil scan --transitive [--transitive-depth N] [--transitive-allow-prefix ...] [--transitive-deny-prefix ...]`),
   always off unless explicitly requested — a plain `skil scan` remains

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/domehahn/skil/schemas/mcp-surface-lock-v1.schema.json",
+  "title": "skil MCP surface lock v1",
+  "description": "Full-surface MCP integrity lock (.skil/mcp-surface.lock.json): unlike mcp-tools-lock-v1's tool-description-only digests, each entry here is a canonical-JSON digest of the entire reviewed object (a tool's name+description+input schema, a prompt's name+description, a resource's uri+name+description, or the server's own name+version+protocol version) — so a rug pull that keeps a tool's description but changes its input schema is still caught.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version"],
+  "properties": {
+    "version": { "const": 1 },
+    "server_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "tools": {
+      "type": "object",
+      "additionalProperties": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+    },
+    "prompts": {
+      "type": "object",
+      "additionalProperties": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+    },
+    "resources": {
+      "type": "object",
+      "additionalProperties": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+    }
+  }
+}

@@ -172,6 +172,21 @@ containers are virtualized in this first pass; a `.tar.gz` found as an
 ordinary file inside an artifact is not (the top-level artifact *package*
 format already supports `.tgz` independently of this).
 
+MCP Surface Lock v2: `.skil/mcp-surface.lock.json` is a separate, additive
+lock alongside the existing description-only `.skil/mcp-tools.lock.json`
+(`SKIL-MCP-005`/`SKIL-MCP-011`). Each entry is a canonical-JSON digest
+(the same recursive key-sorted canonicalization `internal/signing` already
+uses for signed evidence) of an entire reviewed live object from `skil mcp
+assure`'s handshake — a tool's name, description, *and input schema*; a
+prompt's name and description; a resource's uri, name, and description;
+and the server's own name, version, and protocol version — not just a
+tool's description string. A rug pull that keeps a tool's description
+unchanged but alters its input schema (e.g. quietly adding a parameter
+that accepts an arbitrary shell command) is invisible to the
+description-only lock but caught here as `SKIL-MCP-012`. Both locks can
+coexist; `skil mcp assure` loads and compares against whichever is
+present (at least one is required).
+
 Every scan draws from a single shared `AnalysisBudget` (raw bytes, expanded
 bytes from nested containers, findings, inspection events, wall time) — a
 resource backstop against a pathological or adversarial artifact, not a
