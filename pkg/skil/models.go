@@ -243,7 +243,30 @@ type ScanResult struct {
 	Analyzable    AnalyzabilitySummary     `json:"analyzability_summary"`
 	Diagnostics   []Diagnostic             `json:"diagnostics,omitempty"`
 	Budget        AnalysisBudgetUsage      `json:"analysis_budget"`
-	GeneratedAt   time.Time                `json:"generated_at"`
+	// References is populated only when transitive reference scanning was
+	// explicitly requested (skil scan --transitive) — nil/omitted
+	// otherwise. skil never fetches external content on its own; this is
+	// always an explicit, opt-in traversal the operator started.
+	References  []ReferenceNode `json:"references,omitempty"`
+	GeneratedAt time.Time       `json:"generated_at"`
+}
+
+// ReferenceNode is one external HTTPS reference found in a scanned
+// artifact's own content (or in a previously-fetched reference's
+// content), and what skil did about it — followed, or skipped, and why.
+type ReferenceNode struct {
+	URL       string `json:"url"`
+	ParentURL string `json:"parent_url,omitempty"`
+	Depth     int    `json:"depth"`
+	Fetched   bool   `json:"fetched"`
+	// SkipReason is set (and Fetched is false) when the reference was not
+	// followed — denied by the allow/deny prefix policy, a budget already
+	// exhausted, or a fetch/scan failure. A reference is always recorded
+	// even when skipped, so the graph itself is a complete inventory of
+	// what was found, not just what was followed.
+	SkipReason string      `json:"skip_reason,omitempty"`
+	Digest     string      `json:"digest,omitempty"`
+	Scan       *ScanResult `json:"scan,omitempty"`
 }
 
 type AnalyzerMetadata struct {

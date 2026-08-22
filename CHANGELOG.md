@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+- Added Transitive External Reference Scanning
+  (`skil scan --transitive [--transitive-depth N] [--transitive-allow-prefix ...] [--transitive-deny-prefix ...]`),
+  always off unless explicitly requested — a plain `skil scan` remains
+  fully offline. A skill's own content can instruct an agent to fetch and
+  use external content skil's static scan of the root artifact never
+  sees (`SKILL.md` → "download and use: `https://.../helper.md`" →
+  `helper.md` → `https://.../payload.py`); `--transitive` extracts every
+  distinct `https://` reference in the artifact, follows each one subject
+  to an allow/deny URL-prefix policy and a single shared budget (depth,
+  hard-capped at 3; 32 distinct targets; 10 MiB combined download bytes;
+  60s wall-clock time; 2 MiB per individual fetch), and recursively scans
+  what it fetched with the exact same analyzer pipeline the root artifact
+  went through — so a fetched payload gets the same AST/taint/dependency/
+  MCP/secret/semantic analysis any ordinary file does. Every reference
+  found is recorded in the new `references` field, whether followed or
+  skipped (and why), building a complete inventory rather than only a list
+  of what happened to get fetched. Reuses the exact same DNS-rebinding-
+  resistant, redirect-disabled, private/loopback-address-rejecting HTTPS
+  client the existing `--allow-remote` archive/Git loader already uses.
+  Deliberately an observability/inventory feature in this pass: a
+  reference's own findings do not yet propagate into the root scan's
+  `Status`/`Verdict`/verification/policy. See
+  `internal/transitive` and `docs/transitive-scanning.md`.
+
 - Added a global `AnalysisBudget`: every scan now draws from a single
   shared resource ceiling (raw bytes, expanded bytes from nested
   containers, findings, inspection events, wall time) instead of each
