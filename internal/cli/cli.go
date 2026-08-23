@@ -158,7 +158,11 @@ func (a *App) Run(ctx context.Context, args []string) int {
 	case "scan-all":
 		code = a.scanAll(ctx, args[1:])
 	case "compose":
-		code = a.compose(ctx, args[1:])
+		if len(args) > 1 && args[1] == "assure" {
+			code = a.composeAssure(ctx, append([]string{}, args[2:]...))
+		} else {
+			code = a.compose(ctx, args[1:])
+		}
 	case "serve":
 		code = a.serve(ctx, args[1:])
 	case "mcp":
@@ -260,6 +264,7 @@ Usage:
               [--transitive [--transitive-depth N] [--transitive-allow-prefix p1,p2] [--transitive-deny-prefix p1,p2]]
   skil scan-all <collection> [analysis flags] [--workers N] [--format terminal|json|markdown] [--output file]
   skil compose <collection> [analysis flags] [--format terminal|json] [--output file]
+  skil compose assure <collection> --runtime-command executable [--runtime-args a,b] [--format terminal|json] [--output file]
   skil serve (--stdio | --listen 127.0.0.1:port --token-env ENV) --root <directory>
   skil mcp registry scan [file|server-name] [--official] [--format terminal|json] [--reviewed-closure contract]
   skil mcp assure <skill> --runtime-command executable [--runtime-args a,b] [--timeout 10s] [--format terminal|json] [--output file]
@@ -1472,6 +1477,14 @@ type evaluationOptions struct {
 	MaxOutput                                          int64
 	Runs                                               int
 	RequireContainment                                 bool
+	// Workspace overrides the isolated adapter's scratch workspace
+	// directory. Empty (the default) creates and cleans up a fresh
+	// directory per call, exactly the prior behavior. A non-empty value
+	// is used as-is and never created/removed here — the caller owns its
+	// lifecycle. skil compose assure sets this to one shared directory
+	// across every skill in a collection, so a real write from one skill
+	// and a real read from another can land on the same physical path.
+	Workspace string
 }
 
 func (a *App) performEvaluation(ctx context.Context, source string, options evaluationOptions) (skil.EvalResult, error) {
@@ -1533,11 +1546,14 @@ func (a *App) performEvaluationArtifact(ctx context.Context, art skil.Artifact, 
 		if err != nil {
 			return skil.EvalResult{}, err
 		}
-		workspace, err := os.MkdirTemp("", "skil-assurance-workspace-")
-		if err != nil {
-			return skil.EvalResult{}, err
+		workspace := options.Workspace
+		if workspace == "" {
+			workspace, err = os.MkdirTemp("", "skil-assurance-workspace-")
+			if err != nil {
+				return skil.EvalResult{}, err
+			}
+			defer os.RemoveAll(workspace)
 		}
-		defer os.RemoveAll(workspace)
 		runtime = eval.ProcessRuntime{Executable: options.RuntimeCommand, Args: splitNonEmpty(options.RuntimeArgs),
 			Timeout: timeout, MaxOutput: options.MaxOutput, MaxMemoryMB: contract.Capabilities.Resources.MaxMemoryMB,
 			Contract: *contract, Isolation: isolation,
