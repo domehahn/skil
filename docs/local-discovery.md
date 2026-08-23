@@ -25,16 +25,23 @@ actually analyze.
 ## Coverage
 
 A fixed, documented, best-effort catalog — not a claim of exhaustive
-coverage of every agent tool that exists:
+coverage of every agent tool that exists. Each location and shape was
+verified against that tool's own published documentation, not assumed
+from resemblance to another tool's convention:
 
-| Tool | Location | What's extracted |
-| --- | --- | --- |
-| Claude Code | `~/.claude/skills/**/SKILL.md` | Installed skills |
-| Claude Code | `~/.claude.json` (`mcpServers`) | Declared MCP servers |
-| Claude Desktop | `claude_desktop_config.json` (`mcpServers`), OS-conventional path | Declared MCP servers |
-| Cursor | `~/.cursor/mcp.json` (`mcpServers`) | Declared MCP servers |
-| VS Code | `User/mcp.json` (`servers`), OS-conventional path | Declared MCP servers |
-| Windsurf | `~/.codeium/windsurf/mcp_config.json` (`mcpServers`) | Declared MCP servers |
+| Tool | Location | Shape | What's extracted |
+| --- | --- | --- | --- |
+| Claude Code | `~/.claude/skills/**/SKILL.md` | — | Installed skills |
+| Claude Code | `~/.claude.json` | `mcpServers` | Declared MCP servers |
+| Claude Desktop | `claude_desktop_config.json`, OS-conventional path | `mcpServers` | Declared MCP servers |
+| Cursor | `~/.cursor/mcp.json` | `mcpServers` | Declared MCP servers |
+| VS Code | `User/mcp.json`, OS-conventional path | `servers` | Declared MCP servers |
+| Windsurf | `~/.codeium/windsurf/mcp_config.json` | `mcpServers` | Declared MCP servers |
+| Gemini CLI | `~/.gemini/settings.json` | `mcpServers` | Declared MCP servers |
+| Amazon Q Developer CLI | `~/.aws/amazonq/mcp.json` (global only; its workspace-scoped `.amazonq/mcp.json` is project-local, out of scope) | `mcpServers` | Declared MCP servers |
+| Kiro | `~/.kiro/settings/mcp.json` | `mcpServers` | Declared MCP servers |
+| OpenCode | `~/.config/opencode/opencode.json` or `~/.opencode.json` | `mcp`, one command array per entry (not a separate command/args pair) | Declared MCP servers |
+| Codex CLI | `~/.codex/config.toml` (TOML, not JSON) | `[mcp_servers.<name>]` tables | Declared MCP servers |
 
 A location that doesn't exist on a given machine is silently skipped, not
 an error — most machines will only have a few of the covered tools
