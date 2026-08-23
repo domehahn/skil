@@ -248,3 +248,20 @@ not build a general cross-skill taint/data-flow graph — it correlates
 existing per-skill capability observations by shared concrete resource
 value, which needs no new analysis machinery. Requires at least two
 skills in the collection.
+
+`compose assure <collection> --runtime-command executable` verifies that
+static prediction against real observed runtime behavior: every skill
+with its own `eval.yaml` runs its behavioral eval once, each against one
+*shared* scratch workspace (unlike `skil assure`/`skil eval`, which each
+get their own fresh workspace) — so a real write from one skill and a
+real read from another can land on the same physical path — and the
+resulting operation traces are correlated into observed cross-skill flows
+(a writer's `filesystem.write` to some path, a different skill's
+`filesystem.read` of that exact path, and that reader also making at
+least one `network.outbound` call anywhere in its own trace). The result
+reconciles both sides: a static finding with a matching observed flow is
+`Confirmed`; a static finding never observed this run is `StaticOnly` (not
+exercised, not necessarily wrong — an eval only drives whatever its own
+test scenario exercises); an observed flow with no matching static
+finding is a `RuntimeOnlyGap` — a genuine, execution-confirmed gap the
+static model missed entirely. See `internal/composeassure`.

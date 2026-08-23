@@ -2,6 +2,32 @@
 
 ## Unreleased
 
+- Added Multi-Skill Runtime Assurance (`skil compose assure <collection>
+  --runtime-command executable`): verifies `skil compose`'s static
+  cross-skill toxic-flow prediction (`SKIL-COMPOSE-TOXIC-FLOW`) against
+  real observed runtime behavior. Every skill with its own `eval.yaml`
+  runs its behavioral eval once, each against one *shared* scratch
+  workspace — unlike `skil assure`/`skil eval`, which each get their own
+  fresh workspace, this is the whole point: a real write from one skill
+  and a real read from another can land on the same physical path. The
+  resulting per-skill operation traces are correlated (a writer's
+  `filesystem.write` to some path, a different skill's `filesystem.read`
+  of that exact path, and that reader also making at least one
+  `network.outbound` call anywhere in its own trace) and reconciled
+  against `compose.Analyze`'s static prediction: `Confirmed` (a static
+  finding with a matching observed flow), `StaticOnly` (predicted but not
+  exercised this run — not necessarily wrong), or `RuntimeOnlyGap` (an
+  observed flow with no matching static finding at all — a genuine,
+  execution-confirmed gap the static model missed). New
+  `internal/composeassure` package; `evaluationOptions` gained a
+  `Workspace` override so a caller can share one scratch directory across
+  multiple eval runs instead of each getting its own. Verified end-to-end
+  against the real native OS sandbox: two real skill fixtures (a writer,
+  a reader) with real `eval.yaml`s, run through the real sandboxed
+  process-runtime adapter protocol, with the writer's real file write and
+  the reader's real file read plus real network call to `example.com`
+  correctly correlated into an observed flow.
+
 - Added MCP Surface Lock v2 (`.skil/mcp-surface.lock.json`,
   `SKIL-MCP-012`): a separate, additive lock alongside the existing
   description-only `.skil/mcp-tools.lock.json`
