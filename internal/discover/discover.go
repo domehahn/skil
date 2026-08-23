@@ -30,6 +30,7 @@ import (
 	"strings"
 
 	"github.com/domehahn/skil/internal/collection"
+	"github.com/pelletier/go-toml/v2"
 )
 
 type ComponentKind string
@@ -67,10 +68,25 @@ const (
 	mcpConfig locationKind = "mcp-config"
 )
 
+// configFormat selects which shape scanMCPConfig parses a mcpConfig
+// location as. formatStandard covers every tool whose config uses the
+// now-common "mcpServers"/"servers" map of {command, args} objects
+// (Claude Code/Desktop, Cursor, Windsurf, VS Code, Gemini CLI, Amazon Q,
+// Kiro); formatOpenCode and formatCodexTOML exist because those two tools
+// each use a genuinely different shape (see their doc comments below).
+type configFormat string
+
+const (
+	formatStandard  configFormat = ""
+	formatOpenCode  configFormat = "opencode-json"
+	formatCodexTOML configFormat = "codex-toml"
+)
+
 type location struct {
-	Tool string
-	Kind locationKind
-	Path string
+	Tool   string
+	Kind   locationKind
+	Path   string
+	Format configFormat
 }
 
 // maxConfigBytes bounds how much of an MCP config file discovery will
@@ -87,7 +103,8 @@ const maxConfigBytes = 1 << 20 // 1 MiB
 // a single-OS test run.
 //
 // Covered tools and locations (each is a best-effort convention, not a
-// guarantee that a given install uses it):
+// guarantee that a given install uses it; verified against each tool's own
+// published documentation, not assumed from family resemblance):
 //   - Claude Code: ~/.claude/skills/**/SKILL.md, and MCP servers declared
 //     in ~/.claude.json's "mcpServers" map.
 //   - Claude Desktop: claude_desktop_config.json's "mcpServers" map, at
@@ -96,6 +113,20 @@ const maxConfigBytes = 1 << 20 // 1 MiB
 //   - VS Code (MCP support): User/mcp.json's "servers" map, at its
 //     OS-conventional path.
 //   - Windsurf: ~/.codeium/windsurf/mcp_config.json's "mcpServers" map.
+//   - Gemini CLI: ~/.gemini/settings.json's "mcpServers" map.
+//   - Amazon Q Developer CLI: ~/.aws/amazonq/mcp.json's "mcpServers" map
+//     (the global config; its workspace-scoped .amazonq/mcp.json is a
+//     project-local file, out of scope for this home-directory-wide
+//     discovery, matching the same scope boundary already drawn for
+//     Claude Code's own project-local .mcp.json).
+//   - Kiro: ~/.kiro/settings/mcp.json's "mcpServers" map.
+//   - OpenCode: ~/.config/opencode/opencode.json (or ~/.opencode.json,
+//     both documented as valid global locations) — a genuinely different
+//     shape from every tool above: top-level key "mcp", and each entry's
+//     command is a single array (["npx", "-y", "..."]) rather than a
+//     separate command/args pair. See formatOpenCode.
+//   - Codex CLI: ~/.codex/config.toml's "[mcp_servers.<name>]" tables —
+//     TOML, not JSON. See formatCodexTOML.
 func KnownLocations(home, goos string) []location {
 	join := func(parts ...string) string { return filepath.Join(append([]string{home}, parts...)...) }
 	locations := []location{
@@ -103,6 +134,12 @@ func KnownLocations(home, goos string) []location {
 		{Tool: "claude-code", Kind: mcpConfig, Path: join(".claude.json")},
 		{Tool: "cursor", Kind: mcpConfig, Path: join(".cursor", "mcp.json")},
 		{Tool: "windsurf", Kind: mcpConfig, Path: join(".codeium", "windsurf", "mcp_config.json")},
+		{Tool: "gemini-cli", Kind: mcpConfig, Path: join(".gemini", "settings.json")},
+		{Tool: "amazon-q", Kind: mcpConfig, Path: join(".aws", "amazonq", "mcp.json")},
+		{Tool: "kiro", Kind: mcpConfig, Path: join(".kiro", "settings", "mcp.json")},
+		{Tool: "opencode", Kind: mcpConfig, Path: join(".config", "opencode", "opencode.json"), Format: formatOpenCode},
+		{Tool: "opencode", Kind: mcpConfig, Path: join(".opencode.json"), Format: formatOpenCode},
+		{Tool: "codex-cli", Kind: mcpConfig, Path: join(".codex", "config.toml"), Format: formatCodexTOML},
 	}
 	switch goos {
 	case "darwin":
@@ -253,6 +290,17 @@ func scanMCPConfig(loc location) ([]Component, error) {
 	if err != nil {
 		return nil, err
 	}
+	switch loc.Format {
+	case formatOpenCode:
+		return parseOpenCodeConfig(loc, data)
+	case formatCodexTOML:
+		return parseCodexConfig(loc, data)
+	default:
+		return parseStandardMCPConfig(loc, data)
+	}
+}
+
+func parseStandardMCPConfig(loc location, data []byte) ([]Component, error) {
 	var document struct {
 		MCPServers map[string]mcpServerEntry `json:"mcpServers"`
 		Servers    map[string]mcpServerEntry `json:"servers"`
@@ -275,6 +323,70 @@ func scanMCPConfig(loc location) ([]Component, error) {
 	components := make([]Component, 0, len(names))
 	for _, name := range names {
 		entry := servers[name]
+		components = append(components, Component{
+			Kind: KindMCPServer, Tool: loc.Tool, Name: name, Path: loc.Path,
+			Command: entry.Command, Args: entry.Args,
+		})
+	}
+	return components, nil
+}
+
+// openCodeServerEntry matches OpenCode's genuinely different shape: no
+// separate command/args fields, only one array covering both (the
+// executable is command[0], everything after is args).
+type openCodeServerEntry struct {
+	Type    string   `json:"type"`
+	Command []string `json:"command"`
+}
+
+func parseOpenCodeConfig(loc location, data []byte) ([]Component, error) {
+	var document struct {
+		MCP map[string]openCodeServerEntry `json:"mcp"`
+	}
+	if err := json.Unmarshal(data, &document); err != nil {
+		return nil, nil
+	}
+	names := make([]string, 0, len(document.MCP))
+	for name := range document.MCP {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	components := make([]Component, 0, len(names))
+	for _, name := range names {
+		entry := document.MCP[name]
+		component := Component{Kind: KindMCPServer, Tool: loc.Tool, Name: name, Path: loc.Path}
+		if len(entry.Command) > 0 {
+			component.Command = entry.Command[0]
+			component.Args = entry.Command[1:]
+		}
+		components = append(components, component)
+	}
+	return components, nil
+}
+
+// codexServerEntry matches Codex CLI's TOML "[mcp_servers.<name>]" table
+// shape — the same command/args pair as the standard JSON tools, just in
+// TOML rather than JSON.
+type codexServerEntry struct {
+	Command string   `toml:"command"`
+	Args    []string `toml:"args"`
+}
+
+func parseCodexConfig(loc location, data []byte) ([]Component, error) {
+	var document struct {
+		MCPServers map[string]codexServerEntry `toml:"mcp_servers"`
+	}
+	if err := toml.Unmarshal(data, &document); err != nil {
+		return nil, nil
+	}
+	names := make([]string, 0, len(document.MCPServers))
+	for name := range document.MCPServers {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	components := make([]Component, 0, len(names))
+	for _, name := range names {
+		entry := document.MCPServers[name]
 		components = append(components, Component{
 			Kind: KindMCPServer, Tool: loc.Tool, Name: name, Path: loc.Path,
 			Command: entry.Command, Args: entry.Args,

@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- Extended `skil discover` to five more tools: Gemini CLI
+  (`~/.gemini/settings.json`), Amazon Q Developer CLI
+  (`~/.aws/amazonq/mcp.json`, global only), Kiro
+  (`~/.kiro/settings/mcp.json`) — all the same `mcpServers` shape already
+  supported — plus two genuinely different config shapes: OpenCode
+  (`~/.config/opencode/opencode.json`/`~/.opencode.json`, top-level `mcp`
+  key, one command array per entry rather than a separate command/args
+  pair) and Codex CLI (`~/.codex/config.toml`, TOML rather than JSON,
+  `[mcp_servers.<name>]` tables — reuses the `pelletier/go-toml/v2`
+  dependency already used for `pyproject.toml` parsing). Every location
+  and shape was verified against that tool's own published documentation
+  before writing the parser, not assumed from resemblance to an existing
+  one. See `docs/local-discovery.md`.
+
 - Added Multi-Skill Runtime Assurance (`skil compose assure <collection>
   --runtime-command executable`): verifies `skil compose`'s static
   cross-skill toxic-flow prediction (`SKIL-COMPOSE-TOXIC-FLOW`) against
