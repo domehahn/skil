@@ -21,8 +21,8 @@ func (a *DependencySourceAnalyzer) Metadata() skil.AnalyzerMetadata {
 	return skil.AnalyzerMetadata{
 		ID: "builtin.dependency-source", Version: "1.0.0",
 		Domain: "dependency-trust", Subdomain: "registry-redirection",
-		Categories:    []string{"dependency-trust", "supply-chain"},
-		AnalysisTypes: []string{"dependency-trust"},
+		Categories:     []string{"dependency-trust", "supply-chain"},
+		AnalysisTypes:  []string{"dependency-trust"},
 		SupportedTypes: []string{"npmrc", "conf", "toml", "xml", "sh", "py"},
 	}
 }

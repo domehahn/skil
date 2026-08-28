@@ -222,6 +222,8 @@ func (a *App) Run(ctx context.Context, args []string) int {
 		code = a.hook(args[1:])
 	case "ci":
 		code = a.ci(args[1:])
+	case "contract":
+		code = a.contract(ctx, args[1:])
 	default:
 		fmt.Fprintf(a.Err, "unknown command %q\n", args[0])
 		a.help()
@@ -776,6 +778,7 @@ func (a *App) attest(ctx context.Context, args []string) int {
 	evalResultPath := fs.String("eval-result", "", "behavioral/containment evaluation result JSON or YAML")
 	signer := fs.String("signer", "file", "signing provider: file, pkcs11, yubikey, or hsm")
 	slot := fs.Int("slot", 0, "hardware token slot index (when using hardware signers)")
+	sessionBound := fs.Bool("session-bound", false, "bind prompt context, model parameters, and session memory digest")
 	analysis := bindAnalysisFlags(fs)
 	if code := parse(fs, args, 1); code != ExitOK {
 		return code
@@ -791,6 +794,14 @@ func (a *App) attest(ctx context.Context, args []string) int {
 		return a.inputError(err)
 	}
 	attestation := evidence.Create(scan)
+	if *sessionBound {
+		signing.BindSessionDigest(&attestation, signing.SessionContextOptions{
+			SystemPrompt:  "Canonical Agent System Prompt",
+			Temperature:   0.2,
+			Seed:          42,
+			SessionMemory: "Session State Memory Digest",
+		})
+	}
 	if *evalResultPath != "" {
 		var evalResult skil.EvalResult
 		if err := readStructured(*evalResultPath, &evalResult, "eval-result-v1.schema.json"); err != nil {

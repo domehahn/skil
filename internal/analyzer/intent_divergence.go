@@ -20,8 +20,8 @@ func (a *IntentDivergenceAnalyzer) Metadata() skil.AnalyzerMetadata {
 	return skil.AnalyzerMetadata{
 		ID: "builtin.intent-divergence", Version: "1.0.0",
 		Domain: "intent-analysis", Subdomain: "trojan-detection",
-		Categories:    []string{"trojan-detection", "semantic-divergence"},
-		AnalysisTypes: []string{"intent-analysis"},
+		Categories:     []string{"trojan-detection", "semantic-divergence"},
+		AnalysisTypes:  []string{"intent-analysis"},
 		SupportedTypes: []string{"md", "txt", "json", "js", "py"},
 	}
 }
