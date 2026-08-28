@@ -249,8 +249,8 @@ func (r *Registry) Scan(ctx context.Context, ac skil.AnalysisContext) (skil.Scan
 		return a.RuleID < b.RuleID
 	})
 	result.Maximum, result.RiskScore, result.Status = Risk(result.Findings, result.Coverage)
-	result.Verdict = Verdict(result.Maximum, result.RiskScore, result.Coverage)
-	result.Budget = computeBudgetUsage(ac.Artifact, budget, result, wallStart, ctx.Err() == nil && budgetCtx.Err() != nil)
+	wallExceeded := (ctx.Err() == nil && budgetCtx.Err() != nil) || (budget.MaxWallTime > 0 && time.Since(wallStart) >= budget.MaxWallTime) || (budget.MaxWallTime <= 0)
+	result.Budget = computeBudgetUsage(ac.Artifact, budget, result, wallStart, wallExceeded)
 	if len(result.Budget.Exceeded) > 0 {
 		if result.Status == skil.StatusPass {
 			result.Status = skil.StatusWarn

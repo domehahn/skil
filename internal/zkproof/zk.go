@@ -39,7 +39,7 @@ func GenerateZKProof(ctx context.Context, skillPath string) (ZKProofCommitment, 
 	}
 
 	controlCommit := fmt.Sprintf("zk:commit:sha256:%x", h.Sum(nil))
-	isProved := scanRes.Verdict == skil.VerdictClear || scanRes.Verdict == skil.VerdictReview
+	isProved := scanRes.Verdict != skil.VerdictBlock && scanRes.Status != skil.StatusFail
 
 	return ZKProofCommitment{
 		Version:        1,

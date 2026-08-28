@@ -75,7 +75,7 @@ func TestScanExceedsWallTimeBudgetDegradesRatherThanFails(t *testing.T) {
 	// time reported as exceeded.
 	expired := skil.AnalysisBudget{
 		MaxRawBytes: 1 << 20, MaxExpandedBytes: 1 << 20,
-		MaxFindings: 10_000, MaxInspectionEvents: 10_000, MaxWallTime: time.Nanosecond,
+		MaxFindings: 10_000, MaxInspectionEvents: 10_000, MaxWallTime: -1 * time.Second,
 	}
 	result, err := DefaultRegistry(nil).Scan(context.Background(), skil.AnalysisContext{
 		Artifact: artifactWith("SKILL.md", "# demo\n"), Budget: &expired,
