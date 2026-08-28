@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 )
 
 var (
@@ -87,17 +86,4 @@ func (s *SecureIngestor) ReadFileSafely(relPath string, maxBytes int64) ([]byte,
 	}
 
 	return data, statInfo, nil
-}
-
-func openNoFollow(path string) (*os.File, error) {
-	flags := os.O_RDONLY
-	flags |= syscall.O_NOFOLLOW
-	f, err := os.OpenFile(path, flags, 0)
-	if err != nil {
-		if errors.Is(err, syscall.ELOOP) || errors.Is(err, syscall.EMLINK) {
-			return nil, fmt.Errorf("%w: %s", ErrSymlinkEscape, path)
-		}
-		return nil, err
-	}
-	return f, nil
 }
