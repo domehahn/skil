@@ -21,6 +21,7 @@ func DefaultRegistry(vuln skil.VulnerabilityProvider) *Registry {
 		NewLocalSemantic(), NewModelArtifact(), NewSecret(), NewBuild(), NewIdentity(), NewLateral(), NewAsset(),
 		NewSkill(), NewToolCapability(), NewDataDataset(), NewRAGContext(), NewMultiAgent(), NewAuditEvidence(), NewPolicyEnforcement(),
 		NewHiddenInstruction(), NewTrigger(), NewResourceConfig(), NewCredentialFlow(), NewDataClassification(), NewPyC(), NewRubyAST(), NewAgentExecutionSurface(),
+		NewIntentDivergence(), NewJailbreak(), NewDependencySource(),
 	}
 	return &Registry{analyzers: items}
 }
@@ -363,7 +364,10 @@ func capabilityForRule(ruleID string) string {
 	case "SKIL-SEC-001":
 		return "secrets.read"
 	case "SKIL-PY-002", "SKIL-SH-001", "SKIL-SH-002", "SKIL-SH-003", "SKIL-SH-004",
-		"SKIL-JS-001", "SKIL-INTENT-COMMAND", "SKIL-TAINT-EXECUTION", "SKIL-TAINT-OUTPUT-EXECUTION":
+		"SKIL-JS-001", "SKIL-INTENT-COMMAND", "SKIL-TAINT-EXECUTION", "SKIL-TAINT-OUTPUT-EXECUTION",
+		"SKIL-AGENT-HOOK-001", "SKIL-AGENT-HOOK-002", "SKIL-AGENT-HOOK-003", "SKIL-AGENT-PERM-001", "SKIL-AGENT-PERM-002",
+		"SKIL-INTENT-DIVERGENCE", "SKIL-JAILBREAK-001", "SKIL-JAILBREAK-002", "SKIL-JAILBREAK-003",
+		"SKIL-DEP-SOURCE-OVERRIDE", "SKIL-RAG-001", "SKIL-RAG-002", "SKIL-RAG-003":
 		return "commands.execute"
 	case "SKIL-TAINT-OUTPUT-CROSS-AGENT", "SKIL-DEP-MALICIOUS":
 		return "multi-agent"

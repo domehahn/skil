@@ -14,6 +14,7 @@ func (a *App) discover(args []string) int {
 	fs := newFlags("discover", a.Err)
 	home := fs.String("home", "", "home/profile directory to probe (default: the current user's home directory)")
 	workspace := fs.String("workspace", "", "workspace directory to probe for local agent configs")
+	infra := fs.Bool("infra", false, "probe local AI execution runtimes and server infrastructure")
 	format := fs.String("format", "terminal", "terminal or json")
 	output := fs.String("output", "", "discovery result output")
 	if code := parse(fs, args, 0); code != ExitOK {
@@ -27,7 +28,25 @@ func (a *App) discover(args []string) int {
 	var scanErrs []error
 	homeDir := *home
 
-	if *workspace != "" {
+	if *infra {
+		wsDir := *workspace
+		if wsDir == "" {
+			wsDir = "."
+		}
+		infraComponents, err := discover.DiscoverInfra(wsDir)
+		if err != nil {
+			return a.inputError(fmt.Errorf("infra discovery: %w", err))
+		}
+		for _, ic := range infraComponents {
+			components = append(components, discover.Component{
+				Tool:    ic.Name,
+				Kind:    discover.ComponentKind(ic.Kind),
+				Name:    ic.Name,
+				Path:    ic.Path,
+				Command: ic.Version,
+			})
+		}
+	} else if *workspace != "" {
 		wsComponents, err := discover.DiscoverWorkspace(*workspace)
 		if err != nil {
 			return a.inputError(fmt.Errorf("workspace discovery: %w", err))
