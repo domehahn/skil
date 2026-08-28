@@ -15,8 +15,8 @@ type RevocationEntry struct {
 }
 
 type RevocationRegistry struct {
-	Version   int               `json:"version"`
-	Revoked   []RevocationEntry `json:"revoked"`
+	Version int               `json:"version"`
+	Revoked []RevocationEntry `json:"revoked"`
 }
 
 func LoadRegistry(path string) (RevocationRegistry, error) {
