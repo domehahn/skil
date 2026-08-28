@@ -10,9 +10,9 @@ import (
 )
 
 const (
-	RuleRAGProvenanceMissing  = "SKIL-RAG-001"
-	RuleRAGBoundaryConfusion  = "SKIL-RAG-002"
-	RuleRAGRetrievalExecFlow  = "SKIL-RAG-003"
+	RuleRAGProvenanceMissing = "SKIL-RAG-001"
+	RuleRAGBoundaryConfusion = "SKIL-RAG-002"
+	RuleRAGRetrievalExecFlow = "SKIL-RAG-003"
 )
 
 type RAGContext struct{}
