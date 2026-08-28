@@ -154,7 +154,7 @@ type budget struct {
 }
 
 func (b *budget) exhausted() bool {
-	return b.targetsRemaining <= 0 || b.bytesRemaining <= 0 || time.Now().After(b.deadline)
+	return b.targetsRemaining <= 0 || b.bytesRemaining <= 0 || !time.Now().Before(b.deadline)
 }
 
 // Run traverses root's references (and, up to opts.Depth, references of
@@ -179,8 +179,10 @@ func Run(ctx context.Context, root skil.Artifact, opts Options, fetch Fetcher, s
 		maxBytes = DefaultMaxDownloadBytes
 	}
 	maxTime := opts.MaxTraversalTime
-	if maxTime <= 0 {
+	if maxTime == 0 {
 		maxTime = DefaultMaxTraversalTime
+	} else if maxTime < 0 {
+		maxTime = 0
 	}
 	b := &budget{targetsRemaining: maxTargets, bytesRemaining: maxBytes, deadline: time.Now().Add(maxTime)}
 

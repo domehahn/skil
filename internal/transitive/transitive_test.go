@@ -164,7 +164,7 @@ func TestRunStopsFollowingOnceTargetBudgetExhausted(t *testing.T) {
 func TestRunStopsFollowingOnceTimeBudgetExhausted(t *testing.T) {
 	root := artifactWith("SKILL.md", "https://example.com/a")
 	content := map[string]string{"https://example.com/a": "x"}
-	nodes := Run(context.Background(), root, Options{MaxTraversalTime: time.Nanosecond}, fakeFetcher(content), fakeScanner(content))
+	nodes := Run(context.Background(), root, Options{MaxTraversalTime: -1 * time.Second}, fakeFetcher(content), fakeScanner(content))
 	if len(nodes) != 1 || nodes[0].Fetched {
 		t.Fatalf("expected the reference to be skipped once the time budget already elapsed: %#v", nodes)
 	}
