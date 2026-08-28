@@ -3,7 +3,7 @@ module github.com/domehahn/skil
 go 1.24
 
 require (
-	github.com/aws/aws-sdk-go-v2 v1.43.6
+	github.com/aws/aws-sdk-go-v2 v1.43.7
 	github.com/aws/aws-sdk-go-v2/config v1.32.37
 	github.com/aws/aws-sdk-go-v2/service/bedrockruntime v1.57.3
 	github.com/pelletier/go-toml/v2 v2.4.3
