@@ -251,3 +251,37 @@ func TestPyPINormalizationPreservesTyposquatSignalWithoutSeparatorFalsePositives
 		t.Fatalf("PEP 508 typo was not detected: %#v", findings)
 	}
 }
+
+func TestNPMLockfileV1AndShrinkwrapCompleteness(t *testing.T) {
+	v1Json := `{
+  "name": "root",
+  "version": "1.0.0",
+  "lockfileVersion": 1,
+  "dependencies": {
+    "foo": {
+      "version": "2.0.0",
+      "dependencies": {
+        "bar": {
+          "version": "1.4.0"
+        }
+      }
+    }
+  }
+}`
+	artifact := artifactWith("npm-shrinkwrap.json", v1Json)
+	records, err := DiscoverDependencies(artifact)
+	if err != nil {
+		t.Fatalf("failed to discover dependencies: %v", err)
+	}
+	if len(records) != 2 {
+		t.Fatalf("expected 2 dependency records for lockfile v1 (foo and nested bar), got %d: %#v", len(records), records)
+	}
+	fooRec := records[0]
+	barRec := records[1]
+	if fooRec.Name != "bar" && fooRec.Name != "foo" {
+		t.Fatalf("unexpected record names: %#v", records)
+	}
+	if fooRec.Name == "foo" && (fooRec.Version != "2.0.0" || barRec.Version != "1.4.0") {
+		t.Fatalf("unexpected versions in lockfile v1: foo=%s bar=%s", fooRec.Version, barRec.Version)
+	}
+}

@@ -24,6 +24,10 @@ func Write(w io.Writer, format string, result skil.ScanResult) error {
 		return writeJSON(w, SARIF(result))
 	case "markdown", "md":
 		return writeMarkdown(w, result)
+	case "html":
+		return writeHTML(w, result)
+	case "interactive-html", "interactive":
+		return writeInteractiveWorkbench(w, result)
 	case "terminal", "":
 		return writeTerminal(w, result)
 	default:

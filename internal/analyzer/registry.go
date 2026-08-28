@@ -20,7 +20,7 @@ func DefaultRegistry(vuln skil.VulnerabilityProvider) *Registry {
 		NewPattern(), NewPythonAST(), NewStructuredAST(), NewTaint(), NewDependency(vuln), NewMCP(), NewBoundary(), NewUnicode(),
 		NewLocalSemantic(), NewModelArtifact(), NewSecret(), NewBuild(), NewIdentity(), NewLateral(), NewAsset(),
 		NewSkill(), NewToolCapability(), NewDataDataset(), NewRAGContext(), NewMultiAgent(), NewAuditEvidence(), NewPolicyEnforcement(),
-		NewHiddenInstruction(), NewTrigger(), NewResourceConfig(), NewCredentialFlow(), NewDataClassification(), NewPyC(), NewRubyAST(),
+		NewHiddenInstruction(), NewTrigger(), NewResourceConfig(), NewCredentialFlow(), NewDataClassification(), NewPyC(), NewRubyAST(), NewAgentExecutionSurface(),
 	}
 	return &Registry{analyzers: items}
 }
@@ -311,6 +311,7 @@ func makeFinding(rule RulePattern, file skil.File, line int, matched string) ski
 		Location: skil.Location{File: file.Path, StartLine: line, EndLine: line},
 		Evidence: map[string]any{"match": truncate(matched, 160)}, Remediation: rule.Rule.Remediation,
 		References: rule.Rule.References, Fingerprint: fp,
+		ContextDisposition: "confirmed",
 	}
 }
 

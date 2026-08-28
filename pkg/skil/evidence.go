@@ -6,17 +6,24 @@ import (
 )
 
 type Evidence struct {
-	Type             string             `json:"type" yaml:"type"`
-	Producer         string             `json:"producer" yaml:"producer"`
-	ProducerVer      string             `json:"producer_version" yaml:"producer_version"`
-	SubjectDigest    string             `json:"subject_digest" yaml:"subject_digest"`
-	Timestamp        time.Time          `json:"timestamp" yaml:"timestamp"`
-	PayloadDigest    string             `json:"payload_digest,omitempty" yaml:"payload_digest,omitempty"`
-	Result           EvidenceResult     `json:"result" yaml:"result"`
-	Coverage         []string           `json:"coverage,omitempty" yaml:"coverage,omitempty"`
-	Inspection       *InspectionSummary `json:"inspection_summary,omitempty" yaml:"inspection_summary,omitempty"`
-	InspectionDigest string             `json:"inspection_ledger_sha256,omitempty" yaml:"inspection_ledger_sha256,omitempty"`
-	Evaluation       *EvalEvidence      `json:"evaluation,omitempty" yaml:"evaluation,omitempty"`
+	Type             string                   `json:"type" yaml:"type"`
+	Producer         string                   `json:"producer" yaml:"producer"`
+	ProducerVer      string                   `json:"producer_version" yaml:"producer_version"`
+	SubjectDigest    string                   `json:"subject_digest" yaml:"subject_digest"`
+	Timestamp        time.Time                `json:"timestamp" yaml:"timestamp"`
+	PayloadDigest    string                   `json:"payload_digest,omitempty" yaml:"payload_digest,omitempty"`
+	Result           EvidenceResult           `json:"result" yaml:"result"`
+	Coverage         []string                 `json:"coverage,omitempty" yaml:"coverage,omitempty"`
+	Inspection       *InspectionSummary       `json:"inspection_summary,omitempty" yaml:"inspection_summary,omitempty"`
+	InspectionDigest string                   `json:"inspection_ledger_sha256,omitempty" yaml:"inspection_ledger_sha256,omitempty"`
+	Evaluation       *EvalEvidence            `json:"evaluation,omitempty" yaml:"evaluation,omitempty"`
+	ReferenceClosure *ReferenceClosureSummary `json:"reference_closure,omitempty" yaml:"reference_closure,omitempty"`
+}
+
+type ReferenceClosureSummary struct {
+	Digest   string `json:"digest" yaml:"digest"`
+	Nodes    int    `json:"nodes" yaml:"nodes"`
+	Complete bool   `json:"complete" yaml:"complete"`
 }
 
 type EvalEvidence struct {
@@ -45,14 +52,15 @@ type EvidenceResult struct {
 }
 
 type Attestation struct {
-	Version   int          `json:"version" yaml:"version"`
-	Subject   Subject      `json:"subject" yaml:"subject"`
-	Producer  Producer     `json:"producer" yaml:"producer"`
-	Analysis  []string     `json:"analysis" yaml:"analysis"`
-	Result    AttestResult `json:"result" yaml:"result"`
-	Timestamp time.Time    `json:"timestamp" yaml:"timestamp"`
-	Evidence  []Evidence   `json:"evidence" yaml:"evidence"`
-	Signature *Signature   `json:"signature,omitempty" yaml:"signature,omitempty"`
+	Version          int                      `json:"version" yaml:"version"`
+	Subject          Subject                  `json:"subject" yaml:"subject"`
+	Producer         Producer                 `json:"producer" yaml:"producer"`
+	Analysis         []string                 `json:"analysis" yaml:"analysis"`
+	Result           AttestResult             `json:"result" yaml:"result"`
+	Timestamp        time.Time                `json:"timestamp" yaml:"timestamp"`
+	Evidence         []Evidence               `json:"evidence" yaml:"evidence"`
+	ReferenceClosure *ReferenceClosureSummary `json:"reference_closure,omitempty" yaml:"reference_closure,omitempty"`
+	Signature        *Signature               `json:"signature,omitempty" yaml:"signature,omitempty"`
 }
 type Subject struct {
 	Name    string `json:"name" yaml:"name"`

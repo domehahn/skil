@@ -13,6 +13,7 @@ import (
 func (a *App) discover(args []string) int {
 	fs := newFlags("discover", a.Err)
 	home := fs.String("home", "", "home/profile directory to probe (default: the current user's home directory)")
+	workspace := fs.String("workspace", "", "workspace directory to probe for local agent configs")
 	format := fs.String("format", "terminal", "terminal or json")
 	output := fs.String("output", "", "discovery result output")
 	if code := parse(fs, args, 0); code != ExitOK {
@@ -21,22 +22,34 @@ func (a *App) discover(args []string) int {
 	if *format != "terminal" && *format != "json" {
 		return a.inputError(errors.New("discover supports terminal or json output"))
 	}
+
+	var components []discover.Component
+	var scanErrs []error
 	homeDir := *home
-	if homeDir == "" {
-		resolved, err := os.UserHomeDir()
+
+	if *workspace != "" {
+		wsComponents, err := discover.DiscoverWorkspace(*workspace)
 		if err != nil {
-			return a.inputError(fmt.Errorf("resolve home directory: %w (use --home to specify one explicitly)", err))
+			return a.inputError(fmt.Errorf("workspace discovery: %w", err))
 		}
-		homeDir = resolved
+		components = wsComponents
+	} else {
+		if homeDir == "" {
+			resolved, err := os.UserHomeDir()
+			if err != nil {
+				return a.inputError(fmt.Errorf("resolve home directory: %w (use --home to specify one explicitly)", err))
+			}
+			homeDir = resolved
+		}
+		locations := discover.KnownLocations(homeDir, runtime.GOOS)
+		components, scanErrs = discover.Scan(locations)
 	}
 
-	locations := discover.KnownLocations(homeDir, runtime.GOOS)
-	components, scanErrs := discover.Scan(locations)
 	if components == nil {
 		components = []discover.Component{}
 	}
 	result := discoverResult{
-		SchemaVersion: "1.0.0", Home: homeDir, Components: components,
+		SchemaVersion: "1.0.0", Home: homeDir, Workspace: *workspace, Components: components,
 		Errors: errorStrings(scanErrs),
 	}
 
@@ -58,7 +71,8 @@ func (a *App) discover(args []string) int {
 
 type discoverResult struct {
 	SchemaVersion string               `json:"schema_version"`
-	Home          string               `json:"home"`
+	Home          string               `json:"home,omitempty"`
+	Workspace     string               `json:"workspace,omitempty"`
 	Components    []discover.Component `json:"components"`
 	Errors        []string             `json:"errors,omitempty"`
 }

@@ -31,6 +31,8 @@ type Config struct {
 	AllowPrivate   bool
 	HTTPClient     *http.Client
 	ValidationMode skil.SemanticValidationMode
+	Temperature    *float64
+	Seed           *int64
 }
 type Provider struct {
 	endpoint       string
@@ -38,6 +40,8 @@ type Provider struct {
 	apiKey         string
 	client         *http.Client
 	validationMode skil.SemanticValidationMode
+	temperature    *float64
+	seed           *int64
 }
 
 func New(config Config) (*Provider, error) {
@@ -70,7 +74,7 @@ func New(config Config) (*Provider, error) {
 			}}
 	}
 	return &Provider{endpoint: config.Endpoint, model: config.Model, apiKey: config.APIKey,
-		client: client, validationMode: validationMode}, nil
+		client: client, validationMode: validationMode, temperature: config.Temperature, seed: config.Seed}, nil
 }
 
 func (p *Provider) ID() string { return "openai-compatible/" + p.model }

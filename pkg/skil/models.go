@@ -45,21 +45,23 @@ type Location struct {
 }
 
 type Finding struct {
-	ID                string         `json:"id" yaml:"id"`
-	RuleID            string         `json:"rule_id" yaml:"rule_id"`
-	Category          string         `json:"category" yaml:"category"`
-	Severity          Severity       `json:"severity" yaml:"severity"`
-	Confidence        float64        `json:"confidence" yaml:"confidence"`
-	Title             string         `json:"title" yaml:"title"`
-	Message           string         `json:"message" yaml:"message"`
-	Description       string         `json:"description,omitempty" yaml:"description,omitempty"`
-	Location          Location       `json:"location" yaml:"location"`
-	Evidence          map[string]any `json:"evidence,omitempty" yaml:"evidence,omitempty"`
-	Remediation       string         `json:"remediation,omitempty" yaml:"remediation,omitempty"`
-	References        []string       `json:"references,omitempty" yaml:"references,omitempty"`
-	Fingerprint       string         `json:"fingerprint" yaml:"fingerprint"`
-	Suppressed        bool           `json:"suppressed,omitempty" yaml:"suppressed,omitempty"`
-	SuppressionReason string         `json:"suppression_reason,omitempty" yaml:"suppression_reason,omitempty"`
+	ID                 string         `json:"id" yaml:"id"`
+	RuleID             string         `json:"rule_id" yaml:"rule_id"`
+	Category           string         `json:"category" yaml:"category"`
+	Severity           Severity       `json:"severity" yaml:"severity"`
+	Confidence         float64        `json:"confidence" yaml:"confidence"`
+	Title              string         `json:"title" yaml:"title"`
+	Message            string         `json:"message" yaml:"message"`
+	Description        string         `json:"description,omitempty" yaml:"description,omitempty"`
+	Location           Location       `json:"location" yaml:"location"`
+	Evidence           map[string]any `json:"evidence,omitempty" yaml:"evidence,omitempty"`
+	Remediation        string         `json:"remediation,omitempty" yaml:"remediation,omitempty"`
+	References         []string       `json:"references,omitempty" yaml:"references,omitempty"`
+	Fingerprint        string         `json:"fingerprint" yaml:"fingerprint"`
+	Suppressed         bool           `json:"suppressed,omitempty" yaml:"suppressed,omitempty"`
+	SuppressionReason  string         `json:"suppression_reason,omitempty" yaml:"suppression_reason,omitempty"`
+	ContextDisposition string         `json:"context_disposition,omitempty" yaml:"context_disposition,omitempty"`
+	ContextReason      string         `json:"context_reason,omitempty" yaml:"context_reason,omitempty"`
 }
 
 type Rule struct {
@@ -247,8 +249,40 @@ type ScanResult struct {
 	// explicitly requested (skil scan --transitive) — nil/omitted
 	// otherwise. skil never fetches external content on its own; this is
 	// always an explicit, opt-in traversal the operator started.
-	References  []ReferenceNode `json:"references,omitempty"`
-	GeneratedAt time.Time       `json:"generated_at"`
+	References  []ReferenceNode   `json:"references,omitempty"`
+	Closure     *AssuranceClosure `json:"assurance_closure,omitempty"`
+	GeneratedAt time.Time         `json:"generated_at"`
+}
+
+type AssuranceClosure struct {
+	RootDigest      string        `json:"root_digest" yaml:"root_digest"`
+	Nodes           []ClosureNode `json:"nodes" yaml:"nodes"`
+	Edges           []ClosureEdge `json:"edges,omitempty" yaml:"edges,omitempty"`
+	MaximumSeverity Severity      `json:"maximum_severity" yaml:"maximum_severity"`
+	Complete        bool          `json:"complete" yaml:"complete"`
+	Limitations     []string      `json:"limitations,omitempty" yaml:"limitations,omitempty"`
+	Digest          string        `json:"closure_digest" yaml:"closure_digest"`
+}
+
+type ClosureNode struct {
+	ID              string   `json:"id" yaml:"id"`
+	Source          string   `json:"source" yaml:"source"`
+	Digest          string   `json:"digest" yaml:"digest"`
+	ParentDigest    string   `json:"parent_digest,omitempty" yaml:"parent_digest,omitempty"`
+	Depth           int      `json:"depth" yaml:"depth"`
+	ScanStatus      string   `json:"scan_status" yaml:"scan_status"`
+	MaximumSeverity Severity `json:"maximum_severity" yaml:"maximum_severity"`
+	Verdict         string   `json:"verdict" yaml:"verdict"`
+	Required        bool     `json:"required" yaml:"required"`
+	Resolved        bool     `json:"resolved" yaml:"resolved"`
+	Analyzed        bool     `json:"analyzed" yaml:"analyzed"`
+	Findings        []string `json:"findings,omitempty" yaml:"findings,omitempty"`
+}
+
+type ClosureEdge struct {
+	FromID   string `json:"from_id" yaml:"from_id"`
+	ToID     string `json:"to_id" yaml:"to_id"`
+	Relation string `json:"relation" yaml:"relation"`
 }
 
 // ReferenceNode is one external HTTPS reference found in a scanned

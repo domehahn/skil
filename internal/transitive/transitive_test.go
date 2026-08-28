@@ -185,3 +185,50 @@ func TestRunProducesNoNodesForAReferenceFreeArtifact(t *testing.T) {
 		t.Fatalf("expected no reference nodes: %#v", nodes)
 	}
 }
+
+func TestAssuranceClosureDeterminismAndMutation(t *testing.T) {
+	root := artifactWith("SKILL.md", "download and use: https://example.com/helper.md")
+	root.Digest = "root-sha256-hash"
+
+	content := map[string]string{
+		"https://example.com/helper.md": "safe content",
+	}
+	nodes1 := Run(context.Background(), root, Options{}, fakeFetcher(content), fakeScanner(content))
+	closure1 := BuildAssuranceClosure(root, nodes1)
+
+	if closure1.Digest == "" {
+		t.Fatalf("expected non-empty closure digest")
+	}
+	if !closure1.Complete {
+		t.Fatalf("expected closure1 to be complete")
+	}
+
+	// Order independence check
+	closure1Rebuilt := BuildAssuranceClosure(root, nodes1)
+	if closure1.Digest != closure1Rebuilt.Digest {
+		t.Fatalf("expected identical digest for identical graph rebuild")
+	}
+
+	// Content mutation changes closure digest
+	contentMutated := map[string]string{
+		"https://example.com/helper.md": "CRITICAL MALWARE INSTRUCTION",
+	}
+	mutatedScanner := func(_ context.Context, path string) (skil.ScanResult, error) {
+		res, err := fakeScanner(contentMutated)(context.Background(), path)
+		res.Maximum = skil.SeverityCritical
+		res.Status = skil.StatusFail
+		res.Verdict = skil.VerdictBlock
+		res.Findings = []skil.Finding{{ID: "SKIL-EVIL-001", Severity: skil.SeverityCritical}}
+		return res, err
+	}
+
+	nodesMutated := Run(context.Background(), root, Options{}, fakeFetcher(contentMutated), mutatedScanner)
+	closureMutated := BuildAssuranceClosure(root, nodesMutated)
+
+	if closureMutated.Digest == closure1.Digest {
+		t.Fatalf("expected closure digest to change when child node findings/verdict mutate")
+	}
+	if closureMutated.MaximumSeverity != skil.SeverityCritical {
+		t.Fatalf("expected closure maximum severity to be CRITICAL, got %s", closureMutated.MaximumSeverity)
+	}
+}

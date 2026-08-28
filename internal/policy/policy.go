@@ -76,9 +76,21 @@ type Policy struct {
 	// of how strong its existing signature, attestation, or provenance is —
 	// revocation always overrides prior trust rather than merely failing to
 	// add new trust.
-	RevokedSignerKeyIDs    []string `json:"revoked_signer_key_ids,omitempty" yaml:"revoked_signer_key_ids,omitempty"`
-	RevokedArtifactDigests []string `json:"revoked_artifact_digests,omitempty" yaml:"revoked_artifact_digests,omitempty"`
-	RevokedSkills          []string `json:"revoked_skills,omitempty" yaml:"revoked_skills,omitempty"`
+	RequireCompleteTransitiveClosure   bool                  `json:"require_complete_transitive_closure,omitempty" yaml:"require_complete_transitive_closure,omitempty"`
+	DenyUnresolvedTransitiveReferences bool                  `json:"deny_unresolved_transitive_references,omitempty" yaml:"deny_unresolved_transitive_references,omitempty"`
+	AgentExecution                     *AgentExecutionPolicy `json:"agent_execution,omitempty" yaml:"agent_execution,omitempty"`
+	RevokedSignerKeyIDs                []string              `json:"revoked_signer_key_ids,omitempty" yaml:"revoked_signer_key_ids,omitempty"`
+	RevokedArtifactDigests             []string              `json:"revoked_artifact_digests,omitempty" yaml:"revoked_artifact_digests,omitempty"`
+	RevokedSkills                      []string              `json:"revoked_skills,omitempty" yaml:"revoked_skills,omitempty"`
+}
+
+type AgentExecutionPolicy struct {
+	AllowHooks            *bool    `json:"allow_hooks,omitempty" yaml:"allow_hooks,omitempty"`
+	AllowShellHooks       *bool    `json:"allow_shell_hooks,omitempty" yaml:"allow_shell_hooks,omitempty"`
+	AllowRemoteHooks      *bool    `json:"allow_remote_hooks,omitempty" yaml:"allow_remote_hooks,omitempty"`
+	AllowPermissionBypass *bool    `json:"allow_permission_bypass,omitempty" yaml:"allow_permission_bypass,omitempty"`
+	AllowedHookEvents     []string `json:"allowed_hook_events,omitempty" yaml:"allowed_hook_events,omitempty"`
+	AllowedRemoteDomains  []string `json:"allowed_remote_domains,omitempty" yaml:"allowed_remote_domains,omitempty"`
 }
 type Violation struct {
 	Rule     string `json:"rule" yaml:"rule"`
@@ -157,6 +169,25 @@ func Check(p Policy, in Input) Result {
 	if p.DenyBudgetExhausted && len(in.Scan.Budget.Exceeded) > 0 {
 		add("deny-budget-exhausted", false, strings.Join(in.Scan.Budget.Exceeded, ", "),
 			"scan exceeded its analysis budget before completing")
+	}
+	if p.AgentExecution != nil {
+		for _, f := range in.Scan.Findings {
+			if f.Suppressed {
+				continue
+			}
+			if p.AgentExecution.AllowHooks != nil && !*p.AgentExecution.AllowHooks && strings.HasPrefix(f.RuleID, "SKIL-AGENT-HOOK-") {
+				add("agent-execution-hooks-prohibited", false, f.RuleID, "agent lifecycle hooks are prohibited by policy")
+			}
+			if p.AgentExecution.AllowShellHooks != nil && !*p.AgentExecution.AllowShellHooks && f.RuleID == "SKIL-AGENT-HOOK-001" {
+				add("agent-execution-shell-hooks-prohibited", false, f.RuleID, "agent shell command hooks are prohibited by policy")
+			}
+			if p.AgentExecution.AllowRemoteHooks != nil && !*p.AgentExecution.AllowRemoteHooks && f.RuleID == "SKIL-AGENT-HOOK-002" {
+				add("agent-execution-remote-hooks-prohibited", false, f.RuleID, "agent remote exfiltration hooks are prohibited by policy")
+			}
+			if p.AgentExecution.AllowPermissionBypass != nil && !*p.AgentExecution.AllowPermissionBypass && f.RuleID == "SKIL-AGENT-PERM-001" {
+				add("agent-execution-permission-bypass-prohibited", false, f.RuleID, "agent permission bypass mode is prohibited by policy")
+			}
+		}
 	}
 	for _, rule := range p.ForbiddenRules {
 		for _, f := range in.Scan.Findings {
@@ -255,6 +286,26 @@ func Check(p Policy, in Input) Result {
 			in.Attestation.Result.MaximumSeverity != in.Scan.Maximum ||
 			in.Attestation.Result.RiskScore != in.Scan.RiskScore {
 			add("attestation-result", in.Scan, in.Attestation.Result, "attested verdict does not match the current scan")
+		}
+		if in.Attestation.ReferenceClosure != nil {
+			if in.Scan.Closure == nil {
+				add("attestation-closure", "scan with reference closure", "missing closure", "attested reference closure cannot be verified because current scan has no reference closure")
+			} else if in.Attestation.ReferenceClosure.Digest != in.Scan.Closure.Digest {
+				add("attestation-closure-digest", in.Scan.Closure.Digest, in.Attestation.ReferenceClosure.Digest, "attested reference closure digest does not match current scan closure digest")
+			}
+		}
+	}
+	if in.Scan.Closure != nil {
+		if (p.RequireCompleteTransitiveClosure || p.DenyUnresolvedTransitiveReferences) && !in.Scan.Closure.Complete {
+			add("transitive-closure-incomplete", true, in.Scan.Closure.Complete, "transitive reference closure is incomplete or contains unresolved references")
+		}
+		if severityRank(in.Scan.Closure.MaximumSeverity) > severityRank(skil.Severity(strings.ToUpper(p.MaximumSeverity))) {
+			add("transitive-closure-maximum-severity", strings.ToUpper(p.MaximumSeverity), in.Scan.Closure.MaximumSeverity, "maximum finding severity in transitive reference closure exceeds policy")
+		}
+		for _, node := range in.Scan.Closure.Nodes {
+			if node.Verdict == "BLOCK" {
+				add("transitive-closure-denied-reference", "permitted reference", node.Source, "transitive reference was denied or blocked: "+node.Source)
+			}
 		}
 	}
 	if len(p.AllowedRegistries) > 0 && !hasAllowedPrefix(in.Scan.Artifact.Source, p.AllowedRegistries) {

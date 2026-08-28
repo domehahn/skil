@@ -25,6 +25,10 @@ package transitive
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"io"
 	"regexp"
 	"sort"
 	"strings"
@@ -241,4 +245,133 @@ func Run(ctx context.Context, root skil.Artifact, opts Options, fetch Fetcher, s
 	}
 	walk(root, "", 1)
 	return nodes
+}
+
+// BuildAssuranceClosure constructs the deterministic AssuranceClosure graph from the root artifact and reference nodes.
+func BuildAssuranceClosure(root skil.Artifact, refNodes []skil.ReferenceNode) skil.AssuranceClosure {
+	rootNode := skil.ClosureNode{
+		ID:              root.SubjectDigest(),
+		Source:          root.Source,
+		Digest:          root.SubjectDigest(),
+		Depth:           0,
+		ScanStatus:      "completed",
+		MaximumSeverity: skil.SeverityInfo,
+		Verdict:         "CLEAR",
+		Required:        true,
+		Resolved:        true,
+		Analyzed:        true,
+	}
+
+	nodes := []skil.ClosureNode{rootNode}
+	var edges []skil.ClosureEdge
+	var limitations []string
+	complete := true
+	maxSev := skil.SeverityInfo
+
+	for _, ref := range refNodes {
+		node := skil.ClosureNode{
+			ID:       ref.URL,
+			Source:   ref.URL,
+			Depth:    ref.Depth,
+			Required: true,
+		}
+
+		parentID := root.SubjectDigest()
+		if ref.ParentURL != "" {
+			parentID = ref.ParentURL
+		}
+		node.ParentDigest = parentID
+
+		edges = append(edges, skil.ClosureEdge{
+			FromID:   parentID,
+			ToID:     ref.URL,
+			Relation: "references",
+		})
+
+		if ref.Fetched && ref.Scan != nil {
+			node.Digest = ref.Digest
+			node.ScanStatus = string(ref.Scan.Status)
+			node.MaximumSeverity = ref.Scan.Maximum
+			node.Verdict = string(ref.Scan.Verdict)
+			node.Resolved = true
+			node.Analyzed = true
+
+			for _, f := range ref.Scan.Findings {
+				findingProv := fmt.Sprintf("%s#%s@%s", ref.URL, f.ID, f.Location.File)
+				node.Findings = append(node.Findings, findingProv)
+			}
+
+			if severityRank(ref.Scan.Maximum) > severityRank(maxSev) {
+				maxSev = ref.Scan.Maximum
+			}
+		} else {
+			complete = false
+			node.Resolved = false
+			node.Analyzed = false
+			if ref.SkipReason != "" {
+				node.ScanStatus = "skipped"
+				node.Verdict = "UNRESOLVED"
+				limitations = append(limitations, fmt.Sprintf("%s: %s", ref.URL, ref.SkipReason))
+			}
+		}
+
+		nodes = append(nodes, node)
+	}
+
+	sort.Slice(nodes, func(i, j int) bool {
+		if nodes[i].Depth != nodes[j].Depth {
+			return nodes[i].Depth < nodes[j].Depth
+		}
+		return nodes[i].ID < nodes[j].ID
+	})
+
+	sort.Slice(edges, func(i, j int) bool {
+		if edges[i].FromID != edges[j].FromID {
+			return edges[i].FromID < edges[j].FromID
+		}
+		return edges[i].ToID < edges[j].ToID
+	})
+
+	sort.Strings(limitations)
+
+	closure := skil.AssuranceClosure{
+		RootDigest:      root.SubjectDigest(),
+		Nodes:           nodes,
+		Edges:           edges,
+		MaximumSeverity: maxSev,
+		Complete:        complete,
+		Limitations:     limitations,
+	}
+
+	closure.Digest = ComputeClosureDigest(closure)
+	return closure
+}
+
+// ComputeClosureDigest produces a deterministic, ordering-independent SHA-256 digest of the closure.
+func ComputeClosureDigest(closure skil.AssuranceClosure) string {
+	h := sha256.New()
+	_, _ = io.WriteString(h, closure.RootDigest+"\n")
+	for _, n := range closure.Nodes {
+		_, _ = io.WriteString(h, fmt.Sprintf("node:%s|%s|%s|%d|%t|%t|%t|%s|%s\n",
+			n.ID, n.Source, n.Digest, n.Depth, n.Required, n.Resolved, n.Analyzed, n.ScanStatus, n.MaximumSeverity))
+	}
+	for _, e := range closure.Edges {
+		_, _ = io.WriteString(h, fmt.Sprintf("edge:%s->%s(%s)\n", e.FromID, e.ToID, e.Relation))
+	}
+	return "sha256:" + hex.EncodeToString(h.Sum(nil))
+}
+
+func severityRank(s skil.Severity) int {
+	switch s {
+	case skil.SeverityCritical:
+		return 4
+	case skil.SeverityHigh:
+		return 3
+	case skil.SeverityMedium:
+		return 2
+	case skil.SeverityLow:
+		return 1
+	default:
+		return 0
+	}
 }

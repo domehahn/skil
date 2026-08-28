@@ -128,6 +128,7 @@ def main() -> int:
     parser.add_argument("--skil-binary", help="path to the skil binary")
     parser.add_argument("--skillspector-binary", help="path to the skillspector binary")
     parser.add_argument("--cisco-skill-scanner-binary", help="path to the skill-scanner binary")
+    parser.add_argument("--mode", choices=["pinned", "rolling"], default="pinned", help="benchmark mode: pinned baseline vs rolling current")
     parser.add_argument("--output", default=str(ROOT / "results" / "latest.json"))
     args = parser.parse_args()
 
@@ -153,6 +154,7 @@ def main() -> int:
 
     report = {
         "schema_version": 2,
+        "benchmark_mode": args.mode,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "corpus": {
             "fixture_count": len(fixtures),
