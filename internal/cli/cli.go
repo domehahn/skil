@@ -230,6 +230,10 @@ func (a *App) Run(ctx context.Context, args []string) int {
 		code = a.stego(args[1:])
 	case "sandbox":
 		code = a.sandbox(args[1:])
+	case "revoke":
+		code = a.revoke(args[1:])
+	case "zk":
+		code = a.zk(ctx, args[1:])
 	default:
 		fmt.Fprintf(a.Err, "unknown command %q\n", args[0])
 		a.help()
@@ -1330,8 +1334,13 @@ func (a *App) evidence(args []string) int {
 }
 
 func (a *App) policyCheck(ctx context.Context, args []string) int {
-	if len(args) > 0 && args[0] == "init" {
-		return a.policyInit(ctx, args[1:])
+	if len(args) > 0 {
+		switch args[0] {
+		case "init":
+			return a.policyInit(ctx, args[1:])
+		case "adapt":
+			return a.policyAdapt(args[1:])
+		}
 	}
 	if len(args) == 0 || args[0] != "check" {
 		fmt.Fprintln(a.Err, "usage: skil policy init --output file | skil policy check <skill> --policy file")

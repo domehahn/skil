@@ -13,10 +13,10 @@ type SubagentNode struct {
 }
 
 type MeshProofResult struct {
-	WorkspaceRoot      string         `json:"workspace_root"`
-	Nodes              []SubagentNode `json:"nodes"`
-	Violations         []string       `json:"violations"`
-	IsMonotonic        bool           `json:"is_monotonic"`
+	WorkspaceRoot string         `json:"workspace_root"`
+	Nodes         []SubagentNode `json:"nodes"`
+	Violations    []string       `json:"violations"`
+	IsMonotonic   bool           `json:"is_monotonic"`
 }
 
 func VerifyMesh(workspaceRoot string) (MeshProofResult, error) {
