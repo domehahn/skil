@@ -3,6 +3,7 @@ package githook
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -23,7 +24,7 @@ func TestInstallAndUninstallGitHook(t *testing.T) {
 		t.Fatalf("expected pre-commit hook file to exist")
 	}
 
-	if info.Mode().Perm()&0111 == 0 {
+	if runtime.GOOS != "windows" && info.Mode().Perm()&0111 == 0 {
 		t.Fatalf("expected pre-commit hook file to be executable")
 	}
 
