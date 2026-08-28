@@ -224,6 +224,12 @@ func (a *App) Run(ctx context.Context, args []string) int {
 		code = a.ci(args[1:])
 	case "contract":
 		code = a.contract(ctx, args[1:])
+	case "mesh":
+		code = a.mesh(args[1:])
+	case "stego":
+		code = a.stego(args[1:])
+	case "sandbox":
+		code = a.sandbox(args[1:])
 	default:
 		fmt.Fprintf(a.Err, "unknown command %q\n", args[0])
 		a.help()
