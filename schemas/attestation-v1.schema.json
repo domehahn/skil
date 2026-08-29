@@ -17,6 +17,8 @@
     }},
     "timestamp": {"type": "string", "format": "date-time"},
     "evidence": {"type": "array", "items": {"type": "object"}},
+    "reference_closure": {"$ref": "#/$defs/referenceClosure"},
+    "assurance_closure": {"type": "object"},
     "signature": {
       "type": "object",
       "required": ["provider", "algorithm", "key_id", "value"],
@@ -27,6 +29,25 @@
         "value": {"type": "string", "minLength": 1}
       },
       "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "referenceClosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["digest", "nodes", "complete", "verified"],
+      "properties": {
+        "root_digest": {"type": "string"},
+        "digest": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
+        "nodes": {"type": "integer", "minimum": 1},
+        "required_nodes": {"type": "integer", "minimum": 0},
+        "unresolved_nodes": {"type": "integer", "minimum": 0},
+        "blocking_findings": {"type": "integer", "minimum": 0},
+        "max_depth": {"type": "integer", "minimum": 0},
+        "complete": {"type": "boolean"},
+        "verified": {"type": "boolean"},
+        "state": {"enum": ["SAFE", "UNSAFE", "UNKNOWN"]}
+      }
     }
   },
   "additionalProperties": false

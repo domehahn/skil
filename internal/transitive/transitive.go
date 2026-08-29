@@ -25,6 +25,8 @@ package transitive
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"regexp"
 	"sort"
@@ -285,8 +287,10 @@ func BuildAssuranceClosureFromScan(rootScan skil.ScanResult, refNodes []skil.Ref
 		Verification:    skil.VerificationVerified,
 	}
 
-	nodes := []skil.ClosureNode{rootNode}
+	localNodes, localEdges := localArtifactNodes(rootScan)
+	nodes := append([]skil.ClosureNode{rootNode}, localNodes...)
 	var edges []skil.ClosureEdge
+	edges = append(edges, localEdges...)
 	var limitations []string
 	complete := true
 	maxSev := skil.SeverityInfo
@@ -357,6 +361,121 @@ func BuildAssuranceClosureFromScan(rootScan skil.ScanResult, refNodes []skil.Ref
 		Limitations:     limitations,
 	}
 	return assurance.Finalize(closure)
+}
+
+func localArtifactNodes(scan skil.ScanResult) ([]skil.ClosureNode, []skil.ClosureEdge) {
+	persistentFiles := map[string]bool{}
+	for _, observation := range scan.Observations {
+		if observation.Capability == "memory.persistence" || observation.Capability == "memory.cross_session" {
+			persistentFiles[observation.Location.File] = true
+		}
+	}
+	var nodes []skil.ClosureNode
+	var edges []skil.ClosureEdge
+	for _, file := range scan.Artifact.Files {
+		kind, relation := classifyLocalNode(file, persistentFiles[file.Path])
+		status := fileAnalysisStatus(file.Path, scan)
+		maximum := skil.SeverityInfo
+		verdict := skil.VerdictClear
+		var findingRefs []string
+		for _, finding := range scan.Findings {
+			if finding.Suppressed || finding.Location.File != file.Path {
+				continue
+			}
+			findingRefs = append(findingRefs, finding.ID+"@"+file.Path)
+			if severityRank(finding.Severity) > severityRank(maximum) {
+				maximum = finding.Severity
+			}
+		}
+		if severityRank(maximum) >= severityRank(skil.SeverityHigh) {
+			verdict = skil.VerdictBlock
+		} else if severityRank(maximum) >= severityRank(skil.SeverityMedium) {
+			verdict = skil.VerdictReview
+		}
+		scanStatus := skil.StatusPass
+		if verdict == skil.VerdictBlock {
+			scanStatus = skil.StatusFail
+		} else if verdict == skil.VerdictReview || status != skil.AnalysisCompleted {
+			scanStatus = skil.StatusWarn
+		}
+		digest := file.SHA256
+		if digest == "" {
+			sum := sha256.Sum256(file.Data)
+			digest = hex.EncodeToString(sum[:])
+		}
+		id := string(kind) + ":" + file.Path
+		nodes = append(nodes, skil.ClosureNode{
+			ID: id, Kind: kind, Source: file.Path, Digest: digest,
+			ParentDigest: scan.Artifact.SubjectDigest(), Depth: 1, ScanStatus: string(scanStatus),
+			MaximumSeverity: maximum, Verdict: string(verdict), Required: true,
+			Resolved: digest != "", Analyzed: status == skil.AnalysisCompleted,
+			Findings: findingRefs, AnalysisStatus: status, Verification: skil.VerificationVerified,
+		})
+		edges = append(edges, skil.ClosureEdge{FromID: scan.Artifact.SubjectDigest(), ToID: id, Relation: relation})
+	}
+	return nodes, edges
+}
+
+func classifyLocalNode(file skil.File, persistent bool) (skil.NodeKind, string) {
+	clean := strings.ToLower(strings.ReplaceAll(file.Path, "\\", "/"))
+	base := clean
+	if slash := strings.LastIndexByte(clean, '/'); slash >= 0 {
+		base = clean[slash+1:]
+	}
+	if file.ContainerDepth > 0 {
+		return skil.NodeNestedArtifact, "contains"
+	}
+	if persistent {
+		return skil.NodePersistentState, "configures"
+	}
+	if strings.Contains(clean, ".claude/") || strings.Contains(clean, ".cursor/") || strings.Contains(clean, ".codex/") || strings.HasSuffix(clean, "hooks/hooks.json") {
+		return skil.NodeAgentSurface, "configures"
+	}
+	if strings.Contains(base, "mcp") && (strings.HasSuffix(base, ".json") || strings.HasSuffix(base, ".yaml") || strings.HasSuffix(base, ".yml")) {
+		return skil.NodeMCPSurface, "loads"
+	}
+	if isDependencyArtifact(clean, base) {
+		return skil.NodeDependency, "depends-on"
+	}
+	return skil.NodeArtifact, "contains"
+}
+
+func isDependencyArtifact(clean, base string) bool {
+	if strings.Contains(clean, ".cargo/config.toml") {
+		return true
+	}
+	for _, name := range []string{"package.json", "package-lock.json", "yarn.lock", "pnpm-lock.yaml", "pyproject.toml", "poetry.lock", "uv.lock", "requirements.txt", "pip.conf", ".npmrc", "cargo.toml", "cargo.lock", "pom.xml", "settings.xml", "go.mod", "go.sum"} {
+		if base == name {
+			return true
+		}
+	}
+	return false
+}
+
+func fileAnalysisStatus(path string, scan skil.ScanResult) skil.AnalysisStatus {
+	completed := false
+	for _, item := range scan.Inspection {
+		if item.File != path {
+			continue
+		}
+		switch item.Outcome {
+		case skil.InspectionFailed:
+			return skil.AnalysisFailed
+		case skil.InspectionSkipped:
+			return skil.AnalysisIncomplete
+		case skil.InspectionCompleted:
+			completed = true
+		}
+	}
+	for _, record := range scan.Analyzability {
+		if record.Path == path && record.State == skil.AnalyzabilityOpaque {
+			return skil.AnalysisIncomplete
+		}
+	}
+	if completed || len(scan.Inspection) == 0 {
+		return skil.AnalysisCompleted
+	}
+	return skil.AnalysisIncomplete
 }
 
 // ComputeClosureDigest produces a deterministic, ordering-independent SHA-256 digest of the closure.

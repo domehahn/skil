@@ -2,6 +2,7 @@ package analyzer
 
 import (
 	"context"
+	"slices"
 	"testing"
 
 	"github.com/domehahn/skil/pkg/skil"
@@ -57,6 +58,60 @@ func TestAgentExecutionSurfaceDetectsDangerousShellHookAndBypassPermissions(t *t
 
 	if len(obs) == 0 {
 		t.Fatalf("expected capability observations for agent execution surface, got none")
+	}
+}
+
+func TestAgentExecutionSurfaceParsesClaudeNestedHooksAndPermissions(t *testing.T) {
+	configData := `{
+      "permissions": {
+        "defaultMode": "bypassPermissions",
+        "allow": ["Read(src/**)", "Write(build/**)", "Bash(git status)", "WebFetch(domain:example.com)", "mcp__github__read"]
+      },
+      "hooks": {
+        "PreToolUse": [{"matcher":"Bash", "hooks":[{"type":"command", "command":"bash scripts/check.sh"}]}]
+      }
+    }`
+	file := skil.File{Path: ".claude/settings.local.json", Data: []byte(configData)}
+	analyzer := NewAgentExecutionSurface()
+	findings, observations, err := analyzer.AnalyzeCapabilities(context.Background(), skil.AnalysisContext{Artifact: skil.Artifact{Files: []skil.File{file}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(findings) < 2 {
+		t.Fatalf("expected bypass and shell-hook findings: %#v", findings)
+	}
+	capabilities := make([]string, 0, len(observations))
+	for _, observation := range observations {
+		capabilities = append(capabilities, observation.Capability)
+	}
+	for _, expected := range []string{"hook.execute.command", "permission.bypass", "permission.filesystem.read", "permission.filesystem.write", "permission.shell", "permission.network", "permission.tools"} {
+		if !slices.Contains(capabilities, expected) {
+			t.Errorf("missing normalized capability %q in %#v", expected, capabilities)
+		}
+	}
+}
+
+func TestAgentExecutionSurfaceRejectsMalformedRecognizedConfig(t *testing.T) {
+	file := skil.File{Path: ".claude/settings.json", Data: []byte(`{"hooks":`)}
+	_, _, err := NewAgentExecutionSurface().AnalyzeCapabilities(context.Background(), skil.AnalysisContext{Artifact: skil.Artifact{Files: []skil.File{file}}})
+	if err == nil {
+		t.Fatal("malformed security configuration must not be silently ignored")
+	}
+}
+
+func TestAgentExecutionSurfaceDigestIsMapOrderIndependent(t *testing.T) {
+	a, err := parseAgentConfigFile(skil.File{Path: ".claude/settings.json", Data: []byte(`{"hooks":{"Stop":"echo stop","Start":"echo start"}}`)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := parseAgentConfigFile(skil.File{Path: ".claude/settings.json", Data: []byte(`{"hooks":{"Start":"echo start","Stop":"echo stop"}}`)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	digestA, _ := a.ComputeSurfaceDigest()
+	digestB, _ := b.ComputeSurfaceDigest()
+	if digestA != digestB {
+		t.Fatalf("equivalent surfaces produced different digests: %s != %s", digestA, digestB)
 	}
 }
 

@@ -59,6 +59,35 @@ func TestScanExceedsFindingsBudgetRaisesStatusAndDiagnostic(t *testing.T) {
 	}
 }
 
+func TestRawByteBudgetStopsBeforeAnalysis(t *testing.T) {
+	tiny := skil.AnalysisBudget{MaxRawBytes: 4, MaxExpandedBytes: 1 << 20, MaxFindings: 100, MaxInspectionEvents: 100, MaxWallTime: time.Minute}
+	result, err := DefaultRegistry(nil).Scan(context.Background(), skil.AnalysisContext{
+		Artifact: artifactWith("SKILL.md", "more than four bytes"), Budget: &tiny,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !containsExceeded(result.Budget.Exceeded, "raw_bytes") || len(result.Inspection) != 0 || result.Coverage["analysis-budget"] != skil.CoverageDegraded {
+		t.Fatalf("byte budget was not enforced before analyzer work: %#v", result)
+	}
+	if Verdict(result.Maximum, result.RiskScore, result.Coverage) == skil.VerdictClear {
+		t.Fatal("byte-budget exhaustion produced CLEAR")
+	}
+}
+
+func TestInspectionBudgetStopsIncrementallyAndReportsIncomplete(t *testing.T) {
+	tiny := skil.AnalysisBudget{MaxRawBytes: 1 << 20, MaxExpandedBytes: 1 << 20, MaxFindings: 100, MaxInspectionEvents: 1, MaxWallTime: time.Minute}
+	result, err := DefaultRegistry(nil).Scan(context.Background(), skil.AnalysisContext{
+		Artifact: skil.Artifact{Name: "two-files", Files: []skil.File{{Path: "a.md", Data: []byte("a")}, {Path: "b.md", Data: []byte("b")}}}, Budget: &tiny,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !containsExceeded(result.Budget.Exceeded, "inspection_events") || result.Completeness.Skipped == 0 {
+		t.Fatalf("inspection budget exhaustion was not explicit: %#v", result)
+	}
+}
+
 func containsExceeded(exceeded []string, want string) bool {
 	for _, e := range exceeded {
 		if e == want {

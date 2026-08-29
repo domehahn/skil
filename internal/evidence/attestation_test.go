@@ -2,6 +2,7 @@ package evidence
 
 import (
 	"github.com/domehahn/skil/pkg/skil"
+	"strings"
 	"testing"
 )
 
@@ -22,6 +23,25 @@ func TestEvidenceBinding(t *testing.T) {
 	}
 	if err := Bind(a, skil.Artifact{Digest: "bbb"}); err == nil {
 		t.Fatal("expected substitution rejection")
+	}
+}
+
+func TestAttestationBindsCompleteClosureStateAndGraph(t *testing.T) {
+	closure := skil.AssuranceClosure{
+		RootDigest: "aaa", Digest: "sha256:" + strings.Repeat("b", 64),
+		Complete: true, Verified: true, State: skil.AssuranceSafe,
+		RequiredNodes: 2, Nodes: []skil.ClosureNode{{ID: "aaa"}, {ID: "helper"}},
+	}
+	attestation := Create(skil.ScanResult{
+		Artifact: skil.Artifact{Name: "a", Digest: "aaa"}, Status: skil.StatusPass,
+		Verdict: skil.VerdictClear, Maximum: skil.SeverityInfo, Closure: &closure,
+	})
+	if attestation.Closure == nil || attestation.ReferenceClosure == nil {
+		t.Fatalf("closure graph and summary were not attested: %#v", attestation)
+	}
+	if attestation.ReferenceClosure.RootDigest != "aaa" || attestation.ReferenceClosure.State != skil.AssuranceSafe ||
+		!attestation.ReferenceClosure.Verified || attestation.ReferenceClosure.RequiredNodes != 2 {
+		t.Fatalf("closure assurance metadata was not bound: %#v", attestation.ReferenceClosure)
 	}
 }
 

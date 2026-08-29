@@ -121,8 +121,11 @@ pre { padding: 12px; overflow-x: auto; }
 	if r.Closure != nil {
 		buf.WriteString(`
   <div class="card">
-    <h3 style="margin-top:0;">Transitive Reference Assurance Closure</h3>
-    <p>Closure Digest: <code>` + html.EscapeString(r.Closure.Digest) + `</code> | Complete: <strong>` + fmt.Sprintf("%t", r.Closure.Complete) + `</strong></p>
+    <h3 style="margin-top:0;">Assurance Closure</h3>
+    <p>State: <strong>` + html.EscapeString(string(r.Closure.State)) + `</strong> |
+       Complete: <strong>` + fmt.Sprintf("%t", r.Closure.Complete) + `</strong> |
+       Verified: <strong>` + fmt.Sprintf("%t", r.Closure.Verified) + `</strong> |
+       Closure Digest: <code>` + html.EscapeString(r.Closure.Digest) + `</code></p>
     <table>
       <thead>
         <tr>

@@ -576,21 +576,7 @@ func (a *App) scan(ctx context.Context, args []string) int {
 		}, httpsReferenceFetcher(), scanner)
 		closure := transitive.BuildAssuranceClosureFromScan(result, result.References)
 		result.Closure = &closure
-		switch closure.State {
-		case skil.AssuranceUnsafe:
-			result.Status = skil.StatusFail
-			result.Verdict = skil.VerdictBlock
-			if severityRankCLI(closure.MaximumSeverity) > severityRankCLI(result.Maximum) {
-				result.Maximum = closure.MaximumSeverity
-			}
-		case skil.AssuranceUnknown:
-			if result.Status == skil.StatusPass {
-				result.Status = skil.StatusWarn
-			}
-			if result.Verdict == skil.VerdictClear {
-				result.Verdict = skil.VerdictReview
-			}
-		}
+		applyClosureOutcome(&result)
 	}
 	if *compact && *format != "terminal" && *format != "" {
 		return a.inputError(errors.New("--compact is supported only with terminal output"))
@@ -640,6 +626,28 @@ func severityRankCLI(severity skil.Severity) int {
 		return 1
 	default:
 		return 0
+	}
+}
+
+func applyClosureOutcome(result *skil.ScanResult) {
+	if result == nil || result.Closure == nil {
+		return
+	}
+	closure := result.Closure
+	switch closure.State {
+	case skil.AssuranceUnsafe:
+		result.Status = skil.StatusFail
+		result.Verdict = skil.VerdictBlock
+		if severityRankCLI(closure.MaximumSeverity) > severityRankCLI(result.Maximum) {
+			result.Maximum = closure.MaximumSeverity
+		}
+	case skil.AssuranceUnknown:
+		if result.Status == skil.StatusPass {
+			result.Status = skil.StatusWarn
+		}
+		if result.Verdict == skil.VerdictClear {
+			result.Verdict = skil.VerdictReview
+		}
 	}
 }
 
@@ -2212,6 +2220,7 @@ func (a *App) performScanWithRegistryOptions(
 	if err != nil {
 		return result, contract, err
 	}
+	result.Verdict = analyzer.Verdict(result.Maximum, result.RiskScore, result.Coverage)
 	if contract != nil {
 		verified := verification.Verify(*contract, result.Findings, result.Observations)
 		result.Findings = append(result.Findings, verification.Findings(verified, art)...)
@@ -2227,6 +2236,9 @@ func (a *App) performScanWithRegistryOptions(
 		result.Maximum, result.RiskScore, result.Status = analyzer.Risk(result.Findings, result.Coverage)
 		result.Verdict = analyzer.Verdict(result.Maximum, result.RiskScore, result.Coverage)
 	}
+	closure := transitive.BuildAssuranceClosureFromScan(result, nil)
+	result.Closure = &closure
+	applyClosureOutcome(&result)
 	result.GeneratedAt = time.Now().UTC()
 	return result, contract, nil
 }

@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/domehahn/skil/internal/analyzer"
+	"github.com/domehahn/skil/internal/assurance"
 	"github.com/domehahn/skil/internal/evidence"
 	"github.com/domehahn/skil/internal/importer"
 	"github.com/domehahn/skil/internal/signing"
@@ -76,12 +78,13 @@ type Policy struct {
 	// of how strong its existing signature, attestation, or provenance is —
 	// revocation always overrides prior trust rather than merely failing to
 	// add new trust.
-	RequireCompleteTransitiveClosure   bool                  `json:"require_complete_transitive_closure,omitempty" yaml:"require_complete_transitive_closure,omitempty"`
-	DenyUnresolvedTransitiveReferences bool                  `json:"deny_unresolved_transitive_references,omitempty" yaml:"deny_unresolved_transitive_references,omitempty"`
-	AgentExecution                     *AgentExecutionPolicy `json:"agent_execution,omitempty" yaml:"agent_execution,omitempty"`
-	RevokedSignerKeyIDs                []string              `json:"revoked_signer_key_ids,omitempty" yaml:"revoked_signer_key_ids,omitempty"`
-	RevokedArtifactDigests             []string              `json:"revoked_artifact_digests,omitempty" yaml:"revoked_artifact_digests,omitempty"`
-	RevokedSkills                      []string              `json:"revoked_skills,omitempty" yaml:"revoked_skills,omitempty"`
+	RequireCompleteTransitiveClosure   bool                              `json:"require_complete_transitive_closure,omitempty" yaml:"require_complete_transitive_closure,omitempty"`
+	DenyUnresolvedTransitiveReferences bool                              `json:"deny_unresolved_transitive_references,omitempty" yaml:"deny_unresolved_transitive_references,omitempty"`
+	AgentExecution                     *AgentExecutionPolicy             `json:"agent_execution,omitempty" yaml:"agent_execution,omitempty"`
+	DependencySources                  map[string]DependencySourcePolicy `json:"dependency_sources,omitempty" yaml:"dependency_sources,omitempty"`
+	RevokedSignerKeyIDs                []string                          `json:"revoked_signer_key_ids,omitempty" yaml:"revoked_signer_key_ids,omitempty"`
+	RevokedArtifactDigests             []string                          `json:"revoked_artifact_digests,omitempty" yaml:"revoked_artifact_digests,omitempty"`
+	RevokedSkills                      []string                          `json:"revoked_skills,omitempty" yaml:"revoked_skills,omitempty"`
 }
 
 type AgentExecutionPolicy struct {
@@ -91,6 +94,9 @@ type AgentExecutionPolicy struct {
 	AllowPermissionBypass *bool    `json:"allow_permission_bypass,omitempty" yaml:"allow_permission_bypass,omitempty"`
 	AllowedHookEvents     []string `json:"allowed_hook_events,omitempty" yaml:"allowed_hook_events,omitempty"`
 	AllowedRemoteDomains  []string `json:"allowed_remote_domains,omitempty" yaml:"allowed_remote_domains,omitempty"`
+}
+type DependencySourcePolicy struct {
+	Allowed []string `json:"allowed" yaml:"allowed"`
 }
 type Violation struct {
 	Rule     string `json:"rule" yaml:"rule"`
@@ -132,6 +138,16 @@ func Load(path string) (Policy, error) {
 	if p.MaximumSeverity == "" {
 		p.MaximumSeverity = "HIGH"
 	}
+	for ecosystem, trust := range p.DependencySources {
+		for index, registry := range trust.Allowed {
+			canonical, err := analyzer.NormalizeRegistryURL(registry)
+			if err != nil {
+				return p, fmt.Errorf("dependency_sources.%s.allowed[%d]: %w", ecosystem, index, err)
+			}
+			trust.Allowed[index] = canonical
+		}
+		p.DependencySources[ecosystem] = trust
+	}
 	return p, nil
 }
 
@@ -166,9 +182,9 @@ func Check(p Policy, in Input) Result {
 			}
 		}
 	}
-	if p.DenyBudgetExhausted && len(in.Scan.Budget.Exceeded) > 0 {
+	if len(in.Scan.Budget.Exceeded) > 0 {
 		add("deny-budget-exhausted", false, strings.Join(in.Scan.Budget.Exceeded, ", "),
-			"scan exceeded its analysis budget before completing")
+			"scan exceeded its analysis budget before completing; incomplete analysis cannot be trusted")
 	}
 	if p.AgentExecution != nil {
 		for _, f := range in.Scan.Findings {
@@ -189,6 +205,7 @@ func Check(p Policy, in Input) Result {
 			}
 		}
 	}
+	checkDependencySources(p, in.Scan.Observations, add)
 	for _, rule := range p.ForbiddenRules {
 		for _, f := range in.Scan.Findings {
 			if f.RuleID == rule && !f.Suppressed {
@@ -271,6 +288,11 @@ func Check(p Policy, in Input) Result {
 				add("inspection-evidence", evidence.InspectionDigest(in.Scan.Inspection), item.InspectionDigest,
 					"attested inspection ledger does not match the current scan")
 			}
+			if item.Type == "security-scan" && item.Producer == "skil" && item.ObservationDigest != "" &&
+				item.ObservationDigest != evidence.ObservationsDigest(in.Scan.Observations) {
+				add("capability-observation-evidence", evidence.ObservationsDigest(in.Scan.Observations), item.ObservationDigest,
+					"attested capability observations do not match the current scan")
+			}
 			if (item.Type == "behavioral-eval" || item.Type == "containment-eval") && item.Producer == "skil" {
 				if in.Eval == nil {
 					add("evaluation-evidence-payload", "matching evaluation result", "missing",
@@ -294,10 +316,20 @@ func Check(p Policy, in Input) Result {
 				add("attestation-closure-digest", in.Scan.Closure.Digest, in.Attestation.ReferenceClosure.Digest, "attested reference closure digest does not match current scan closure digest")
 			}
 		}
+		if in.Attestation.Closure != nil && in.Scan.Closure != nil {
+			verification := assurance.Verify(*in.Attestation.Closure, *in.Scan.Closure)
+			for _, violation := range verification.Violations {
+				add("attestation-closure-"+violation.Reason, violation.Expected, violation.Actual,
+					"attested assurance closure drift at "+violation.Node+violation.Edge)
+			}
+		}
 	}
 	if in.Scan.Closure != nil {
-		if (p.RequireCompleteTransitiveClosure || p.DenyUnresolvedTransitiveReferences) && !in.Scan.Closure.Complete {
+		if !in.Scan.Closure.Complete || in.Scan.Closure.State == skil.AssuranceUnknown {
 			add("transitive-closure-incomplete", true, in.Scan.Closure.Complete, "transitive reference closure is incomplete or contains unresolved references")
+		}
+		if in.Scan.Closure.State == skil.AssuranceUnsafe {
+			add("transitive-closure-unsafe", skil.AssuranceSafe, in.Scan.Closure.State, "a required assurance closure member is unsafe")
 		}
 		if severityRank(in.Scan.Closure.MaximumSeverity) > severityRank(skil.Severity(strings.ToUpper(p.MaximumSeverity))) {
 			add("transitive-closure-maximum-severity", strings.ToUpper(p.MaximumSeverity), in.Scan.Closure.MaximumSeverity, "maximum finding severity in transitive reference closure exceeds policy")
@@ -547,6 +579,31 @@ func hasAllowedPrefix(value string, prefixes []string) bool {
 		}
 	}
 	return false
+}
+
+func checkDependencySources(p Policy, observations []skil.CapabilityObservation, add func(string, any, any, string)) {
+	for _, observation := range observations {
+		if observation.Capability != "dependency.source" {
+			continue
+		}
+		ecosystem, _ := observation.Evidence["ecosystem"].(string)
+		canonical, err := analyzer.NormalizeRegistryURL(observation.Value)
+		if err != nil {
+			add("dependency-source-invalid", "canonical HTTPS registry", observation.Value, err.Error())
+			continue
+		}
+		if analyzer.IsOfficialRegistry(ecosystem, canonical) {
+			continue
+		}
+		trust, configured := p.DependencySources[ecosystem]
+		if !configured {
+			add("dependency-source-unknown", "explicit trusted registry policy", canonical, "unknown dependency registry is not trusted")
+			continue
+		}
+		if !contains(trust.Allowed, canonical) {
+			add("dependency-source-untrusted", trust.Allowed, canonical, "dependency registry is not in the ecosystem allowlist")
+		}
+	}
 }
 
 func VerifyAttestation(a skil.Attestation, artifact skil.Artifact, maxAge string) error {

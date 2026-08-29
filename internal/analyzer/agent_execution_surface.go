@@ -5,7 +5,9 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/domehahn/skil/internal/signing"
@@ -52,11 +54,9 @@ func (a *AgentExecutionSurfaceAnalyzer) Metadata() skil.AnalyzerMetadata {
 	return skil.AnalyzerMetadata{
 		ID: "builtin.agent-execution-surface", Version: "1.0.0",
 		Domain: "agent-execution", Subdomain: "lifecycle-hooks",
-		Categories:    []string{"agent-execution", "privilege-escalation"},
-		AnalysisTypes: []string{"agent-execution"},
-		SupportedTypes: []string{
-			"json", "toml", "yaml", "yml",
-		},
+		Categories:     []string{"agent-execution", "privilege-escalation"},
+		AnalysisTypes:  []string{"agent-execution"},
+		SupportedTypes: []string{"json"},
 	}
 }
 
@@ -92,6 +92,12 @@ func (a *AgentExecutionSurfaceAnalyzer) Rules() []skil.Rule {
 			Description: "Agent configuration grants write or read access to sensitive credential locations (~/.ssh, ~/.aws, ~/.kube, ~/.config/gcloud, ~/.docker, ~/.npmrc, ~/.netrc).",
 			Remediation: "Exclude sensitive credential and key directories from agent access scopes.",
 		},
+		{
+			ID: "SKIL-AGENT-PERM-003", Title: "Broad wildcard permission granted to agent", Category: "privilege-escalation",
+			Severity: skil.SeverityHigh, Analysis: "agent-execution", AppliesTo: []string{"json"},
+			Description: "Agent configuration grants a wildcard shell, filesystem, network, or tool capability.",
+			Remediation: "Replace wildcard permissions with the smallest explicit operation and target allowlist.",
+		},
 	}
 }
 
@@ -114,8 +120,8 @@ func (a *AgentExecutionSurfaceAnalyzer) AnalyzeCapabilities(_ context.Context, a
 		}
 
 		surface, err := parseAgentConfigFile(file)
-		if err != nil || surface == nil {
-			continue
+		if err != nil {
+			return nil, nil, fmt.Errorf("parse agent execution config %s: %w", file.Path, err)
 		}
 
 		// Emit capability observations and findings
@@ -174,6 +180,9 @@ func (a *AgentExecutionSurfaceAnalyzer) AnalyzeCapabilities(_ context.Context, a
 			if line == 0 {
 				line = 1
 			}
+			if perm.Mode == "deny" {
+				continue
+			}
 
 			if perm.IsBypass {
 				observations = append(observations, skil.CapabilityObservation{
@@ -184,12 +193,23 @@ func (a *AgentExecutionSurfaceAnalyzer) AnalyzeCapabilities(_ context.Context, a
 				findings = append(findings, makeFinding(RulePattern{Rule: a.ruleByID("SKIL-AGENT-PERM-001"), Confidence: .98}, file, line, text))
 			}
 
-			if isSensitivePath(perm.Path) {
+			capability := permissionCapability(perm)
+			if capability != "" && !perm.IsBypass {
 				observations = append(observations, skil.CapabilityObservation{
-					Capability: "permission.filesystem.write", Value: perm.Path,
+					Capability: capability, Value: perm.Path,
 					Location: skil.Location{File: file.Path, StartLine: line, EndLine: line},
 					Analyzer: "builtin.agent-execution-surface",
+					Evidence: map[string]any{"mode": perm.Mode, "wildcard": perm.IsWildcard},
 				})
+			}
+			if perm.IsWildcard && perm.Mode == "allow" {
+				finding := makeFinding(RulePattern{Rule: a.ruleByID("SKIL-AGENT-PERM-003"), Confidence: .98}, file, line, text)
+				finding.Evidence["scope"] = perm.Scope
+				finding.Evidence["permission"] = perm.Path
+				findings = append(findings, finding)
+			}
+
+			if isSensitivePath(perm.Path) {
 				finding := makeFinding(RulePattern{Rule: a.ruleByID("SKIL-AGENT-PERM-002"), Confidence: .95}, file, line, text)
 				finding.Evidence["sensitive_path"] = perm.Path
 				findings = append(findings, finding)
@@ -285,6 +305,9 @@ func parseAgentConfigFile(file skil.File) (*AgentExecutionSurface, error) {
 
 	// Check filesystem permissions
 	if permissions, ok := raw["permissions"].(map[string]any); ok {
+		if mode, _ := permissions["defaultMode"].(string); strings.EqualFold(mode, "bypassPermissions") {
+			surface.Permissions = append(surface.Permissions, AgentPermission{Scope: "defaultMode", Mode: mode, IsBypass: true})
+		}
 		if fs, ok := permissions["filesystem"].([]any); ok {
 			for _, item := range fs {
 				if pathStr, ok := item.(string); ok {
@@ -294,15 +317,27 @@ func parseAgentConfigFile(file skil.File) (*AgentExecutionSurface, error) {
 				}
 			}
 		}
+		for _, field := range []string{"allow", "deny", "ask"} {
+			items, _ := permissions[field].([]any)
+			for _, item := range items {
+				if value, ok := item.(string); ok {
+					surface.Permissions = append(surface.Permissions, normalizeClaudePermission(field, value))
+				}
+			}
+		}
+		if dirs, ok := permissions["additionalDirectories"].([]any); ok {
+			for _, item := range dirs {
+				if value, ok := item.(string); ok {
+					surface.Permissions = append(surface.Permissions, AgentPermission{Scope: "filesystem", Path: value, Mode: "read"})
+				}
+			}
+		}
 	}
 
 	// Parse hooks
 	if hooksRaw, ok := raw["hooks"].(map[string]any); ok {
 		for event, handlerVal := range hooksRaw {
-			hook := parseHook(event, handlerVal)
-			if hook != nil {
-				surface.Hooks = append(surface.Hooks, *hook)
-			}
+			surface.Hooks = append(surface.Hooks, parseHooks(event, handlerVal, "")...)
 		}
 	} else if hooksList, ok := raw["hooks"].([]any); ok {
 		for _, item := range hooksList {
@@ -315,8 +350,40 @@ func parseAgentConfigFile(file skil.File) (*AgentExecutionSurface, error) {
 			}
 		}
 	}
+	sort.Slice(surface.Hooks, func(i, j int) bool {
+		a, b := surface.Hooks[i], surface.Hooks[j]
+		return a.Event+"\x00"+a.Matcher+"\x00"+a.HandlerType+"\x00"+strings.Join(a.Command, "\x00")+a.URL+a.MCPTool+a.Agent <
+			b.Event+"\x00"+b.Matcher+"\x00"+b.HandlerType+"\x00"+strings.Join(b.Command, "\x00")+b.URL+b.MCPTool+b.Agent
+	})
+	sort.Slice(surface.Permissions, func(i, j int) bool {
+		a, b := surface.Permissions[i], surface.Permissions[j]
+		return a.Scope+"\x00"+a.Mode+"\x00"+a.Path < b.Scope+"\x00"+b.Mode+"\x00"+b.Path
+	})
 
 	return surface, nil
+}
+
+func parseHooks(event string, value any, inheritedMatcher string) []AgentHook {
+	if hook := parseHook(event, value); hook != nil {
+		hook.Matcher = inheritedMatcher
+		return []AgentHook{*hook}
+	}
+	var out []AgentHook
+	switch typed := value.(type) {
+	case []any:
+		for _, item := range typed {
+			out = append(out, parseHooks(event, item, inheritedMatcher)...)
+		}
+	case map[string]any:
+		matcher := inheritedMatcher
+		if value, ok := typed["matcher"].(string); ok {
+			matcher = value
+		}
+		if nested, ok := typed["hooks"]; ok {
+			out = append(out, parseHooks(event, nested, matcher)...)
+		}
+	}
+	return out
 }
 
 func parseHook(event string, val any) *AgentHook {
@@ -328,7 +395,8 @@ func parseHook(event string, val any) *AgentHook {
 		return &AgentHook{Event: event, HandlerType: "command", Command: strings.Fields(v)}
 	case map[string]any:
 		hook := &AgentHook{Event: event}
-		if cmd, ok := v["command"].(string); ok {
+		typeName, _ := v["type"].(string)
+		if cmd, ok := v["command"].(string); ok && (typeName == "" || typeName == "command") {
 			hook.HandlerType = "command"
 			hook.Command = strings.Fields(cmd)
 		} else if cmdArr, ok := v["command"].([]any); ok {
@@ -353,6 +421,54 @@ func parseHook(event string, val any) *AgentHook {
 		}
 	}
 	return nil
+}
+
+func normalizeClaudePermission(mode, value string) AgentPermission {
+	permission := AgentPermission{Mode: mode, Path: value, IsWildcard: strings.Contains(value, "*")}
+	name, argument := value, ""
+	if open := strings.IndexByte(value, '('); open >= 0 && strings.HasSuffix(value, ")") {
+		name, argument = value[:open], strings.TrimSuffix(value[open+1:], ")")
+	}
+	permission.Path = argument
+	switch strings.ToLower(name) {
+	case "bash", "shell":
+		permission.Scope = "shell"
+	case "read", "glob", "grep":
+		permission.Scope = "filesystem.read"
+	case "write", "edit", "notebookedit":
+		permission.Scope = "filesystem.write"
+	case "webfetch", "websearch":
+		permission.Scope = "network"
+	default:
+		permission.Scope = "tools"
+		if permission.Path == "" {
+			permission.Path = value
+		}
+	}
+	return permission
+}
+
+func permissionCapability(permission AgentPermission) string {
+	if permission.Mode == "deny" {
+		return ""
+	}
+	switch permission.Scope {
+	case "shell":
+		return "permission.shell"
+	case "network":
+		return "permission.network"
+	case "filesystem.read":
+		return "permission.filesystem.read"
+	case "filesystem.write", "filesystem":
+		if permission.Mode == "read" {
+			return "permission.filesystem.read"
+		}
+		return "permission.filesystem.write"
+	case "tools":
+		return "permission.tools"
+	default:
+		return ""
+	}
 }
 
 func detectAgentType(path string) string {

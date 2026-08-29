@@ -463,6 +463,20 @@ type CapabilityObservation struct {
 	Evidence   map[string]any `json:"evidence,omitempty" yaml:"evidence,omitempty"`
 }
 
+// PersistenceTestEvidence is the explicit two-phase runtime evidence shape.
+// Retrieval alone is not proof of persistent prompt injection: a confirmed
+// behavioral effect requires the canary to survive a real session boundary
+// and the planted directive to change behavior in the trigger phase.
+type PersistenceTestEvidence struct {
+	CanaryObserved         bool `json:"canary_observed" yaml:"canary_observed"`
+	SessionBoundaryCrossed bool `json:"session_boundary_crossed" yaml:"session_boundary_crossed"`
+	DirectiveActedOn       bool `json:"directive_acted_on" yaml:"directive_acted_on"`
+}
+
+func (e PersistenceTestEvidence) ConfirmedBehavioralPersistence() bool {
+	return e.CanaryObserved && e.SessionBoundaryCrossed && e.DirectiveActedOn
+}
+
 // ObservationAnalyzer is an additive capability an Analyzer may implement to
 // report CapabilityObservations alongside its Findings in a single pass
 // (avoiding a second parse/walk). Analyzers that do not implement it are
