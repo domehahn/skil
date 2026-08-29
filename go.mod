@@ -5,7 +5,7 @@ go 1.24
 require (
 	github.com/aws/aws-sdk-go-v2 v1.43.7
 	github.com/aws/aws-sdk-go-v2/config v1.32.38
-	github.com/aws/aws-sdk-go-v2/service/bedrockruntime v1.57.3
+	github.com/aws/aws-sdk-go-v2/service/bedrockruntime v1.57.4
 	github.com/pelletier/go-toml/v2 v2.4.3
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3
 	github.com/tree-sitter/go-tree-sitter v0.25.0
