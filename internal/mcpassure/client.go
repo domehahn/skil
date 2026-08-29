@@ -52,23 +52,30 @@ const (
 // Tool is an MCP tool as declared by the server itself over the wire, not
 // as parsed from a manifest file.
 type Tool struct {
-	Name        string          `json:"name"`
-	Description string          `json:"description"`
-	InputSchema json.RawMessage `json:"inputSchema,omitempty"`
+	Name         string          `json:"name"`
+	Description  string          `json:"description,omitempty"`
+	InputSchema  json.RawMessage `json:"inputSchema,omitempty"`
+	OutputSchema json.RawMessage `json:"outputSchema,omitempty"`
+	Annotations  json.RawMessage `json:"annotations,omitempty"`
 }
 
-// Prompt and Resource are captured for completeness/reporting; only Tools
-// are compared against the metadata lock, since that lock's schema
-// (mcp-tools-lock-v1.schema.json) is tool-scoped.
-type Prompt struct {
+type PromptArgument struct {
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
+	Required    bool   `json:"required,omitempty"`
+}
+
+type Prompt struct {
+	Name        string           `json:"name"`
+	Description string           `json:"description,omitempty"`
+	Arguments   []PromptArgument `json:"arguments,omitempty"`
 }
 
 type Resource struct {
 	URI         string `json:"uri"`
 	Name        string `json:"name,omitempty"`
 	Description string `json:"description,omitempty"`
+	MIMEType    string `json:"mimeType,omitempty"`
 }
 
 // Discovery is everything observed during one live handshake.

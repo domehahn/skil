@@ -114,27 +114,35 @@ func serverDigest(discovery Discovery) (string, error) {
 	}{discovery.ServerName, discovery.ServerVersion, discovery.ProtocolVersion})
 }
 
+func ToolDigest(tool Tool) (string, error) {
+	return toolDigest(tool)
+}
+
 func toolDigest(tool Tool) (string, error) {
 	return canonicalObjectDigest(struct {
-		Name        string          `json:"name"`
-		Description string          `json:"description"`
-		InputSchema json.RawMessage `json:"input_schema,omitempty"`
-	}{tool.Name, tool.Description, tool.InputSchema})
+		Name         string          `json:"name"`
+		Description  string          `json:"description,omitempty"`
+		InputSchema  json.RawMessage `json:"input_schema,omitempty"`
+		OutputSchema json.RawMessage `json:"output_schema,omitempty"`
+		Annotations  json.RawMessage `json:"annotations,omitempty"`
+	}{tool.Name, tool.Description, tool.InputSchema, tool.OutputSchema, tool.Annotations})
 }
 
 func promptDigest(prompt Prompt) (string, error) {
 	return canonicalObjectDigest(struct {
-		Name        string `json:"name"`
-		Description string `json:"description"`
-	}{prompt.Name, prompt.Description})
+		Name        string           `json:"name"`
+		Description string           `json:"description,omitempty"`
+		Arguments   []PromptArgument `json:"arguments,omitempty"`
+	}{prompt.Name, prompt.Description, prompt.Arguments})
 }
 
 func resourceDigest(resource Resource) (string, error) {
 	return canonicalObjectDigest(struct {
 		URI         string `json:"uri"`
-		Name        string `json:"name"`
-		Description string `json:"description"`
-	}{resource.URI, resource.Name, resource.Description})
+		Name        string `json:"name,omitempty"`
+		Description string `json:"description,omitempty"`
+		MIMEType    string `json:"mime_type,omitempty"`
+	}{resource.URI, resource.Name, resource.Description, resource.MIMEType})
 }
 
 // SurfaceMismatchKind mirrors MismatchKind's two cases for the broader

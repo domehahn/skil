@@ -16,6 +16,12 @@ type SkillContract struct {
 	// observed digest does not match, closing the TOCTOU gap between what
 	// was reviewed and what actually executes.
 	ReviewedClosure []ReviewedDependency `json:"reviewed_closure,omitempty" yaml:"reviewed_closure,omitempty"`
+	// ReviewedRootDigest and ReviewedClosureDigest bind runtime startup to the
+	// complete reviewed subject. When either is configured, the runtime must
+	// construct the enforcer with matching measurements before any operation
+	// can be authorized.
+	ReviewedRootDigest    string `json:"reviewed_root_digest,omitempty" yaml:"reviewed_root_digest,omitempty"`
+	ReviewedClosureDigest string `json:"reviewed_closure_digest,omitempty" yaml:"reviewed_closure_digest,omitempty"`
 }
 
 type ReviewedDependency struct {

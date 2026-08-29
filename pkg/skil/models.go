@@ -38,6 +38,49 @@ const (
 	VerdictBlock  Verdict = "BLOCK"
 )
 
+// AssuranceState separates proven safety from both proven unsafety and an
+// incomplete proof. UNKNOWN must never be treated as SAFE by policy,
+// attestation, or runtime enforcement.
+type AssuranceState string
+
+const (
+	AssuranceSafe    AssuranceState = "SAFE"
+	AssuranceUnsafe  AssuranceState = "UNSAFE"
+	AssuranceUnknown AssuranceState = "UNKNOWN"
+)
+
+type NodeKind string
+
+const (
+	NodeRoot              NodeKind = "root"
+	NodeArtifact          NodeKind = "artifact"
+	NodeDependency        NodeKind = "dependency"
+	NodeExternalReference NodeKind = "external_reference"
+	NodeNestedArtifact    NodeKind = "nested_artifact"
+	NodeMCPSurface        NodeKind = "mcp_surface"
+	NodeRuntimeArtifact   NodeKind = "runtime_artifact"
+	NodeAgentSurface      NodeKind = "agent_execution_surface"
+	NodePersistentState   NodeKind = "persistent_state"
+)
+
+type AnalysisStatus string
+
+const (
+	AnalysisCompleted  AnalysisStatus = "completed"
+	AnalysisIncomplete AnalysisStatus = "incomplete"
+	AnalysisFailed     AnalysisStatus = "failed"
+	AnalysisNotRun     AnalysisStatus = "not_run"
+)
+
+type VerificationStatus string
+
+const (
+	VerificationVerified   VerificationStatus = "verified"
+	VerificationFailed     VerificationStatus = "failed"
+	VerificationUnresolved VerificationStatus = "unresolved"
+	VerificationNotNeeded  VerificationStatus = "not_required"
+)
+
 type Location struct {
 	File      string `json:"file" yaml:"file"`
 	StartLine int    `json:"start_line,omitempty" yaml:"start_line,omitempty"`
@@ -45,21 +88,23 @@ type Location struct {
 }
 
 type Finding struct {
-	ID                string         `json:"id" yaml:"id"`
-	RuleID            string         `json:"rule_id" yaml:"rule_id"`
-	Category          string         `json:"category" yaml:"category"`
-	Severity          Severity       `json:"severity" yaml:"severity"`
-	Confidence        float64        `json:"confidence" yaml:"confidence"`
-	Title             string         `json:"title" yaml:"title"`
-	Message           string         `json:"message" yaml:"message"`
-	Description       string         `json:"description,omitempty" yaml:"description,omitempty"`
-	Location          Location       `json:"location" yaml:"location"`
-	Evidence          map[string]any `json:"evidence,omitempty" yaml:"evidence,omitempty"`
-	Remediation       string         `json:"remediation,omitempty" yaml:"remediation,omitempty"`
-	References        []string       `json:"references,omitempty" yaml:"references,omitempty"`
-	Fingerprint       string         `json:"fingerprint" yaml:"fingerprint"`
-	Suppressed        bool           `json:"suppressed,omitempty" yaml:"suppressed,omitempty"`
-	SuppressionReason string         `json:"suppression_reason,omitempty" yaml:"suppression_reason,omitempty"`
+	ID                 string         `json:"id" yaml:"id"`
+	RuleID             string         `json:"rule_id" yaml:"rule_id"`
+	Category           string         `json:"category" yaml:"category"`
+	Severity           Severity       `json:"severity" yaml:"severity"`
+	Confidence         float64        `json:"confidence" yaml:"confidence"`
+	Title              string         `json:"title" yaml:"title"`
+	Message            string         `json:"message" yaml:"message"`
+	Description        string         `json:"description,omitempty" yaml:"description,omitempty"`
+	Location           Location       `json:"location" yaml:"location"`
+	Evidence           map[string]any `json:"evidence,omitempty" yaml:"evidence,omitempty"`
+	Remediation        string         `json:"remediation,omitempty" yaml:"remediation,omitempty"`
+	References         []string       `json:"references,omitempty" yaml:"references,omitempty"`
+	Fingerprint        string         `json:"fingerprint" yaml:"fingerprint"`
+	Suppressed         bool           `json:"suppressed,omitempty" yaml:"suppressed,omitempty"`
+	SuppressionReason  string         `json:"suppression_reason,omitempty" yaml:"suppression_reason,omitempty"`
+	ContextDisposition string         `json:"context_disposition,omitempty" yaml:"context_disposition,omitempty"`
+	ContextReason      string         `json:"context_reason,omitempty" yaml:"context_reason,omitempty"`
 }
 
 type Rule struct {
@@ -247,8 +292,49 @@ type ScanResult struct {
 	// explicitly requested (skil scan --transitive) — nil/omitted
 	// otherwise. skil never fetches external content on its own; this is
 	// always an explicit, opt-in traversal the operator started.
-	References  []ReferenceNode `json:"references,omitempty"`
-	GeneratedAt time.Time       `json:"generated_at"`
+	References  []ReferenceNode   `json:"references,omitempty"`
+	Closure     *AssuranceClosure `json:"assurance_closure,omitempty"`
+	GeneratedAt time.Time         `json:"generated_at"`
+}
+
+type AssuranceClosure struct {
+	RootDigest       string         `json:"root_digest" yaml:"root_digest"`
+	Nodes            []ClosureNode  `json:"nodes" yaml:"nodes"`
+	Edges            []ClosureEdge  `json:"edges,omitempty" yaml:"edges,omitempty"`
+	MaximumSeverity  Severity       `json:"maximum_severity" yaml:"maximum_severity"`
+	Complete         bool           `json:"complete" yaml:"complete"`
+	Limitations      []string       `json:"limitations,omitempty" yaml:"limitations,omitempty"`
+	Digest           string         `json:"closure_digest" yaml:"closure_digest"`
+	State            AssuranceState `json:"state" yaml:"state"`
+	Verified         bool           `json:"verified" yaml:"verified"`
+	RequiredNodes    int            `json:"required_nodes" yaml:"required_nodes"`
+	UnresolvedNodes  int            `json:"unresolved_nodes" yaml:"unresolved_nodes"`
+	BlockingFindings int            `json:"blocking_findings" yaml:"blocking_findings"`
+	MaxDepth         int            `json:"max_depth" yaml:"max_depth"`
+}
+
+type ClosureNode struct {
+	ID              string             `json:"id" yaml:"id"`
+	Kind            NodeKind           `json:"kind,omitempty" yaml:"kind,omitempty"`
+	Source          string             `json:"source" yaml:"source"`
+	Digest          string             `json:"digest" yaml:"digest"`
+	ParentDigest    string             `json:"parent_digest,omitempty" yaml:"parent_digest,omitempty"`
+	Depth           int                `json:"depth" yaml:"depth"`
+	ScanStatus      string             `json:"scan_status" yaml:"scan_status"`
+	MaximumSeverity Severity           `json:"maximum_severity" yaml:"maximum_severity"`
+	Verdict         string             `json:"verdict" yaml:"verdict"`
+	Required        bool               `json:"required" yaml:"required"`
+	Resolved        bool               `json:"resolved" yaml:"resolved"`
+	Analyzed        bool               `json:"analyzed" yaml:"analyzed"`
+	Findings        []string           `json:"findings,omitempty" yaml:"findings,omitempty"`
+	AnalysisStatus  AnalysisStatus     `json:"analysis_status,omitempty" yaml:"analysis_status,omitempty"`
+	Verification    VerificationStatus `json:"verification,omitempty" yaml:"verification,omitempty"`
+}
+
+type ClosureEdge struct {
+	FromID   string `json:"from_id" yaml:"from_id"`
+	ToID     string `json:"to_id" yaml:"to_id"`
+	Relation string `json:"relation" yaml:"relation"`
 }
 
 // ReferenceNode is one external HTTPS reference found in a scanned
@@ -267,6 +353,10 @@ type ReferenceNode struct {
 	SkipReason string      `json:"skip_reason,omitempty"`
 	Digest     string      `json:"digest,omitempty"`
 	Scan       *ScanResult `json:"scan,omitempty"`
+	// AlreadyDiscovered records an additional provenance edge to a URL that
+	// was already materialized. The node is not fetched twice, but cycles and
+	// duplicate references remain visible in the closure graph.
+	AlreadyDiscovered bool `json:"already_discovered,omitempty"`
 }
 
 type AnalyzerMetadata struct {
@@ -371,6 +461,20 @@ type CapabilityObservation struct {
 	Location   Location       `json:"location" yaml:"location"`
 	Analyzer   string         `json:"analyzer" yaml:"analyzer"`
 	Evidence   map[string]any `json:"evidence,omitempty" yaml:"evidence,omitempty"`
+}
+
+// PersistenceTestEvidence is the explicit two-phase runtime evidence shape.
+// Retrieval alone is not proof of persistent prompt injection: a confirmed
+// behavioral effect requires the canary to survive a real session boundary
+// and the planted directive to change behavior in the trigger phase.
+type PersistenceTestEvidence struct {
+	CanaryObserved         bool `json:"canary_observed" yaml:"canary_observed"`
+	SessionBoundaryCrossed bool `json:"session_boundary_crossed" yaml:"session_boundary_crossed"`
+	DirectiveActedOn       bool `json:"directive_acted_on" yaml:"directive_acted_on"`
+}
+
+func (e PersistenceTestEvidence) ConfirmedBehavioralPersistence() bool {
+	return e.CanaryObserved && e.SessionBoundaryCrossed && e.DirectiveActedOn
 }
 
 // ObservationAnalyzer is an additive capability an Analyzer may implement to

@@ -101,15 +101,43 @@ func TestPolicyDeniesBudgetExhaustedWhenConfigured(t *testing.T) {
 	}
 }
 
-func TestPolicyAllowsBudgetExhaustedByDefault(t *testing.T) {
+func TestPolicyDeniesBudgetExhaustedByDefault(t *testing.T) {
 	result := Check(Policy{Version: 1, MaximumSeverity: "CRITICAL"}, Input{
 		Scan: skil.ScanResult{
 			Maximum: skil.SeverityInfo,
 			Budget:  skil.AnalysisBudgetUsage{Exceeded: []string{"findings"}},
 		},
 	})
-	if result.Decision != "ALLOW" {
-		t.Fatalf("expected ALLOW: an exceeded budget must not deny unless deny_budget_exhausted is set: %#v", result)
+	if result.Decision != "DENY" || !hasViolationRule(result, "deny-budget-exhausted") {
+		t.Fatalf("expected DENY: incomplete analysis cannot produce a trusted policy decision: %#v", result)
+	}
+}
+
+func TestPolicyDeniesUnsafeAndUnknownRequiredClosureWithoutOptIn(t *testing.T) {
+	for _, closure := range []skil.AssuranceClosure{
+		{Complete: true, State: skil.AssuranceUnsafe},
+		{Complete: false, State: skil.AssuranceUnknown},
+	} {
+		result := Check(Policy{Version: 1, MaximumSeverity: "CRITICAL"}, Input{Scan: skil.ScanResult{
+			Maximum: skil.SeverityInfo, Closure: &closure,
+		}})
+		if result.Decision != "DENY" {
+			t.Fatalf("closure state %s must fail closed: %#v", closure.State, result)
+		}
+	}
+}
+
+func TestPolicyDependencySourceTrustUsesCanonicalExactAllowlist(t *testing.T) {
+	observation := skil.CapabilityObservation{Capability: "dependency.source", Value: "https://packages.example.test/npm/", Evidence: map[string]any{"ecosystem": "npm"}}
+	allowed := Check(Policy{Version: 1, MaximumSeverity: "CRITICAL", DependencySources: map[string]DependencySourcePolicy{
+		"npm": {Allowed: []string{"https://packages.example.test/npm/"}},
+	}}, Input{Scan: skil.ScanResult{Maximum: skil.SeverityInfo, Observations: []skil.CapabilityObservation{observation}}})
+	if allowed.Decision != "ALLOW" {
+		t.Fatalf("explicitly trusted private registry was denied: %#v", allowed)
+	}
+	unknown := Check(Policy{Version: 1, MaximumSeverity: "CRITICAL"}, Input{Scan: skil.ScanResult{Maximum: skil.SeverityInfo, Observations: []skil.CapabilityObservation{observation}}})
+	if unknown.Decision != "DENY" || !hasViolationRule(unknown, "dependency-source-unknown") {
+		t.Fatalf("unknown registry was silently trusted: %#v", unknown)
 	}
 }
 

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"crypto/ed25519"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -211,6 +212,28 @@ func (a *App) Run(ctx context.Context, args []string) int {
 		code = a.sbom(args[1:])
 	case "discover":
 		code = a.discover(args[1:])
+	case "fix":
+		code = a.fix(args[1:])
+	case "watch":
+		code = a.watch(ctx, args[1:])
+	case "gate":
+		code = a.gate(args[1:])
+	case "hook":
+		code = a.hook(args[1:])
+	case "ci":
+		code = a.ci(args[1:])
+	case "contract":
+		code = a.contract(ctx, args[1:])
+	case "mesh":
+		code = a.mesh(args[1:])
+	case "stego":
+		code = a.stego(args[1:])
+	case "sandbox":
+		code = a.sandbox(args[1:])
+	case "revoke":
+		code = a.revoke(args[1:])
+	case "zk":
+		code = a.zk(ctx, args[1:])
 	default:
 		fmt.Fprintf(a.Err, "unknown command %q\n", args[0])
 		a.help()
@@ -515,6 +538,7 @@ func (a *App) scan(ctx context.Context, args []string) int {
 	baselinePath := fs.String("baseline", "", "baseline file")
 	showSuppressed := fs.Bool("show-suppressed", true, "include baseline-suppressed findings in reports")
 	compact := fs.Bool("compact", false, "use the legacy one-line-per-finding terminal report")
+	interactive := fs.Bool("interactive", false, "generate interactive HTML workbench report")
 	transitiveFlag := fs.Bool("transitive", false, "follow external HTTPS references the skill's own content points at, recursively scanning each one (always off unless set; never on by default)")
 	transitiveDepth := fs.Int("transitive-depth", transitive.DefaultDepth, "how many reference hops to follow (capped regardless of value)")
 	transitiveAllow := fs.String("transitive-allow-prefix", "", "comma-separated URL prefixes; if set, only matching references are followed")
@@ -522,6 +546,9 @@ func (a *App) scan(ctx context.Context, args []string) int {
 	analysis := bindAnalysisFlags(fs)
 	if code := parse(fs, args, 1); code != ExitOK {
 		return code
+	}
+	if *interactive {
+		*format = "interactive-html"
 	}
 	if *analysis.listDomains {
 		for _, d := range analyzer.DefaultRegistry(nil).Domains() {
@@ -547,6 +574,9 @@ func (a *App) scan(ctx context.Context, args []string) int {
 		result.References = transitive.Run(ctx, result.Artifact, transitive.Options{
 			Depth: *transitiveDepth, AllowPrefixes: splitNonEmpty(*transitiveAllow), DenyPrefixes: splitNonEmpty(*transitiveDeny),
 		}, httpsReferenceFetcher(), scanner)
+		closure := transitive.BuildAssuranceClosureFromScan(result, result.References)
+		result.Closure = &closure
+		applyClosureOutcome(&result)
 	}
 	if *compact && *format != "terminal" && *format != "" {
 		return a.inputError(errors.New("--compact is supported only with terminal output"))
@@ -582,6 +612,43 @@ func activeFindings(findings []skil.Finding) []skil.Finding {
 		}
 	}
 	return active
+}
+
+func severityRankCLI(severity skil.Severity) int {
+	switch severity {
+	case skil.SeverityCritical:
+		return 4
+	case skil.SeverityHigh:
+		return 3
+	case skil.SeverityMedium:
+		return 2
+	case skil.SeverityLow:
+		return 1
+	default:
+		return 0
+	}
+}
+
+func applyClosureOutcome(result *skil.ScanResult) {
+	if result == nil || result.Closure == nil {
+		return
+	}
+	closure := result.Closure
+	switch closure.State {
+	case skil.AssuranceUnsafe:
+		result.Status = skil.StatusFail
+		result.Verdict = skil.VerdictBlock
+		if severityRankCLI(closure.MaximumSeverity) > severityRankCLI(result.Maximum) {
+			result.Maximum = closure.MaximumSeverity
+		}
+	case skil.AssuranceUnknown:
+		if result.Status == skil.StatusPass {
+			result.Status = skil.StatusWarn
+		}
+		if result.Verdict == skil.VerdictClear {
+			result.Verdict = skil.VerdictReview
+		}
+	}
 }
 
 type collectionScanResult struct {
@@ -744,6 +811,9 @@ func (a *App) attest(ctx context.Context, args []string) int {
 	signingKey := fs.String("signing-key", "", "PKCS#8 PEM Ed25519 private key")
 	keyID := fs.String("key-id", "", "trusted signing key identifier (defaults to public-key fingerprint)")
 	evalResultPath := fs.String("eval-result", "", "behavioral/containment evaluation result JSON or YAML")
+	signer := fs.String("signer", "file", "signing provider: file, pkcs11, yubikey, or hsm")
+	slot := fs.Int("slot", 0, "hardware token slot index (when using hardware signers)")
+	sessionBound := fs.Bool("session-bound", false, "bind prompt context, model parameters, and session memory digest")
 	analysis := bindAnalysisFlags(fs)
 	if code := parse(fs, args, 1); code != ExitOK {
 		return code
@@ -759,6 +829,14 @@ func (a *App) attest(ctx context.Context, args []string) int {
 		return a.inputError(err)
 	}
 	attestation := evidence.Create(scan)
+	if *sessionBound {
+		signing.BindSessionDigest(&attestation, signing.SessionContextOptions{
+			SystemPrompt:  "Canonical Agent System Prompt",
+			Temperature:   0.2,
+			Seed:          42,
+			SessionMemory: "Session State Memory Digest",
+		})
+	}
 	if *evalResultPath != "" {
 		var evalResult skil.EvalResult
 		if err := readStructured(*evalResultPath, &evalResult, "eval-result-v1.schema.json"); err != nil {
@@ -768,7 +846,24 @@ func (a *App) attest(ctx context.Context, args []string) int {
 			return a.inputError(err)
 		}
 	}
-	if *signingKey != "" {
+	if *signer != "file" && *signer != "" {
+		var privateKey ed25519.PrivateKey
+		if *signingKey != "" {
+			var err error
+			privateKey, err = signing.LoadPrivateKey(*signingKey)
+			if err != nil {
+				return a.inputError(err)
+			}
+		}
+		opts := signing.HardwareSignerOptions{
+			Provider: *signer,
+			Slot:     *slot,
+			KeyID:    *keyID,
+		}
+		if err := signing.SignAttestationHardware(&attestation, opts, privateKey); err != nil {
+			return a.internalError(err)
+		}
+	} else if *signingKey != "" {
 		privateKey, err := signing.LoadPrivateKey(*signingKey)
 		if err != nil {
 			return a.inputError(err)
@@ -1264,8 +1359,13 @@ func (a *App) evidence(args []string) int {
 }
 
 func (a *App) policyCheck(ctx context.Context, args []string) int {
-	if len(args) > 0 && args[0] == "init" {
-		return a.policyInit(args[1:])
+	if len(args) > 0 {
+		switch args[0] {
+		case "init":
+			return a.policyInit(ctx, args[1:])
+		case "adapt":
+			return a.policyAdapt(args[1:])
+		}
 	}
 	if len(args) == 0 || args[0] != "check" {
 		fmt.Fprintln(a.Err, "usage: skil policy init --output file | skil policy check <skill> --policy file")
@@ -1382,12 +1482,42 @@ require_native_isolation: false
 require_zero_forbidden_side_effects: false
 `
 
-func (a *App) policyInit(args []string) int {
+func (a *App) policyInit(ctx context.Context, args []string) int {
 	fs := newFlags("policy init", a.Err)
 	output := fs.String("output", ".skil/policy.yaml", "new policy file (never overwritten)")
+	fromTrace := fs.String("from-trace", "", "trace scan JSON, attestation JSON, or skill path to synthesize policy from")
+	strict := fs.Bool("strict", false, "enable strict closure and execution bounds")
+	analysis := bindAnalysisFlags(fs)
 	if code := parse(fs, args, 0); code != ExitOK {
 		return code
 	}
+
+	policyContent := defaultPolicy
+
+	if *fromTrace != "" {
+		var scanResult skil.ScanResult
+		// Try loading trace JSON first
+		traceData, err := os.ReadFile(*fromTrace)
+		if err == nil {
+			_ = json.Unmarshal(traceData, &scanResult)
+		}
+
+		if scanResult.Artifact.Name == "" {
+			// Perform scan on trace path
+			scan, _, err := a.performScanConfigured(ctx, *fromTrace, "", analysis)
+			if err != nil {
+				return a.inputError(fmt.Errorf("scan trace target %s: %w", *fromTrace, err))
+			}
+			scanResult = scan
+		}
+
+		_, yamlStr, err := policy.SynthesizeFromScan(scanResult, *strict)
+		if err != nil {
+			return a.inputError(fmt.Errorf("synthesize policy from trace: %w", err))
+		}
+		policyContent = yamlStr
+	}
+
 	if err := os.MkdirAll(filepath.Dir(*output), 0o700); err != nil {
 		return a.inputError(fmt.Errorf("create policy directory: %w", err))
 	}
@@ -1395,7 +1525,7 @@ func (a *App) policyInit(args []string) int {
 	if err != nil {
 		return a.inputError(fmt.Errorf("create policy %q: %w", *output, err))
 	}
-	if _, err := io.WriteString(file, defaultPolicy); err != nil {
+	if _, err := io.WriteString(file, policyContent); err != nil {
 		_ = file.Close()
 		return a.internalError(fmt.Errorf("write policy %q: %w", *output, err))
 	}
@@ -1780,11 +1910,31 @@ func (a *App) inspect(args []string) int {
 
 func (a *App) sbom(args []string) int {
 	fs := newFlags("sbom", a.Err)
-	output := fs.String("output", "", "SPDX JSON output file")
+	output := fs.String("output", "", "SBOM JSON output file")
+	format := fs.String("format", "spdx", "spdx or cyclonedx")
 	if code := parse(fs, args, 1); code != ExitOK {
 		return code
 	}
 	source := fs.Arg(0)
+
+	writer, closeFn, err := outputWriter(a.Out, *output)
+	if err != nil {
+		return a.inputError(err)
+	}
+	defer closeFn()
+
+	if *format == "cyclonedx" {
+		art, err := artifact.Load(source, artifact.Options{})
+		if err != nil {
+			return a.inputError(err)
+		}
+		doc, err := sbom.CreateCycloneDX(art, nil)
+		if err != nil {
+			return a.inputError(err)
+		}
+		return boolCode(writeJSON(writer, doc), a)
+	}
+
 	document, binaryErr := sbom.CreateGoBinary(source)
 	if binaryErr != nil {
 		if !errors.Is(binaryErr, sbom.ErrNotGoBinary) {
@@ -1799,11 +1949,6 @@ func (a *App) sbom(args []string) int {
 			return a.inputError(err)
 		}
 	}
-	writer, closeFn, err := outputWriter(a.Out, *output)
-	if err != nil {
-		return a.inputError(err)
-	}
-	defer closeFn()
 	return boolCode(writeJSON(writer, document), a)
 }
 
@@ -2075,6 +2220,7 @@ func (a *App) performScanWithRegistryOptions(
 	if err != nil {
 		return result, contract, err
 	}
+	result.Verdict = analyzer.Verdict(result.Maximum, result.RiskScore, result.Coverage)
 	if contract != nil {
 		verified := verification.Verify(*contract, result.Findings, result.Observations)
 		result.Findings = append(result.Findings, verification.Findings(verified, art)...)
@@ -2090,6 +2236,9 @@ func (a *App) performScanWithRegistryOptions(
 		result.Maximum, result.RiskScore, result.Status = analyzer.Risk(result.Findings, result.Coverage)
 		result.Verdict = analyzer.Verdict(result.Maximum, result.RiskScore, result.Coverage)
 	}
+	closure := transitive.BuildAssuranceClosureFromScan(result, nil)
+	result.Closure = &closure
+	applyClosureOutcome(&result)
 	result.GeneratedAt = time.Now().UTC()
 	return result, contract, nil
 }

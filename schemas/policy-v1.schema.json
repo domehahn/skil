@@ -40,6 +40,32 @@
     "required_domains": {"type": "array", "items": {"type": "string"}},
     "allowed_domains": {"type": "array", "items": {"type": "string"}},
     "forbidden_domains": {"type": "array", "items": {"type": "string"}},
+    "require_complete_transitive_closure": {"type": "boolean"},
+    "deny_unresolved_transitive_references": {"type": "boolean"},
+    "agent_execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "allow_hooks": {"type": "boolean"},
+        "allow_shell_hooks": {"type": "boolean"},
+        "allow_remote_hooks": {"type": "boolean"},
+        "allow_permission_bypass": {"type": "boolean"},
+        "allowed_hook_events": {"type": "array", "items": {"type": "string"}},
+        "allowed_remote_domains": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "dependency_sources": {
+      "type": "object",
+      "propertyNames": {"enum": ["npm", "pypi", "cargo", "maven"]},
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["allowed"],
+        "properties": {
+          "allowed": {"type": "array", "items": {"type": "string", "format": "uri"}, "uniqueItems": true}
+        }
+      }
+    },
     "revoked_signer_key_ids": {"type": "array", "items": {"type": "string"}},
     "revoked_artifact_digests": {"type": "array", "items": {"type": "string"}},
     "revoked_skills": {"type": "array", "items": {"type": "string"}}
