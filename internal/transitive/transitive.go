@@ -25,11 +25,15 @@ package transitive
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
 	"regexp"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/domehahn/skil/internal/assurance"
 	"github.com/domehahn/skil/pkg/skil"
 )
 
@@ -150,7 +154,7 @@ type budget struct {
 }
 
 func (b *budget) exhausted() bool {
-	return b.targetsRemaining <= 0 || b.bytesRemaining <= 0 || time.Now().After(b.deadline)
+	return b.targetsRemaining <= 0 || b.bytesRemaining <= 0 || !time.Now().Before(b.deadline)
 }
 
 // Run traverses root's references (and, up to opts.Depth, references of
@@ -175,8 +179,10 @@ func Run(ctx context.Context, root skil.Artifact, opts Options, fetch Fetcher, s
 		maxBytes = DefaultMaxDownloadBytes
 	}
 	maxTime := opts.MaxTraversalTime
-	if maxTime <= 0 {
+	if maxTime == 0 {
 		maxTime = DefaultMaxTraversalTime
+	} else if maxTime < 0 {
+		maxTime = 0
 	}
 	b := &budget{targetsRemaining: maxTargets, bytesRemaining: maxBytes, deadline: time.Now().Add(maxTime)}
 
@@ -190,6 +196,9 @@ func Run(ctx context.Context, root skil.Artifact, opts Options, fetch Fetcher, s
 		}
 		for _, url := range ExtractReferences(artifact) {
 			if seen[url] {
+				nodes = append(nodes, skil.ReferenceNode{
+					URL: url, ParentURL: parentURL, Depth: currentDepth, AlreadyDiscovered: true,
+				})
 				continue
 			}
 			seen[url] = true
@@ -236,9 +245,266 @@ func Run(ctx context.Context, root skil.Artifact, opts Options, fetch Fetcher, s
 
 			if currentDepth < depth {
 				walk(childScan.Artifact, url, currentDepth+1)
+			} else {
+				for _, unresolved := range ExtractReferences(childScan.Artifact) {
+					nodes = append(nodes, skil.ReferenceNode{
+						URL: unresolved, ParentURL: url, Depth: currentDepth + 1,
+						SkipReason: "maximum transitive depth exceeded",
+					})
+				}
 			}
 		}
 	}
 	walk(root, "", 1)
 	return nodes
+}
+
+// BuildAssuranceClosure constructs the deterministic AssuranceClosure graph from the root artifact and reference nodes.
+func BuildAssuranceClosure(root skil.Artifact, refNodes []skil.ReferenceNode) skil.AssuranceClosure {
+	return BuildAssuranceClosureFromScan(skil.ScanResult{
+		Artifact: root, Status: skil.StatusPass, Verdict: skil.VerdictClear,
+		Maximum: skil.SeverityInfo,
+	}, refNodes)
+}
+
+// BuildAssuranceClosureFromScan includes the root's actual scan state in the
+// graph so closure evaluation cannot accidentally treat a blocked root as safe.
+func BuildAssuranceClosureFromScan(rootScan skil.ScanResult, refNodes []skil.ReferenceNode) skil.AssuranceClosure {
+	root := rootScan.Artifact
+	rootNode := skil.ClosureNode{
+		ID:              root.SubjectDigest(),
+		Kind:            skil.NodeRoot,
+		Source:          root.Source,
+		Digest:          root.SubjectDigest(),
+		Depth:           0,
+		ScanStatus:      string(rootScan.Status),
+		MaximumSeverity: rootScan.Maximum,
+		Verdict:         string(rootScan.Verdict),
+		Required:        true,
+		Resolved:        true,
+		Analyzed:        true,
+		AnalysisStatus:  scanAnalysisStatus(rootScan),
+		Verification:    skil.VerificationVerified,
+	}
+
+	localNodes, localEdges := localArtifactNodes(rootScan)
+	nodes := append([]skil.ClosureNode{rootNode}, localNodes...)
+	var edges []skil.ClosureEdge
+	edges = append(edges, localEdges...)
+	var limitations []string
+	complete := true
+	maxSev := skil.SeverityInfo
+
+	for _, ref := range refNodes {
+		parentID := root.SubjectDigest()
+		if ref.ParentURL != "" {
+			parentID = ref.ParentURL
+		}
+		edges = append(edges, skil.ClosureEdge{FromID: parentID, ToID: ref.URL, Relation: "references"})
+		if ref.AlreadyDiscovered {
+			continue
+		}
+		node := skil.ClosureNode{
+			ID:       ref.URL,
+			Kind:     skil.NodeExternalReference,
+			Source:   ref.URL,
+			Depth:    ref.Depth,
+			Required: true,
+		}
+
+		node.ParentDigest = parentID
+
+		if ref.Fetched && ref.Scan != nil {
+			node.Digest = ref.Digest
+			node.ScanStatus = string(ref.Scan.Status)
+			node.MaximumSeverity = ref.Scan.Maximum
+			node.Verdict = string(ref.Scan.Verdict)
+			node.Resolved = true
+			node.Analyzed = true
+			node.AnalysisStatus = scanAnalysisStatus(*ref.Scan)
+			node.Verification = skil.VerificationVerified
+
+			for _, f := range ref.Scan.Findings {
+				findingProv := fmt.Sprintf("%s#%s@%s", ref.URL, f.ID, f.Location.File)
+				node.Findings = append(node.Findings, findingProv)
+			}
+
+			if severityRank(ref.Scan.Maximum) > severityRank(maxSev) {
+				maxSev = ref.Scan.Maximum
+			}
+			if node.AnalysisStatus != skil.AnalysisCompleted {
+				complete = false
+				limitations = append(limitations, fmt.Sprintf("%s: child analysis incomplete", ref.URL))
+			}
+		} else {
+			complete = false
+			node.Resolved = false
+			node.Analyzed = false
+			node.AnalysisStatus = skil.AnalysisNotRun
+			node.Verification = skil.VerificationUnresolved
+			if ref.SkipReason != "" {
+				node.ScanStatus = "skipped"
+				node.Verdict = "UNRESOLVED"
+				limitations = append(limitations, fmt.Sprintf("%s: %s", ref.URL, ref.SkipReason))
+			}
+		}
+
+		nodes = append(nodes, node)
+	}
+
+	closure := skil.AssuranceClosure{
+		RootDigest:      root.SubjectDigest(),
+		Nodes:           nodes,
+		Edges:           edges,
+		MaximumSeverity: maxSev,
+		Complete:        complete,
+		Limitations:     limitations,
+	}
+	return assurance.Finalize(closure)
+}
+
+func localArtifactNodes(scan skil.ScanResult) ([]skil.ClosureNode, []skil.ClosureEdge) {
+	persistentFiles := map[string]bool{}
+	for _, observation := range scan.Observations {
+		if observation.Capability == "memory.persistence" || observation.Capability == "memory.cross_session" {
+			persistentFiles[observation.Location.File] = true
+		}
+	}
+	var nodes []skil.ClosureNode
+	var edges []skil.ClosureEdge
+	for _, file := range scan.Artifact.Files {
+		kind, relation := classifyLocalNode(file, persistentFiles[file.Path])
+		status := fileAnalysisStatus(file.Path, scan)
+		maximum := skil.SeverityInfo
+		verdict := skil.VerdictClear
+		var findingRefs []string
+		for _, finding := range scan.Findings {
+			if finding.Suppressed || finding.Location.File != file.Path {
+				continue
+			}
+			findingRefs = append(findingRefs, finding.ID+"@"+file.Path)
+			if severityRank(finding.Severity) > severityRank(maximum) {
+				maximum = finding.Severity
+			}
+		}
+		if severityRank(maximum) >= severityRank(skil.SeverityHigh) {
+			verdict = skil.VerdictBlock
+		} else if severityRank(maximum) >= severityRank(skil.SeverityMedium) {
+			verdict = skil.VerdictReview
+		}
+		scanStatus := skil.StatusPass
+		if verdict == skil.VerdictBlock {
+			scanStatus = skil.StatusFail
+		} else if verdict == skil.VerdictReview || status != skil.AnalysisCompleted {
+			scanStatus = skil.StatusWarn
+		}
+		digest := file.SHA256
+		if digest == "" {
+			sum := sha256.Sum256(file.Data)
+			digest = hex.EncodeToString(sum[:])
+		}
+		id := string(kind) + ":" + file.Path
+		nodes = append(nodes, skil.ClosureNode{
+			ID: id, Kind: kind, Source: file.Path, Digest: digest,
+			ParentDigest: scan.Artifact.SubjectDigest(), Depth: 1, ScanStatus: string(scanStatus),
+			MaximumSeverity: maximum, Verdict: string(verdict), Required: true,
+			Resolved: digest != "", Analyzed: status == skil.AnalysisCompleted,
+			Findings: findingRefs, AnalysisStatus: status, Verification: skil.VerificationVerified,
+		})
+		edges = append(edges, skil.ClosureEdge{FromID: scan.Artifact.SubjectDigest(), ToID: id, Relation: relation})
+	}
+	return nodes, edges
+}
+
+func classifyLocalNode(file skil.File, persistent bool) (skil.NodeKind, string) {
+	clean := strings.ToLower(strings.ReplaceAll(file.Path, "\\", "/"))
+	base := clean
+	if slash := strings.LastIndexByte(clean, '/'); slash >= 0 {
+		base = clean[slash+1:]
+	}
+	if file.ContainerDepth > 0 {
+		return skil.NodeNestedArtifact, "contains"
+	}
+	if persistent {
+		return skil.NodePersistentState, "configures"
+	}
+	if strings.Contains(clean, ".claude/") || strings.Contains(clean, ".cursor/") || strings.Contains(clean, ".codex/") || strings.HasSuffix(clean, "hooks/hooks.json") {
+		return skil.NodeAgentSurface, "configures"
+	}
+	if strings.Contains(base, "mcp") && (strings.HasSuffix(base, ".json") || strings.HasSuffix(base, ".yaml") || strings.HasSuffix(base, ".yml")) {
+		return skil.NodeMCPSurface, "loads"
+	}
+	if isDependencyArtifact(clean, base) {
+		return skil.NodeDependency, "depends-on"
+	}
+	return skil.NodeArtifact, "contains"
+}
+
+func isDependencyArtifact(clean, base string) bool {
+	if strings.Contains(clean, ".cargo/config.toml") {
+		return true
+	}
+	for _, name := range []string{"package.json", "package-lock.json", "yarn.lock", "pnpm-lock.yaml", "pyproject.toml", "poetry.lock", "uv.lock", "requirements.txt", "pip.conf", ".npmrc", "cargo.toml", "cargo.lock", "pom.xml", "settings.xml", "go.mod", "go.sum"} {
+		if base == name {
+			return true
+		}
+	}
+	return false
+}
+
+func fileAnalysisStatus(path string, scan skil.ScanResult) skil.AnalysisStatus {
+	completed := false
+	for _, item := range scan.Inspection {
+		if item.File != path {
+			continue
+		}
+		switch item.Outcome {
+		case skil.InspectionFailed:
+			return skil.AnalysisFailed
+		case skil.InspectionSkipped:
+			return skil.AnalysisIncomplete
+		case skil.InspectionCompleted:
+			completed = true
+		}
+	}
+	for _, record := range scan.Analyzability {
+		if record.Path == path && record.State == skil.AnalyzabilityOpaque {
+			return skil.AnalysisIncomplete
+		}
+	}
+	if completed || len(scan.Inspection) == 0 {
+		return skil.AnalysisCompleted
+	}
+	return skil.AnalysisIncomplete
+}
+
+// ComputeClosureDigest produces a deterministic, ordering-independent SHA-256 digest of the closure.
+func ComputeClosureDigest(closure skil.AssuranceClosure) string {
+	return assurance.ComputeDigest(closure)
+}
+
+func scanAnalysisStatus(scan skil.ScanResult) skil.AnalysisStatus {
+	if scan.Status == skil.StatusError || scan.Completeness.Failed > 0 {
+		return skil.AnalysisFailed
+	}
+	if len(scan.Budget.Exceeded) > 0 || scan.Completeness.Skipped > 0 || scan.Completeness.Failed > 0 ||
+		(scan.Completeness.Applicable > 0 && scan.Completeness.Completeness < 1) {
+		return skil.AnalysisIncomplete
+	}
+	return skil.AnalysisCompleted
+}
+
+func severityRank(s skil.Severity) int {
+	switch s {
+	case skil.SeverityCritical:
+		return 4
+	case skil.SeverityHigh:
+		return 3
+	case skil.SeverityMedium:
+		return 2
+	case skil.SeverityLow:
+		return 1
+	default:
+		return 0
+	}
 }

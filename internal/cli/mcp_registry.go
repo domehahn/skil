@@ -15,8 +15,13 @@ import (
 // mcp dispatches skil's "mcp" subcommand group: static registry posture
 // scanning (mcp registry scan) and dynamic runtime assurance (mcp assure).
 func (a *App) mcp(ctx context.Context, args []string) int {
-	if len(args) > 0 && args[0] == "assure" {
-		return a.mcpAssure(ctx, args[1:])
+	if len(args) > 0 {
+		switch args[0] {
+		case "assure":
+			return a.mcpAssure(ctx, args[1:])
+		case "intercept":
+			return a.mcpIntercept(args[1:])
+		}
 	}
 	return a.mcpRegistry(ctx, args)
 }

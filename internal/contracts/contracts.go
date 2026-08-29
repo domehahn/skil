@@ -176,6 +176,15 @@ func Validate(c skil.SkillContract) error {
 		return errors.New("commands.execute requires an explicit command allowlist")
 	}
 	seen := map[string]bool{}
+	if c.ReviewedRootDigest != "" && !validSHA256(c.ReviewedRootDigest) {
+		return errors.New("reviewed_root_digest requires a 64-character hexadecimal sha256 digest")
+	}
+	if c.ReviewedClosureDigest != "" {
+		value := strings.TrimPrefix(c.ReviewedClosureDigest, "sha256:")
+		if !validSHA256(value) {
+			return errors.New("reviewed_closure_digest requires a sha256:<64 hexadecimal characters> digest")
+		}
+	}
 	for _, dependency := range c.ReviewedClosure {
 		if strings.TrimSpace(dependency.Identifier) == "" {
 			return errors.New("reviewed_closure entries require a non-empty identifier")
@@ -184,11 +193,23 @@ func Validate(c skil.SkillContract) error {
 			return fmt.Errorf("reviewed_closure has a duplicate identifier %q", dependency.Identifier)
 		}
 		seen[dependency.Identifier] = true
-		if len(dependency.SHA256) != 64 {
+		if !validSHA256(dependency.SHA256) {
 			return fmt.Errorf("reviewed_closure entry %q requires a 64-character sha256 digest", dependency.Identifier)
 		}
 	}
 	return nil
+}
+
+func validSHA256(value string) bool {
+	if len(value) != 64 {
+		return false
+	}
+	for _, char := range value {
+		if !strings.ContainsRune("0123456789abcdefABCDEF", char) {
+			return false
+		}
+	}
+	return true
 }
 
 func strictYAML(data []byte, target any) error {

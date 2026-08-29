@@ -15,13 +15,14 @@ There is no second execution or policy framework. The additive
 runtimes remain source-compatible but cannot claim containment.
 
 ```text
-source -> safe loader -> artifact + digest
-                         ├-> analyzers -> findings + coverage + inspection ledger
-contract ----------------┴-> verification
+source -> race-resistant ingestor -> canonical artifact + digest
+                                     ├-> analyzers -> findings + coverage + inspection ledger
+                                     ├-> transitive graph -> assurance closure + closure digest
+contract ----------------------------┴-> verification
 eval spec -> isolated adapter -> tool request -> host gateway -> enforcer -> host tool
                                   └-> bounded result -> adapter -> final output
 trusted gateway records -------------------------------> trace + metrics
-scan/eval evidence -> attestation -> policy decision
+scan/closure/eval evidence -> attestation -> policy decision
 ```
 
 Core, scanner, semantic provider, policy engine, and eval harness have no

@@ -46,7 +46,7 @@ func DiscoverDependencies(artifact skil.Artifact) ([]DependencyRecord, error) {
 			records = parseRequirements(file)
 		case strings.HasSuffix(base, "package.json"):
 			records, err = parsePackageJSON(file)
-		case strings.HasSuffix(base, "package-lock.json"):
+		case strings.HasSuffix(base, "package-lock.json"), strings.HasSuffix(base, "npm-shrinkwrap.json"):
 			records, err = parsePackageLock(file)
 		case strings.HasSuffix(base, "go.mod"):
 			records = parseGoMod(file)
@@ -129,31 +129,74 @@ func parsePackageJSON(file skil.File) ([]DependencyRecord, error) {
 	return out, nil
 }
 
+type npmLockV1Dep struct {
+	Version      string                  `json:"version"`
+	Dev          bool                    `json:"dev"`
+	Dependencies map[string]npmLockV1Dep `json:"dependencies"`
+}
+
+type npmLockfile struct {
+	LockfileVersion int `json:"lockfileVersion"`
+	Packages        map[string]struct {
+		Name    string `json:"name"`
+		Version string `json:"version"`
+		Dev     bool   `json:"dev"`
+	} `json:"packages"`
+	Dependencies map[string]npmLockV1Dep `json:"dependencies"`
+}
+
 func parsePackageLock(file skil.File) ([]DependencyRecord, error) {
-	var lock struct {
-		Packages map[string]struct {
-			Name    string `json:"name"`
-			Version string `json:"version"`
-		} `json:"packages"`
-	}
+	var lock npmLockfile
 	if err := json.Unmarshal(file.Data, &lock); err != nil {
 		return nil, fmt.Errorf("parse %s: %w", file.Path, err)
 	}
 	var out []DependencyRecord
-	for path, item := range lock.Packages {
-		if path == "" || item.Version == "" {
-			continue
+
+	if len(lock.Packages) > 0 {
+		for path, item := range lock.Packages {
+			if path == "" || item.Version == "" {
+				continue
+			}
+			name := item.Name
+			if name == "" {
+				name = strings.TrimPrefix(path, "node_modules/")
+				if index := strings.LastIndex(name, "/node_modules/"); index >= 0 {
+					name = name[index+len("/node_modules/"):]
+				}
+			}
+			line, raw := dependencyLine(file.Data, name)
+			rec := dependency(file, line, "npm", name, item.Version, raw)
+			rec.Marker = path
+			out = append(out, rec)
 		}
-		name := item.Name
-		if name == "" {
-			name = strings.TrimPrefix(path, "node_modules/")
-			if index := strings.LastIndex(name, "/node_modules/"); index >= 0 {
-				name = name[index+len("/node_modules/"):]
+	}
+
+	if len(out) == 0 && len(lock.Dependencies) > 0 {
+		var walkV1 func(deps map[string]npmLockV1Dep, currentPath string)
+		walkV1 = func(deps map[string]npmLockV1Dep, currentPath string) {
+			names := make([]string, 0, len(deps))
+			for n := range deps {
+				names = append(names, n)
+			}
+			sort.Strings(names)
+			for _, name := range names {
+				item := deps[name]
+				if item.Version == "" {
+					continue
+				}
+				installPath := currentPath + "node_modules/" + name
+				line, raw := dependencyLine(file.Data, name)
+				rec := dependency(file, line, "npm", name, item.Version, raw)
+				rec.Marker = installPath
+				out = append(out, rec)
+				if len(item.Dependencies) > 0 {
+					walkV1(item.Dependencies, installPath+"/")
+				}
 			}
 		}
-		line, raw := dependencyLine(file.Data, name)
-		out = append(out, dependency(file, line, "npm", name, item.Version, raw))
+		walkV1(lock.Dependencies, "")
 	}
+
 	return out, nil
 }
 

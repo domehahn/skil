@@ -3,6 +3,7 @@ package analyzer
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -20,7 +21,8 @@ func DefaultRegistry(vuln skil.VulnerabilityProvider) *Registry {
 		NewPattern(), NewPythonAST(), NewStructuredAST(), NewTaint(), NewDependency(vuln), NewMCP(), NewBoundary(), NewUnicode(),
 		NewLocalSemantic(), NewModelArtifact(), NewSecret(), NewBuild(), NewIdentity(), NewLateral(), NewAsset(),
 		NewSkill(), NewToolCapability(), NewDataDataset(), NewRAGContext(), NewMultiAgent(), NewAuditEvidence(), NewPolicyEnforcement(),
-		NewHiddenInstruction(), NewTrigger(), NewResourceConfig(), NewCredentialFlow(), NewDataClassification(), NewPyC(), NewRubyAST(),
+		NewHiddenInstruction(), NewTrigger(), NewResourceConfig(), NewCredentialFlow(), NewDataClassification(), NewPyC(), NewRubyAST(), NewAgentExecutionSurface(),
+		NewIntentDivergence(), NewJailbreak(), NewDependencySource(),
 	}
 	return &Registry{analyzers: items}
 }
@@ -109,13 +111,29 @@ func (r *Registry) Scan(ctx context.Context, ac skil.AnalysisContext) (skil.Scan
 			"semantic": skil.CoverageNotRequested, "semantic-provider": skil.CoverageNotRequested,
 			"behavioral": skil.CoverageNotRun, "trigger": skil.CoverageNotRequested,
 			"resource-config": skil.CoverageNotRequested, "taint-output": skil.CoverageNotRequested,
+			"analysis-budget": skil.CoverageCompleted,
 		},
 		Scanners: []string{"skil"},
+	}
+	// Byte ceilings are knowable before any analyzer starts. Fail closed at
+	// that boundary instead of doing expensive work and only reporting the
+	// overrun afterward.
+	preflight := computeBudgetUsage(ac.Artifact, budget, result, wallStart, false)
+	if len(preflight.Exceeded) > 0 {
+		result.Budget = preflight
+		result.Coverage["analysis-budget"] = skil.CoverageDegraded
+		result.Status = skil.StatusWarn
+		result.Diagnostics = append(result.Diagnostics, skil.Diagnostic{
+			Component: "analysis-budget", Level: "warning",
+			Message: fmt.Sprintf("analysis not started because the artifact exceeds: %s", strings.Join(preflight.Exceeded, ", ")),
+		})
+		return result, nil
 	}
 	if len(ac.Artifact.LoadDiagnostics) > 0 {
 		result.Diagnostics = append(result.Diagnostics, ac.Artifact.LoadDiagnostics...)
 	}
 	domainFilter := ac.DomainFilter
+	inspectionBudgetStopped := false
 	filterSet := map[string]bool{}
 	for _, d := range domainFilter {
 		filterSet[d] = true
@@ -129,6 +147,23 @@ func (r *Registry) Scan(ctx context.Context, ac skil.AnalysisContext) (skil.Scan
 	}
 	for _, a := range r.analyzers {
 		meta := a.Metadata()
+		if budget.MaxFindings > 0 && len(result.Findings) > budget.MaxFindings ||
+			budget.MaxInspectionEvents > 0 && len(result.Inspection) >= budget.MaxInspectionEvents {
+			inspectionBudgetStopped = budget.MaxInspectionEvents > 0 && len(result.Inspection) >= budget.MaxInspectionEvents
+			result.Inspection = append(result.Inspection, skil.InspectionWorkItem{
+				Analyzer: meta.ID, Version: meta.Version, File: "*", Outcome: skil.InspectionSkipped,
+				Reason: "analysis budget exhausted before analyzer start",
+			})
+			break
+		}
+		if budget.MaxInspectionEvents > 0 && len(result.Inspection)+len(ac.Artifact.Files) > budget.MaxInspectionEvents {
+			inspectionBudgetStopped = true
+			result.Inspection = append(result.Inspection, skil.InspectionWorkItem{
+				Analyzer: meta.ID, Version: meta.Version, File: "*", Outcome: skil.InspectionSkipped,
+				Reason: "analysis budget: inspection event limit would be exceeded",
+			})
+			break
+		}
 		if len(domainFilter) > 0 && meta.Domain != "" && !filterSet[meta.Domain] {
 			continue
 		}
@@ -248,9 +283,13 @@ func (r *Registry) Scan(ctx context.Context, ac skil.AnalysisContext) (skil.Scan
 		return a.RuleID < b.RuleID
 	})
 	result.Maximum, result.RiskScore, result.Status = Risk(result.Findings, result.Coverage)
-	result.Verdict = Verdict(result.Maximum, result.RiskScore, result.Coverage)
-	result.Budget = computeBudgetUsage(ac.Artifact, budget, result, wallStart, ctx.Err() == nil && budgetCtx.Err() != nil)
+	wallExceeded := (ctx.Err() == nil && budgetCtx.Err() != nil) || (budget.MaxWallTime > 0 && time.Since(wallStart) >= budget.MaxWallTime) || (budget.MaxWallTime <= 0)
+	result.Budget = computeBudgetUsage(ac.Artifact, budget, result, wallStart, wallExceeded)
+	if inspectionBudgetStopped && !slices.Contains(result.Budget.Exceeded, "inspection_events") {
+		result.Budget.Exceeded = append(result.Budget.Exceeded, "inspection_events")
+	}
 	if len(result.Budget.Exceeded) > 0 {
+		result.Coverage["analysis-budget"] = skil.CoverageDegraded
 		if result.Status == skil.StatusPass {
 			result.Status = skil.StatusWarn
 		}
@@ -311,6 +350,7 @@ func makeFinding(rule RulePattern, file skil.File, line int, matched string) ski
 		Location: skil.Location{File: file.Path, StartLine: line, EndLine: line},
 		Evidence: map[string]any{"match": truncate(matched, 160)}, Remediation: rule.Rule.Remediation,
 		References: rule.Rule.References, Fingerprint: fp,
+		ContextDisposition: "confirmed",
 	}
 }
 
@@ -362,8 +402,13 @@ func capabilityForRule(ruleID string) string {
 	case "SKIL-SEC-001":
 		return "secrets.read"
 	case "SKIL-PY-002", "SKIL-SH-001", "SKIL-SH-002", "SKIL-SH-003", "SKIL-SH-004",
-		"SKIL-JS-001", "SKIL-INTENT-COMMAND", "SKIL-TAINT-EXECUTION", "SKIL-TAINT-OUTPUT-EXECUTION":
+		"SKIL-JS-001", "SKIL-INTENT-COMMAND", "SKIL-TAINT-EXECUTION", "SKIL-TAINT-OUTPUT-EXECUTION",
+		"SKIL-AGENT-HOOK-001", "SKIL-AGENT-HOOK-002", "SKIL-AGENT-HOOK-003", "SKIL-AGENT-PERM-001", "SKIL-AGENT-PERM-002",
+		"SKIL-INTENT-DIVERGENCE", "SKIL-JAILBREAK-001", "SKIL-JAILBREAK-002", "SKIL-JAILBREAK-003",
+		"SKIL-DEP-SOURCE-OVERRIDE", "SKIL-DEP-SOURCE-INSECURE", "SKIL-DEP-SOURCE-REDIRECT", "SKIL-RAG-003":
 		return "commands.execute"
+	case "SKIL-RAG-001", "SKIL-RAG-002", "SKIL-MEMORY-PERSISTENCE-001", "SKIL-RAG-INGESTION-001":
+		return "persistence"
 	case "SKIL-TAINT-OUTPUT-CROSS-AGENT", "SKIL-DEP-MALICIOUS":
 		return "multi-agent"
 	case "SKIL-PI-HIDDEN-COMMENT", "SKIL-PI-MD-HIDDEN-COMMENT", "SKIL-PI-MD-SUSPICIOUS-COMMENT", "SKIL-MEMORY-FALSE-RESET", "SKIL-MEMORY-FALSE-REPRESENTATION":
@@ -450,11 +495,20 @@ func Verdict(maximum skil.Severity, score int, coverage map[string]skil.Coverage
 	if maximum == skil.SeverityCritical || maximum == skil.SeverityHigh || score >= 40 {
 		return skil.VerdictBlock
 	}
-	if maximum == skil.SeverityMedium || score >= 10 ||
+	if maximum == skil.SeverityMedium || score >= 10 || hasDegradedCoverage(coverage) ||
 		coverage["ast"] != skil.CoverageCompleted || coverage["taint"] != skil.CoverageCompleted {
 		return skil.VerdictReview
 	}
 	return skil.VerdictClear
+}
+
+func hasDegradedCoverage(coverage map[string]skil.CoverageState) bool {
+	for _, state := range coverage {
+		if state == skil.CoverageDegraded || state == skil.CoverageNotAvailable {
+			return true
+		}
+	}
+	return false
 }
 
 func Risk(findings []skil.Finding, coverage map[string]skil.CoverageState) (skil.Severity, int, skil.Status) {

@@ -51,7 +51,9 @@
           "sha256": {"type": "string", "pattern": "^[0-9a-fA-F]{64}$"}
         }
       }
-    }
+    },
+    "reviewed_root_digest": {"type": "string", "pattern": "^[0-9a-fA-F]{64}$"},
+    "reviewed_closure_digest": {"type": "string", "pattern": "^sha256:[0-9a-fA-F]{64}$"}
   },
   "$defs": {
     "strings": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},

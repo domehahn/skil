@@ -33,7 +33,7 @@ func TestHumanReportsNeutralizeControlAndMarkdownInjection(t *testing.T) {
 }
 
 func TestAllReportFormats(t *testing.T) {
-	for _, format := range []string{"terminal", "json", "markdown", "sarif"} {
+	for _, format := range []string{"terminal", "json", "markdown", "sarif", "html", "interactive-html"} {
 		var out bytes.Buffer
 		if err := Write(&out, format, sample()); err != nil || out.Len() == 0 {
 			t.Fatalf("%s: %v", format, err)

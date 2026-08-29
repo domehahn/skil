@@ -24,6 +24,10 @@ func Write(w io.Writer, format string, result skil.ScanResult) error {
 		return writeJSON(w, SARIF(result))
 	case "markdown", "md":
 		return writeMarkdown(w, result)
+	case "html":
+		return writeHTML(w, result)
+	case "interactive-html", "interactive":
+		return writeInteractiveWorkbench(w, result)
 	case "terminal", "":
 		return writeTerminal(w, result)
 	default:
@@ -173,6 +177,25 @@ func writeTerminal(w io.Writer, r skil.ScanResult) error {
 		fmt.Fprintf(w, "  Exceeded: %s\n", strings.Join(r.Budget.Exceeded, ", "))
 	}
 
+	if r.Closure != nil {
+		fmt.Fprintln(w, "\nASSURANCE CLOSURE")
+		fmt.Fprintf(w, "  %-20s %s\n", "State", r.Closure.State)
+		fmt.Fprintf(w, "  %-20s %t\n", "Complete", r.Closure.Complete)
+		fmt.Fprintf(w, "  %-20s %t\n", "Verified", r.Closure.Verified)
+		fmt.Fprintf(w, "  %-20s %d\n", "Nodes", len(r.Closure.Nodes))
+		fmt.Fprintf(w, "  %-20s %d\n", "Required", r.Closure.RequiredNodes)
+		fmt.Fprintf(w, "  %-20s %d\n", "Unresolved", r.Closure.UnresolvedNodes)
+		fmt.Fprintf(w, "  %-20s %d\n", "Blocking findings", r.Closure.BlockingFindings)
+		fmt.Fprintf(w, "  %-20s %d\n", "Maximum depth", r.Closure.MaxDepth)
+		fmt.Fprintf(w, "  %-20s %s\n", "Closure digest", r.Closure.Digest)
+		for _, node := range r.Closure.Nodes {
+			if !node.Required || node.Resolved && node.Analyzed && node.Verdict != string(skil.VerdictBlock) {
+				continue
+			}
+			fmt.Fprintf(w, "  ! %-18s %-48s status=%s verification=%s\n", node.Kind, boundedDisplay(node.Source, 48), node.ScanStatus, node.Verification)
+		}
+	}
+
 	if len(r.References) > 0 {
 		fmt.Fprintln(w, "\nTRANSITIVE REFERENCES")
 		for _, node := range r.References {
@@ -267,6 +290,11 @@ func writeMarkdown(w io.Writer, r skil.ScanResult) error {
 	fmt.Fprintf(w, "\n## Inspection completeness\n\n- Coverage: **%.1f%%**\n- Applicable: %d\n- Completed: %d\n- Skipped: %d\n- Failed: %d\n- Out of scope: %d\n",
 		r.Completeness.Completeness*100, r.Completeness.Applicable, r.Completeness.Completed,
 		r.Completeness.Skipped, r.Completeness.Failed, r.Completeness.OutOfScope)
+	if r.Closure != nil {
+		fmt.Fprintf(w, "\n## Assurance closure\n\n- State: **%s**\n- Complete: **%t**\n- Verified: **%t**\n- Nodes: %d\n- Required: %d\n- Unresolved: %d\n- Blocking findings: %d\n- Maximum depth: %d\n- Closure digest: `%s`\n",
+			r.Closure.State, r.Closure.Complete, r.Closure.Verified, len(r.Closure.Nodes), r.Closure.RequiredNodes,
+			r.Closure.UnresolvedNodes, r.Closure.BlockingFindings, r.Closure.MaxDepth, r.Closure.Digest)
+	}
 
 	fmt.Fprintln(w, "\n## Analysis coverage\n\n| Analysis | State |\n|---|---|")
 	for _, key := range sortedCoverage(r.Coverage) {

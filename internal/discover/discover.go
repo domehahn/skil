@@ -205,7 +205,11 @@ func Scan(locations []location) ([]Component, []error) {
 }
 
 func scanSkillTree(loc location) ([]Component, error) {
-	info, err := os.Lstat(loc.Path)
+	return scanSkillTreePath(loc.Path, loc.Tool)
+}
+
+func scanSkillTreePath(dir string, tool string) ([]Component, error) {
+	info, err := os.Lstat(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil
@@ -215,14 +219,14 @@ func scanSkillTree(loc location) ([]Component, error) {
 	if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
 		return nil, nil
 	}
-	roots, err := collection.Discover(loc.Path)
+	roots, err := collection.Discover(dir)
 	if err != nil {
 		return nil, err
 	}
 	components := make([]Component, 0, len(roots))
 	for _, root := range roots {
 		components = append(components, Component{
-			Kind: KindSkill, Tool: loc.Tool, Name: skillNameFromFrontmatter(root), Path: root,
+			Kind: KindSkill, Tool: tool, Name: skillNameFromFrontmatter(root), Path: root,
 		})
 	}
 	return components, nil
@@ -290,14 +294,21 @@ func scanMCPConfig(loc location) ([]Component, error) {
 	if err != nil {
 		return nil, err
 	}
-	switch loc.Format {
+	return parseMCPConfigData(data, loc.Path, loc.Tool, loc.Format), nil
+}
+
+func parseMCPConfigData(data []byte, path string, tool string, format configFormat) []Component {
+	loc := location{Path: path, Tool: tool, Format: format}
+	var res []Component
+	switch format {
 	case formatOpenCode:
-		return parseOpenCodeConfig(loc, data)
+		res, _ = parseOpenCodeConfig(loc, data)
 	case formatCodexTOML:
-		return parseCodexConfig(loc, data)
+		res, _ = parseCodexConfig(loc, data)
 	default:
-		return parseStandardMCPConfig(loc, data)
+		res, _ = parseStandardMCPConfig(loc, data)
 	}
+	return res
 }
 
 func parseStandardMCPConfig(loc location, data []byte) ([]Component, error) {

@@ -190,4 +190,4 @@ jobs:
       - name: Publish immutable tag assets
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${GITHUB_REF_NAME}" release/* --verify-tag --generate-notes
+        run: gh release create "${GITHUB_REF_NAME}" release/* --verify-tag --generate-notes || gh release upload "${GITHUB_REF_NAME}" release/* --clobber

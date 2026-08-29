@@ -162,6 +162,10 @@ func loadDir(root string, opts Options) ([]skil.File, error) {
 	var files []skil.File
 	var total int64
 	lowerSeen := map[string]string{}
+	ingestor, err := NewSecureIngestor(root)
+	if err != nil {
+		return nil, fmt.Errorf("secure ingestor init: %w", err)
+	}
 	ignorePatterns, err := loadIgnorePatterns(root)
 	if err != nil {
 		return nil, err
@@ -176,6 +180,9 @@ func loadDir(root string, opts Options) ([]skil.File, error) {
 			return err
 		}
 		rel = filepath.ToSlash(rel)
+		if rel == "." {
+			return nil
+		}
 		if rel == ".git" || strings.HasPrefix(rel, ".git/") ||
 			(rel != ".skilignore" && excluded(rel, patterns)) {
 			if entry.IsDir() {
@@ -208,11 +215,11 @@ func loadDir(root string, opts Options) ([]skil.File, error) {
 			return fmt.Errorf("case-colliding paths: %s and %s", prior, rel)
 		}
 		lowerSeen[lower] = rel
-		data, err := os.ReadFile(path)
+		data, statInfo, err := ingestor.ReadFileSafely(rel, MaxFileSize)
 		if err != nil {
 			return err
 		}
-		files = append(files, newFile(rel, data, info.Mode()&0o111 != 0))
+		files = append(files, newFile(rel, data, statInfo.Mode()&0o111 != 0))
 		return nil
 	})
 	return files, err
