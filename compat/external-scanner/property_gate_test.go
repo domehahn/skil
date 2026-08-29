@@ -98,9 +98,6 @@ var knownRules = map[string]bool{
 	"SKIL-YARA-001":   true, "SKIL-YARA-002": true, "SKIL-YARA-003": true, "SKIL-YARA-004": true,
 }
 
-// knownExternalRules are rule IDs the reference scanner actually emits.
-var knownExternalRules = map[string]bool{}
-
 // knownHyphenatedExternal are scanner-native rule IDs that legitimately
 // contain a hyphen (SDI-1..4, SQP-1..3, SSD-1..4). Synthetic sub-IDs and
 // aggregates (P2-html, AST1-9) must never be used as matching IDs.
