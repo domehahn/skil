@@ -2,6 +2,7 @@ package verification
 
 import (
 	"fmt"
+	"net/url"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -62,6 +63,8 @@ func Verify(contract skil.SkillContract, findings []skil.Finding, observations [
 	checkValues("commands.allow", observed.Commands, c.Commands.Allow, matchCommand)
 	checkValues("filesystem.write", observed.FilesystemPaths, c.Filesystem.Write, matchPath)
 	checkValues("secrets.read", observed.Secrets, c.Secrets.Read, matchExact)
+	checkValues("tools.allow", observed.Tools, c.Tools.Allow, matchExact)
+	checkValues("mcp.tools", observed.MCPTools, c.MCP.Tools, matchExact)
 
 	overdeclared := func(name string, declared, actual bool) {
 		if declared && !actual {
@@ -107,11 +110,11 @@ func Infer(findings []skil.Finding, observations []skil.CapabilityObservation) s
 	var o skil.ObservedCapabilities
 	for _, obs := range observations {
 		switch obs.Capability {
-		case "network.outbound":
+		case "network.outbound", "permission.network", "hook.call.http":
 			o.NetworkOutbound = true
-		case "commands.execute":
+		case "commands.execute", "permission.shell", "hook.execute.command":
 			o.CommandsExecute = true
-		case "filesystem.write":
+		case "filesystem.write", "permission.filesystem.write":
 			o.FilesystemWrite = true
 		case "filesystem.delete":
 			o.FilesystemDelete = true
@@ -121,7 +124,7 @@ func Infer(findings []skil.Finding, observations []skil.CapabilityObservation) s
 			o.Persistence = true
 		case "external.side_effect":
 			o.ExternalSideEffects = true
-		case "filesystem.read":
+		case "filesystem.read", "permission.filesystem.read":
 			o.FilesystemRead = true
 		case "environment.read":
 			o.EnvironmentRead = true
@@ -129,14 +132,22 @@ func Infer(findings []skil.Finding, observations []skil.CapabilityObservation) s
 		switch obs.Capability {
 		case "network.outbound":
 			appendEvidenceValue(&o.NetworkHosts, obs.Value)
-		case "commands.execute":
+		case "permission.network":
+			appendEvidenceValue(&o.NetworkHosts, strings.TrimPrefix(obs.Value, "domain:"))
+		case "hook.call.http":
+			appendEvidenceValue(&o.NetworkHosts, observationHost(obs.Value))
+		case "commands.execute", "permission.shell", "hook.execute.command":
 			appendEvidenceValue(&o.Commands, obs.Value)
-		case "filesystem.write", "filesystem.read":
+		case "filesystem.write", "filesystem.read", "permission.filesystem.write", "permission.filesystem.read":
 			appendEvidenceValue(&o.FilesystemPaths, obs.Value)
 		case "secrets.read":
 			appendEvidenceValue(&o.Secrets, obs.Value)
 		case "environment.read":
 			appendEvidenceValue(&o.Environment, obs.Value)
+		case "permission.tools":
+			appendEvidenceValue(&o.Tools, obs.Value)
+		case "hook.call.mcp":
+			appendEvidenceValue(&o.MCPTools, obs.Value)
 		}
 	}
 	for _, f := range findings {
@@ -197,6 +208,14 @@ func Infer(findings []skil.Finding, observations []skil.CapabilityObservation) s
 	sort.Strings(o.FilesystemPaths)
 	sort.Strings(o.Secrets)
 	return o
+}
+
+func observationHost(value string) string {
+	parsed, err := url.Parse(value)
+	if err != nil {
+		return value
+	}
+	return parsed.Hostname()
 }
 
 func appendEvidenceString(target *[]string, evidence map[string]any, key string) {

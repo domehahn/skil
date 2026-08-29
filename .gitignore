@@ -6,3 +6,5 @@
 .DS_Store
 __pycache__/
 benchmark/results/*.json
+.vscode/
+opencode.json

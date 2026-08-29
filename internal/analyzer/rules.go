@@ -23,6 +23,11 @@ func BuiltinRules() []skil.Rule {
 	out = append(out, NewAsset().Rules()...)
 	out = append(out, NewPyC().Rules()...)
 	out = append(out, NewRubyAST().Rules()...)
+	out = append(out, NewAgentExecutionSurface().Rules()...)
+	out = append(out, NewIntentDivergence().Rules()...)
+	out = append(out, NewJailbreak().Rules()...)
+	out = append(out, NewDependencySource().Rules()...)
+	out = append(out, NewRAGContext().Rules()...)
 	out = append(out, nativeSupplementalRules()...)
 	byID := make(map[string]skil.Rule, len(out))
 	for _, rule := range out {
@@ -171,6 +176,21 @@ func NativeControlImplementations() map[string]ControlImplementation {
 	}
 	for _, rule := range NewPyC().Rules() {
 		out[rule.ID] = ControlImplementation{Engine: "builtin.pyc"}
+	}
+	for _, rule := range NewAgentExecutionSurface().Rules() {
+		out[rule.ID] = ControlImplementation{Engine: "builtin.agent-execution-surface"}
+	}
+	for _, rule := range NewIntentDivergence().Rules() {
+		out[rule.ID] = ControlImplementation{Engine: "builtin.intent-divergence"}
+	}
+	for _, rule := range NewJailbreak().Rules() {
+		out[rule.ID] = ControlImplementation{Engine: "builtin.jailbreak-detection"}
+	}
+	for _, rule := range NewDependencySource().Rules() {
+		out[rule.ID] = ControlImplementation{Engine: "builtin.dependency-source"}
+	}
+	for _, rule := range NewRAGContext().Rules() {
+		out[rule.ID] = ControlImplementation{Engine: "builtin.rag-context"}
 	}
 	for _, id := range []string{"SKIL-RB-001", "SKIL-RB-002", "SKIL-RB-003", "SKIL-RB-004"} {
 		out[id] = ControlImplementation{Engine: "builtin.ruby-ast"}

@@ -39,6 +39,24 @@ func TestContractAcceptsReviewedClosureWithValidDigest(t *testing.T) {
 	}
 }
 
+func TestContractAcceptsReviewedRootAndClosureDigests(t *testing.T) {
+	digest := strings.Repeat("a", 64)
+	_, err := Parse([]byte("version: 1\nskill: {name: x, description: x}\n" + minimalCapabilities() +
+		"reviewed_root_digest: " + digest + "\nreviewed_closure_digest: sha256:" + digest + "\n"))
+	if err != nil {
+		t.Fatalf("expected valid reviewed root and closure digests: %v", err)
+	}
+}
+
+func TestContractRejectsNonHexReviewedDigest(t *testing.T) {
+	invalid := strings.Repeat("z", 64)
+	_, err := Parse([]byte("version: 1\nskill: {name: x, description: x}\n" + minimalCapabilities() +
+		"reviewed_root_digest: " + invalid + "\n"))
+	if err == nil {
+		t.Fatal("expected a non-hex reviewed root digest to be rejected")
+	}
+}
+
 func TestContractRejectsReviewedClosureShortDigest(t *testing.T) {
 	_, err := Parse([]byte("version: 1\nskill: {name: x, description: x}\n" + minimalCapabilities() +
 		"reviewed_closure:\n  - identifier: helper-plugin\n    sha256: deadbeef\n"))

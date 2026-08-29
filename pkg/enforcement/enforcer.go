@@ -25,10 +25,26 @@ type Enforcer struct {
 	modelTokens       int64
 	externalMutations int
 	decisions         []skil.DecisionRecord
+	startupError      error
 }
 
 func New(contract skil.SkillContract) *Enforcer {
-	return &Enforcer{contract: contract, contractDigest: contractDigest(contract), started: time.Now()}
+	return NewWithAssurance(contract, "", "")
+
+}
+
+// NewWithAssurance binds runtime startup to the measured root and closure
+// digests. Existing contracts without those optional pins behave exactly as
+// before; configured pins fail closed when measurements are absent or differ.
+func NewWithAssurance(contract skil.SkillContract, rootDigest, closureDigest string) *Enforcer {
+	e := &Enforcer{contract: contract, contractDigest: contractDigest(contract), started: time.Now()}
+	if contract.ReviewedRootDigest != "" && !strings.EqualFold(contract.ReviewedRootDigest, rootDigest) {
+		e.startupError = fmt.Errorf("runtime root digest %q does not match reviewed root digest %q", rootDigest, contract.ReviewedRootDigest)
+	}
+	if e.startupError == nil && contract.ReviewedClosureDigest != "" && !strings.EqualFold(contract.ReviewedClosureDigest, closureDigest) {
+		e.startupError = fmt.Errorf("runtime closure digest %q does not match reviewed closure digest %q", closureDigest, contract.ReviewedClosureDigest)
+	}
+	return e
 }
 
 func contractDigest(contract skil.SkillContract) string {
@@ -115,6 +131,9 @@ func (e *Enforcer) Ledger() BudgetLedger {
 func (e *Enforcer) Authorize(operation skil.Operation) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	if e.startupError != nil {
+		return e.record(operation, e.startupError)
+	}
 	if operation.Capability == "" {
 		return e.record(operation, errors.New("operation capability is required"))
 	}

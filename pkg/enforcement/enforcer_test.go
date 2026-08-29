@@ -116,6 +116,27 @@ func TestEnforcerAppliesContainmentTargetsAndAttemptOnlyCapabilities(t *testing.
 
 const reviewedDigestFixture = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 
+func TestEnforcerFailsClosedOnRootOrClosureDrift(t *testing.T) {
+	contract := skil.SkillContract{
+		Capabilities:          skil.Capabilities{Tools: skil.ToolCapability{Allow: []string{"safe.tool"}}},
+		ReviewedRootDigest:    reviewedDigestFixture,
+		ReviewedClosureDigest: "sha256:" + strings.Repeat("b", 64),
+	}
+	operation := skil.Operation{Capability: "tools.call", Target: "safe.tool"}
+	if err := New(contract).Authorize(operation); err == nil {
+		t.Fatal("missing runtime measurements must fail closed")
+	}
+	if err := NewWithAssurance(contract, strings.Repeat("c", 64), contract.ReviewedClosureDigest).Authorize(operation); err == nil {
+		t.Fatal("root drift must fail closed")
+	}
+	if err := NewWithAssurance(contract, contract.ReviewedRootDigest, "sha256:"+strings.Repeat("d", 64)).Authorize(operation); err == nil {
+		t.Fatal("closure drift must fail closed")
+	}
+	if err := NewWithAssurance(contract, contract.ReviewedRootDigest, contract.ReviewedClosureDigest).Authorize(operation); err != nil {
+		t.Fatalf("matching runtime assurance measurements were denied: %v", err)
+	}
+}
+
 func TestEnforcerDeniesUnreviewedDependencyLoad(t *testing.T) {
 	enforcer := New(skil.SkillContract{})
 	if err := enforcer.Authorize(skil.Operation{

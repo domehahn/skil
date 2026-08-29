@@ -139,3 +139,26 @@ func TestLoadSurfaceLockRejectsInvalidDigest(t *testing.T) {
 		t.Fatal("expected an error for an invalid digest")
 	}
 }
+
+func TestCompareSurfaceToLockDetectsOutputSchemaAndMIMEDrift(t *testing.T) {
+	lockedPromptDig, _ := promptDigest(Prompt{Name: "summarize", Description: "Summarize doc", Arguments: []PromptArgument{{Name: "text", Required: true}}})
+	lockedResDig, _ := resourceDigest(Resource{URI: "file:///data.csv", Name: "data", Description: "Data file", MIMEType: "text/csv"})
+
+	discovery := Discovery{
+		Prompts:   []Prompt{{Name: "summarize", Description: "Summarize doc", Arguments: []PromptArgument{{Name: "text", Required: false}}}}, // Argument required changed
+		Resources: []Resource{{URI: "file:///data.csv", Name: "data", Description: "Data file", MIMEType: "application/json"}},               // MIME changed
+	}
+	lock := SurfaceLock{
+		Version:   1,
+		Prompts:   map[string]string{"summarize": lockedPromptDig},
+		Resources: map[string]string{"file:///data.csv": lockedResDig},
+	}
+
+	mismatches, err := CompareSurfaceToLock(discovery, lock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(mismatches) != 2 {
+		t.Fatalf("expected 2 mismatches (prompt argument drift + resource MIME drift), got %#v", mismatches)
+	}
+}

@@ -160,8 +160,19 @@ func isCustomLoaderFile(base string) bool {
 	return false
 }
 
-func (m *ModelArtifact) Analyze(_ context.Context, ac skil.AnalysisContext) ([]skil.Finding, error) {
+var externalCLIRegexp = regexp.MustCompile(`(?i)\b(claude|codex|gemini|ollama|gpt)\s+(exec|run|chat|generate|complete|query)\b`)
+var modelEndpointRegexp = regexp.MustCompile(`https://(api\.openai\.com|api\.anthropic\.com|bedrock-runtime\.[a-z0-9-]+\.amazonaws\.com|integrate\.api\.nvidia\.com)[^\s"'` + "`" + `]*`)
+var modelProviderRegexp = regexp.MustCompile(`(?i)\b(provider|model_provider|llm_provider)\s*[:=]\s*["']?(openai|anthropic|bedrock|nvidia|ollama|groq)["']?`)
+
+func (m *ModelArtifact) Analyze(ctx context.Context, ac skil.AnalysisContext) ([]skil.Finding, error) {
+	findings, _, err := m.AnalyzeCapabilities(ctx, ac)
+	return findings, err
+}
+
+func (m *ModelArtifact) AnalyzeCapabilities(_ context.Context, ac skil.AnalysisContext) ([]skil.Finding, []skil.CapabilityObservation, error) {
 	var out []skil.Finding
+	var observations []skil.CapabilityObservation
+
 	for _, file := range ac.Artifact.Files {
 		ext := strings.ToLower(extension(file.Path))
 		base := baseName(file.Path)
@@ -172,19 +183,47 @@ func (m *ModelArtifact) Analyze(_ context.Context, ac skil.AnalysisContext) ([]s
 			out = append(out, m.scanKerasZip(file)...)
 		case "h5":
 			out = append(out, formatPolicyFinding(file, "HDF5", skil.SeverityMedium))
-		case "py":
-			if trustRemoteCodePattern.Match(file.Data) {
-				out = append(out, makeFinding(RulePattern{Rule: m.ruleByID("SKIL-MODEL-REMOTE-CODE"), Confidence: .95},
-					file, lineOf(file.Data, trustRemoteCodePattern), "trust_remote_code=True"))
+		case "py", "sh", "bash", "js", "ts", "json", "yaml", "yml", "md":
+			for lineNum, lineText := range lines(file.Data) {
+				if cliMatch := externalCLIRegexp.FindString(lineText); cliMatch != "" {
+					observations = append(observations, skil.CapabilityObservation{
+						Capability: "model.external-cli",
+						Value:      cliMatch,
+						Location:   skil.Location{File: file.Path, StartLine: lineNum + 1, EndLine: lineNum + 1},
+						Analyzer:   "builtin.model-artifact",
+					})
+				}
+				if epMatch := modelEndpointRegexp.FindString(lineText); epMatch != "" {
+					observations = append(observations, skil.CapabilityObservation{
+						Capability: "model.endpoint",
+						Value:      epMatch,
+						Location:   skil.Location{File: file.Path, StartLine: lineNum + 1, EndLine: lineNum + 1},
+						Analyzer:   "builtin.model-artifact",
+					})
+				}
+				if provMatch := modelProviderRegexp.FindString(lineText); provMatch != "" {
+					observations = append(observations, skil.CapabilityObservation{
+						Capability: "model.provider",
+						Value:      provMatch,
+						Location:   skil.Location{File: file.Path, StartLine: lineNum + 1, EndLine: lineNum + 1},
+						Analyzer:   "builtin.model-artifact",
+					})
+				}
 			}
-			if isCustomLoaderFile(base) {
-				out = append(out, makeFinding(RulePattern{Rule: m.ruleByID("SKIL-MODEL-CUSTOM-LOADER"), Confidence: .8},
-					file, 1, base))
+			if ext == "py" {
+				if trustRemoteCodePattern.Match(file.Data) {
+					out = append(out, makeFinding(RulePattern{Rule: m.ruleByID("SKIL-MODEL-REMOTE-CODE"), Confidence: .95},
+						file, lineOf(file.Data, trustRemoteCodePattern), "trust_remote_code=True"))
+				}
+				if isCustomLoaderFile(base) {
+					out = append(out, makeFinding(RulePattern{Rule: m.ruleByID("SKIL-MODEL-CUSTOM-LOADER"), Confidence: .8},
+						file, 1, base))
+				}
+				out = append(out, m.scanModelReferences(file)...)
 			}
-			out = append(out, m.scanModelReferences(file)...)
 		}
 	}
-	return out, nil
+	return out, observations, nil
 }
 
 // modelReferencePattern matches a Hugging-Face-style "org/model" repository
