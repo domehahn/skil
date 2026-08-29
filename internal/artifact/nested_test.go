@@ -94,6 +94,9 @@ func TestVirtualizeNestedContainersRecursesIntoNestedZip(t *testing.T) {
 	if !containsPath(paths, "document.docx!/embedded.zip") || !containsPath(paths, "document.docx!/embedded.zip!/evil.py") {
 		t.Fatalf("unexpected provenance paths: %#v", paths)
 	}
+	if len(depths) != 2 || depths[0] != 1 || depths[1] != 2 {
+		t.Fatalf("unexpected container depths: %#v", depths)
+	}
 }
 
 func containsPath(paths []string, want string) bool {

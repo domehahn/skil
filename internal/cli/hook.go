@@ -35,7 +35,7 @@ func (a *App) hookInstall(args []string) int {
 		return a.inputError(err)
 	}
 
-	fmt.Fprintf(a.Out, "Successfully installed SKIL Git pre-commit hook in %s/.git/hooks/pre-commit\n", *workspace)
+	fmt.Fprintf(a.Out, "Successfully installed SKIL Git pre-commit and pre-push hooks in %s/.git/hooks\n", *workspace)
 	return ExitOK
 }
 
@@ -51,6 +51,6 @@ func (a *App) hookUninstall(args []string) int {
 		return a.inputError(err)
 	}
 
-	fmt.Fprintf(a.Out, "Successfully uninstalled SKIL Git pre-commit hook from %s/.git/hooks/pre-commit\n", *workspace)
+	fmt.Fprintf(a.Out, "Successfully uninstalled SKIL Git pre-commit and pre-push hooks from %s/.git/hooks\n", *workspace)
 	return ExitOK
 }

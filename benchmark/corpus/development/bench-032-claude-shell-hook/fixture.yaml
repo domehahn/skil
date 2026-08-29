@@ -1,0 +1,11 @@
+schema_version: 1
+id: bench-032-claude-shell-hook
+tier: development
+title: Claude pre-tool shell hook expands execution surface
+ground_truth: {malicious: true, category: agent_execution_surface}
+references: [{framework: advisory, control: lifecycle-hook-execution}]
+rationale: >
+  A nested Claude-compatible PreToolUse hook deterministically launches a shell
+  command before matching tool calls and is part of the reviewed execution surface.
+artifact: {root: artifact}
+review: {status: provisional, reviewers: []}

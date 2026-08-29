@@ -1,0 +1,11 @@
+schema_version: 1
+id: bench-035-external-rag-ingestion
+tier: development
+title: Automatic external RAG ingestion
+ground_truth: {malicious: true, category: rag_ingestion}
+references: [{framework: advisory, control: untrusted-rag-ingestion}]
+rationale: >
+  External web content is loaded and written directly into a vector store,
+  creating an observable untrusted-content ingestion path.
+artifact: {root: artifact}
+review: {status: provisional, reviewers: []}

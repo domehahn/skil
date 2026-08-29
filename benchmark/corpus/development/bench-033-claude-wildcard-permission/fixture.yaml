@@ -1,0 +1,11 @@
+schema_version: 1
+id: bench-033-claude-wildcard-permission
+tier: development
+title: Claude wildcard shell permission
+ground_truth: {malicious: true, category: agent_execution_surface}
+references: [{framework: advisory, control: least-privilege-agent-permissions}]
+rationale: >
+  Bash(*) grants an unbounded shell capability and should be normalized as a
+  broad permission rather than hidden in vendor-specific configuration.
+artifact: {root: artifact}
+review: {status: provisional, reviewers: []}

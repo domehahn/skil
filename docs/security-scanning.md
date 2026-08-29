@@ -187,21 +187,16 @@ description-only lock but caught here as `SKIL-MCP-012`. Both locks can
 coexist; `skil mcp assure` loads and compares against whichever is
 present (at least one is required).
 
-Every scan draws from a single shared `AnalysisBudget` (raw bytes, expanded
-bytes from nested containers, findings, inspection events, wall time) — a
-resource backstop against a pathological or adversarial artifact, not a
-routine constraint (the defaults are generous enough no realistic skill
-scan hits them). Only the wall-time dimension is actually enforced mid-scan
-(via a context deadline: an analyzer whose own deadline expires is skipped
-rather than left to run unbounded, with the analysis budget's own deadline
-distinguished from any deadline the caller's own context carried); the
-other dimensions are measured against the completed scan and reported,
-since silently truncating findings or file content mid-analysis would
-itself be a correctness risk. Any dimension exceeded raises the scan's
-`Status` to at least `WARN`, adds an `analysis-budget` diagnostic, and is
-recorded per-dimension (used/limit) in `analysis_budget`. `--fail-on-incomplete`
-turns an exceeded budget into a hard gate failure; a reviewed policy can
-enforce the same with `deny_budget_exhausted: true`.
+Every scan draws from one shared `AnalysisBudget` (raw bytes, expanded bytes
+from nested containers, findings, inspection events, and wall time). Raw and
+expanded byte limits are checked before analyzer execution. Finding and
+inspection ceilings stop later analyzer work incrementally and record explicit
+skipped inspection entries; wall time uses a context deadline. No exhausted
+dimension disappears into a partial result: each is recorded with used/limit
+values, degrades coverage, marks the closure `UNKNOWN`, prevents `CLEAR`, and
+causes policy denial. `--fail-on-incomplete` remains useful for direct CLI
+gating, while a present closure or policy evaluation always fails closed on
+budget exhaustion.
 
 Charset smuggling: content encoded as UTF-16 (with or without a byte-order
 mark) or UTF-8-with-BOM is detected and transcoded to canonical UTF-8 once,

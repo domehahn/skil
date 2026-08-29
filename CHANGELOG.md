@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- Evolved the existing transitive graph into a deterministic, fail-closed
+  agentic supply-chain assurance closure. Every scan now binds required local,
+  nested, dependency, agent/MCP configuration, and persistent-state surfaces;
+  opt-in external descendants join the same graph. Typed `SAFE`, `UNSAFE`, and
+  `UNKNOWN` states propagate descendant risk and incomplete work. Attestations
+  bind the full canonical graph plus dependency/observation evidence, policy
+  denies unsafe/unknown closure and budget exhaustion, verification reports
+  exact node/edge drift, and runtime contracts may pin reviewed root and closure
+  digests. Dependency registry parsing, Claude hooks/permissions, RAG/persistent
+  state detection, reports, schemas, fixtures, and invariant tests were expanded
+  with additive public fields. See `docs/assurance-closure.md` and
+  `docs/changes/0011-transitive-assurance-closure.md`.
+
 - Extended `skil discover` to five more tools: Gemini CLI
   (`~/.gemini/settings.json`), Amazon Q Developer CLI
   (`~/.aws/amazonq/mcp.json`, global only), Kiro
@@ -80,27 +93,24 @@
   of what happened to get fetched. Reuses the exact same DNS-rebinding-
   resistant, redirect-disabled, private/loopback-address-rejecting HTTPS
   client the existing `--allow-remote` archive/Git loader already uses.
-  Deliberately an observability/inventory feature in this pass: a
-  reference's own findings do not yet propagate into the root scan's
-  `Status`/`Verdict`/verification/policy. See
+  Every reference is now a required closure member: child findings propagate
+  to root state and unresolved, denied, failed, budget- or depth-limited
+  references prevent a trusted policy result. See
   `internal/transitive` and `docs/transitive-scanning.md`.
 
 - Added a global `AnalysisBudget`: every scan now draws from a single
   shared resource ceiling (raw bytes, expanded bytes from nested
   containers, findings, inspection events, wall time) instead of each
   analyzer/subsystem only enforcing its own local, independent bound.
-  Only wall time is actually enforced mid-scan (a context deadline derived
-  from the budget — an analyzer whose deadline expires is explicitly
-  `skipped`, distinguished from the caller's own context being cancelled,
-  and the scan still completes and reports rather than hard-failing); the
-  other dimensions are measured against the completed scan and reported,
-  since silently truncating findings or content mid-analysis would itself
-  be a correctness risk. Any dimension exceeded raises `Status` to at
-  least `WARN`, adds an `analysis-budget` diagnostic, and is recorded
+  Raw and expanded byte limits are enforced before analyzer execution,
+  finding and inspection ceilings stop later analyzer work with explicit
+  skipped coverage, and wall time uses a context deadline. Any dimension
+  exceeded raises `Status` to at least `WARN`, prevents `CLEAR`, adds an
+  `analysis-budget` diagnostic, and is recorded
   per-dimension (used/limit) in the new `analysis_budget` field
-  (`skil.AnalysisBudgetUsage`). New `--fail-on-incomplete` CLI flag and
-  `deny_budget_exhausted: true` policy field turn an exceeded budget into
-  a hard gate failure. Defaults are generous enough that no realistic
+  (`skil.AnalysisBudgetUsage`). Policy and closure decisions always treat an
+  exceeded budget as incomplete and fail closed; `--fail-on-incomplete` also
+  provides a direct CLI hard gate. Defaults are generous enough that no realistic
   skill scan hits them — this is a backstop against a pathological or
   adversarial artifact, not a routine constraint or a set of dials meant
   for daily tuning.

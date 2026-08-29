@@ -280,6 +280,7 @@ type ScanResult struct {
 	Maximum       Severity                 `json:"maximum_severity"`
 	Findings      []Finding                `json:"findings"`
 	Observations  []CapabilityObservation  `json:"observations,omitempty"`
+	Dependencies  []DependencyIdentity     `json:"dependencies,omitempty"`
 	Coverage      map[string]CoverageState `json:"analysis"`
 	Scanners      []string                 `json:"scanners"`
 	Inspection    []InspectionWorkItem     `json:"inspection_ledger,omitempty"`
@@ -295,6 +296,20 @@ type ScanResult struct {
 	References  []ReferenceNode   `json:"references,omitempty"`
 	Closure     *AssuranceClosure `json:"assurance_closure,omitempty"`
 	GeneratedAt time.Time         `json:"generated_at"`
+}
+
+// DependencyIdentity binds a declared/resolved package identity to the source
+// that supplies it. ArtifactDigest is deliberately optional: static manifest
+// analysis must not invent payload integrity when package bytes are unavailable.
+type DependencyIdentity struct {
+	Ecosystem      string   `json:"ecosystem" yaml:"ecosystem"`
+	Package        string   `json:"package" yaml:"package"`
+	Version        string   `json:"version,omitempty" yaml:"version,omitempty"`
+	SourceKind     string   `json:"source_kind" yaml:"source_kind"`
+	SourceURL      string   `json:"source_url" yaml:"source_url"`
+	ArtifactDigest string   `json:"artifact_digest,omitempty" yaml:"artifact_digest,omitempty"`
+	ManifestDigest string   `json:"manifest_digest" yaml:"manifest_digest"`
+	Evidence       Location `json:"evidence" yaml:"evidence"`
 }
 
 type AssuranceClosure struct {

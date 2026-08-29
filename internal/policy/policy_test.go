@@ -127,6 +127,19 @@ func TestPolicyDeniesUnsafeAndUnknownRequiredClosureWithoutOptIn(t *testing.T) {
 	}
 }
 
+func TestPolicyDenyCannotBeOverriddenBySemanticSafeEvidence(t *testing.T) {
+	result := Check(Policy{Version: 1, MaximumSeverity: "MEDIUM"}, Input{Scan: skil.ScanResult{
+		Maximum:  skil.SeverityHigh,
+		Findings: []skil.Finding{{RuleID: "SKIL-SH-001", Severity: skil.SeverityHigh, Confidence: 1}},
+		Observations: []skil.CapabilityObservation{{
+			Capability: "semantic.classification", Value: "SAFE", Analyzer: "semantic-test",
+		}},
+	}})
+	if result.Decision != "DENY" || !hasViolationRule(result, "maximum-severity") {
+		t.Fatalf("semantic SAFE evidence overrode a deterministic policy denial: %#v", result)
+	}
+}
+
 func TestPolicyDependencySourceTrustUsesCanonicalExactAllowlist(t *testing.T) {
 	observation := skil.CapabilityObservation{Capability: "dependency.source", Value: "https://packages.example.test/npm/", Evidence: map[string]any{"ecosystem": "npm"}}
 	allowed := Check(Policy{Version: 1, MaximumSeverity: "CRITICAL", DependencySources: map[string]DependencySourcePolicy{

@@ -4,6 +4,17 @@ Artifacts keep the raw package-blob SHA-256 separate from the reproducible
 content-manifest SHA-256 and per-file SHA-256 values. Dependency checks flag
 missing pins, generic near-name typosquatting, and provider-reported abandonment.
 
+Dependency inventory also records the identity that supplied each resolution:
+ecosystem, package and resolved version, manifest/lock digest, source kind,
+canonical source URL, evidence location, and payload digest when the artifact
+bytes are available. npm (including scoped registries), pip index/extra-index
+and install flags, Poetry/uv sources, Cargo registry/source replacement, and
+Maven repositories are parsed with their native configuration syntax. Unknown,
+insecure, redirected, or policy-unlisted sources are findings and capability
+observations, not free-form report notes. If payload bytes are unavailable the
+payload digest is explicitly absent; the manifest and source identities remain
+attested without inventing artifact integrity.
+
 Abandonment evidence is opt-in through `--dependency-reputation`. It is local,
 strictly schema-validated, and intended to be generated or reviewed by a
 trusted dependency-governance process. The scanned skill cannot trigger

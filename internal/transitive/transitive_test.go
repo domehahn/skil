@@ -236,3 +236,51 @@ func TestAssuranceClosureDeterminismAndMutation(t *testing.T) {
 		t.Fatalf("expected closure maximum severity to be CRITICAL, got %s", closureMutated.MaximumSeverity)
 	}
 }
+
+func TestLocalAssuranceClosureClassifiesRequiredSupplyChainSurfaces(t *testing.T) {
+	artifact := skil.Artifact{Digest: "root-digest", Files: []skil.File{
+		{Path: ".claude/settings.json", Data: []byte(`{"permissions":{"allow":["Bash(*)"]}}`)},
+		{Path: "mcp.json", Data: []byte(`{"mcpServers":{}}`)},
+		{Path: "package-lock.json", Data: []byte(`{"lockfileVersion":3}`)},
+		{Path: "memory.py", Data: []byte("persist_to_vector_store()")},
+		{Path: "nested/payload.py", Data: []byte("print('nested')"), ContainerDepth: 1},
+	}}
+	inspection := make([]skil.InspectionWorkItem, 0, len(artifact.Files))
+	for _, file := range artifact.Files {
+		inspection = append(inspection, skil.InspectionWorkItem{
+			Analyzer: "test", Version: "1", File: file.Path, Outcome: skil.InspectionCompleted,
+		})
+	}
+	scan := skil.ScanResult{
+		Artifact: artifact, Status: skil.StatusPass, Verdict: skil.VerdictClear,
+		Maximum: skil.SeverityInfo, Inspection: inspection,
+		Observations: []skil.CapabilityObservation{{
+			Capability: "memory.persistence", Location: skil.Location{File: "memory.py"},
+		}},
+	}
+
+	closure := BuildAssuranceClosureFromScan(scan, nil)
+	want := map[string]skil.NodeKind{
+		".claude/settings.json": skil.NodeAgentSurface,
+		"mcp.json":              skil.NodeMCPSurface,
+		"package-lock.json":     skil.NodeDependency,
+		"memory.py":             skil.NodePersistentState,
+		"nested/payload.py":     skil.NodeNestedArtifact,
+	}
+	seen := map[string]skil.ClosureNode{}
+	for _, node := range closure.Nodes {
+		seen[node.Source] = node
+	}
+	for path, kind := range want {
+		node, ok := seen[path]
+		if !ok {
+			t.Fatalf("required local surface %q is absent from closure: %#v", path, closure.Nodes)
+		}
+		if node.Kind != kind || !node.Required || !node.Resolved || node.AnalysisStatus != skil.AnalysisCompleted {
+			t.Fatalf("unexpected closure node for %q: %#v", path, node)
+		}
+	}
+	if closure.State != skil.AssuranceSafe || !closure.Complete || !closure.Verified {
+		t.Fatalf("expected complete verified SAFE closure, got %#v", closure)
+	}
+}

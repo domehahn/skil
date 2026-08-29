@@ -45,6 +45,24 @@ func TestAttestationBindsCompleteClosureStateAndGraph(t *testing.T) {
 	}
 }
 
+func TestAttestationBindsDependencySourceIdentity(t *testing.T) {
+	base := skil.DependencyIdentity{
+		Ecosystem: "npm", Package: "helper", Version: "1.2.3", SourceKind: "registry",
+		SourceURL: "https://registry.npmjs.org/", ManifestDigest: strings.Repeat("a", 64),
+		Evidence: skil.Location{File: "package-lock.json", StartLine: 1, EndLine: 1},
+	}
+	scan := skil.ScanResult{Artifact: skil.Artifact{Name: "a", Digest: "aaa"}, Dependencies: []skil.DependencyIdentity{base}}
+	attestation := Create(scan)
+	if len(attestation.Dependencies) != 1 || attestation.Evidence[0].DependencyDigest == "" {
+		t.Fatalf("dependency inventory was not bound: %#v", attestation)
+	}
+	changed := base
+	changed.SourceURL = "https://packages.example.test/npm/"
+	if DependenciesDigest([]skil.DependencyIdentity{base}) == DependenciesDigest([]skil.DependencyIdentity{changed}) {
+		t.Fatal("same package/version from a different registry retained the same evidence digest")
+	}
+}
+
 func TestAttachEvalBindsCoverageMetricsAndFailure(t *testing.T) {
 	artifact := skil.Artifact{Name: "a", Digest: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
 	attestation := Create(skil.ScanResult{Artifact: artifact, Status: skil.StatusPass,

@@ -293,6 +293,11 @@ func Check(p Policy, in Input) Result {
 				add("capability-observation-evidence", evidence.ObservationsDigest(in.Scan.Observations), item.ObservationDigest,
 					"attested capability observations do not match the current scan")
 			}
+			if item.Type == "security-scan" && item.Producer == "skil" && item.DependencyDigest != "" &&
+				item.DependencyDigest != evidence.DependenciesDigest(in.Scan.Dependencies) {
+				add("dependency-evidence", evidence.DependenciesDigest(in.Scan.Dependencies), item.DependencyDigest,
+					"attested dependency identities do not match the current scan")
+			}
 			if (item.Type == "behavioral-eval" || item.Type == "containment-eval") && item.Producer == "skil" {
 				if in.Eval == nil {
 					add("evaluation-evidence-payload", "matching evaluation result", "missing",

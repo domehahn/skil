@@ -1,0 +1,11 @@
+schema_version: 1
+id: bench-028-official-npm-registry
+tier: development
+title: Explicit official npm registry remains trusted
+ground_truth: {malicious: false, category: dependency_source_trust}
+references: [{framework: advisory, control: dependency-source-identity}]
+rationale: >
+  An explicit canonical npm registry is a known source and should be observed
+  without being classified as an unknown or insecure registry.
+artifact: {root: artifact}
+review: {status: provisional, reviewers: []}

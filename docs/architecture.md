@@ -17,7 +17,7 @@ runtimes remain source-compatible but cannot claim containment.
 ```text
 source -> race-resistant ingestor -> canonical artifact + digest
                                      ├-> analyzers -> findings + coverage + inspection ledger
-                                     ├-> transitive graph -> assurance closure + closure digest
+                                     ├-> local/transitive graph -> assurance closure + closure digest
 contract ----------------------------┴-> verification
 eval spec -> isolated adapter -> tool request -> host gateway -> enforcer -> host tool
                                   └-> bounded result -> adapter -> final output
@@ -45,3 +45,21 @@ constant-time checked bearer token.
 Assurance levels describe completed work, not safety: `UNVERIFIED`,
 `VALIDATED`, `STATIC_ANALYZED`, `SEMANTIC_ANALYZED`,
 `BEHAVIORALLY_EVALUATED`, `ATTESTED`, and `POLICY_APPROVED`.
+
+## Assurance closure lifecycle
+
+`internal/assurance` is the single normalization and trust-aggregation layer.
+It canonicalizes nodes, edges, limitations, and finding references before
+hashing, so traversal order and cycles cannot change identity. Every required
+node carries a kind, content digest, analysis status, verification status, and
+verdict. Aggregation is fail closed: an unsafe required descendant makes the
+closure `UNSAFE`; an unresolved, incomplete, failed, or unverified required
+node makes it `UNKNOWN`; only complete and verified required nodes can produce
+`SAFE`. Optional unknown nodes remain visible but do not claim required risk.
+
+The CLI builds a local closure for every scan and adds bounded external
+reference descendants when `--transitive` is explicitly enabled. Evidence and
+attestations bind the complete graph and its digest. Verification compares the
+reviewed and current canonical graphs and names changed, missing, or unexpected
+nodes and edges. Runtime contracts can pin both root and closure digests before
+the existing host gateway authorizes any operation.

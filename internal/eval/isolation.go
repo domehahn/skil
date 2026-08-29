@@ -191,7 +191,7 @@ func (n *NativeIsolation) buildSandboxCommand(ctx context.Context, request Isola
 	}
 	cleanup := func() { os.RemoveAll(scratch) }
 	var command *exec.Cmd
-	tmpDir := scratch
+	var tmpDir string
 	switch n.os {
 	case "darwin":
 		tmpDir, err = filepath.EvalSymlinks(scratch)
@@ -289,7 +289,6 @@ type nativeSession struct {
 	stdout  io.ReadCloser
 	cleanup func()
 	once    sync.Once
-	waitErr error
 }
 
 func (s *nativeSession) Stdin() io.WriteCloser { return s.stdin }

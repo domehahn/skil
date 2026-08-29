@@ -17,6 +17,7 @@ type Evidence struct {
 	Inspection        *InspectionSummary       `json:"inspection_summary,omitempty" yaml:"inspection_summary,omitempty"`
 	InspectionDigest  string                   `json:"inspection_ledger_sha256,omitempty" yaml:"inspection_ledger_sha256,omitempty"`
 	ObservationDigest string                   `json:"capability_observations_sha256,omitempty" yaml:"capability_observations_sha256,omitempty"`
+	DependencyDigest  string                   `json:"dependencies_sha256,omitempty" yaml:"dependencies_sha256,omitempty"`
 	Evaluation        *EvalEvidence            `json:"evaluation,omitempty" yaml:"evaluation,omitempty"`
 	ReferenceClosure  *ReferenceClosureSummary `json:"reference_closure,omitempty" yaml:"reference_closure,omitempty"`
 }
@@ -71,8 +72,9 @@ type Attestation struct {
 	// Closure retains the canonical reviewed graph so verification can name
 	// the exact drifting node or edge instead of reporting only a digest
 	// mismatch. ReferenceClosure remains as the compact compatibility view.
-	Closure   *AssuranceClosure `json:"assurance_closure,omitempty" yaml:"assurance_closure,omitempty"`
-	Signature *Signature        `json:"signature,omitempty" yaml:"signature,omitempty"`
+	Closure      *AssuranceClosure    `json:"assurance_closure,omitempty" yaml:"assurance_closure,omitempty"`
+	Dependencies []DependencyIdentity `json:"dependencies,omitempty" yaml:"dependencies,omitempty"`
+	Signature    *Signature           `json:"signature,omitempty" yaml:"signature,omitempty"`
 }
 type Subject struct {
 	Name    string `json:"name" yaml:"name"`

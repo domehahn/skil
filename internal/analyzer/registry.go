@@ -2,6 +2,8 @@ package analyzer
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"slices"
 	"sort"
@@ -267,6 +269,11 @@ func (r *Registry) Scan(ctx context.Context, ac skil.AnalysisContext) (skil.Scan
 		}
 	}
 	result.Findings = append(result.Findings, correlateThreatChains(result.Findings, result.Observations)...)
+	dependencies, err := dependencyIdentities(ac.Artifact, result.Observations)
+	if err != nil {
+		return result, fmt.Errorf("build dependency identities: %w", err)
+	}
+	result.Dependencies = dependencies
 	result.Completeness = summarizeInspection(result.Inspection)
 	for _, file := range ac.Artifact.Files {
 		result.Analyzability = append(result.Analyzability, classifyAnalyzability(file, ac.Artifact.Files))
@@ -299,6 +306,100 @@ func (r *Registry) Scan(ctx context.Context, ac skil.AnalysisContext) (skil.Scan
 		})
 	}
 	return result, nil
+}
+
+func dependencyIdentities(artifact skil.Artifact, observations []skil.CapabilityObservation) ([]skil.DependencyIdentity, error) {
+	records, err := DiscoverDependencies(artifact)
+	if err != nil {
+		return nil, err
+	}
+	type source struct{ url, kind, pkg string }
+	sources := map[string][]source{}
+	for _, observation := range observations {
+		if observation.Capability != "dependency.source" {
+			continue
+		}
+		ecosystem, _ := observation.Evidence["ecosystem"].(string)
+		kind, _ := observation.Evidence["source_kind"].(string)
+		pkg, _ := observation.Evidence["package"].(string)
+		sources[normalizeDependencyEcosystem(ecosystem)] = append(sources[normalizeDependencyEcosystem(ecosystem)], source{observation.Value, kind, pkg})
+	}
+	fileDigests := map[string]string{}
+	for _, file := range artifact.Files {
+		digest := file.SHA256
+		if digest == "" {
+			sum := sha256.Sum256(file.Data)
+			digest = hex.EncodeToString(sum[:])
+		}
+		fileDigests[file.Path] = digest
+	}
+	var identities []skil.DependencyIdentity
+	seen := map[string]bool{}
+	for _, record := range records {
+		ecosystem := normalizeDependencyEcosystem(record.Ecosystem)
+		candidates := sources[ecosystem]
+		if record.URL != "" {
+			candidates = []source{{url: record.URL, kind: "direct"}}
+		}
+		if len(candidates) == 0 {
+			if official := officialDependencySource(ecosystem); official != "" {
+				candidates = []source{{url: official, kind: "official"}}
+			} else {
+				candidates = []source{{kind: "unknown"}}
+			}
+		}
+		for _, candidate := range candidates {
+			if candidate.pkg != "" && candidate.pkg != record.Name {
+				continue
+			}
+			kind := candidate.kind
+			if kind == "" {
+				kind = "registry"
+			}
+			identity := skil.DependencyIdentity{
+				Ecosystem: ecosystem, Package: record.Name, Version: record.Version,
+				SourceKind: kind, SourceURL: candidate.url, ManifestDigest: fileDigests[record.File],
+				Evidence: skil.Location{File: record.File, StartLine: record.Line, EndLine: record.Line},
+			}
+			key := strings.Join([]string{identity.Ecosystem, identity.Package, identity.Version, identity.SourceKind, identity.SourceURL, identity.ManifestDigest, identity.Evidence.File, strconv.Itoa(identity.Evidence.StartLine)}, "\x00")
+			if !seen[key] {
+				seen[key] = true
+				identities = append(identities, identity)
+			}
+		}
+	}
+	sort.Slice(identities, func(i, j int) bool {
+		a, b := identities[i], identities[j]
+		return a.Ecosystem+"\x00"+a.Package+"\x00"+a.Version+"\x00"+a.SourceURL+"\x00"+a.Evidence.File < b.Ecosystem+"\x00"+b.Package+"\x00"+b.Version+"\x00"+b.SourceURL+"\x00"+b.Evidence.File
+	})
+	return identities, nil
+}
+
+func normalizeDependencyEcosystem(ecosystem string) string {
+	switch strings.ToLower(ecosystem) {
+	case "pypi", "python":
+		return "pypi"
+	case "crates.io", "cargo":
+		return "cargo"
+	case "npm", "node":
+		return "npm"
+	case "maven":
+		return "maven"
+	case "go":
+		return "go"
+	case "rubygems", "ruby":
+		return "rubygems"
+	default:
+		return strings.ToLower(ecosystem)
+	}
+}
+
+func officialDependencySource(ecosystem string) string {
+	return map[string]string{
+		"npm": "https://registry.npmjs.org/", "pypi": "https://pypi.org/simple/",
+		"cargo": "https://index.crates.io/", "maven": "https://repo.maven.apache.org/maven2/",
+		"go": "https://proxy.golang.org/", "rubygems": "https://rubygems.org/",
+	}[ecosystem]
 }
 
 // computeBudgetUsage measures what one completed (or budget-interrupted)

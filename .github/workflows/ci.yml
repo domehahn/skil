@@ -8,8 +8,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
         with:
           go-version: "1.24.x"
           cache: true
@@ -18,6 +18,11 @@ jobs:
       - run: go mod verify
       - run: gofmt -l cmd internal pkg tests | tee /tmp/gofmt && test ! -s /tmp/gofmt
       - run: go vet ./...
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.64.5
+          args: --timeout=5m
       - run: go test -race -coverprofile=coverage.out ./...
       - name: Property crosswalk CI gate
         run: go test ./compat/external-scanner/ -v -count=1
@@ -64,7 +69,7 @@ jobs:
   vulnerabilities:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v4
       - uses: golang/govulncheck-action@v1
         with:
           go-version-file: go.mod
@@ -72,8 +77,8 @@ jobs:
   osv-provider:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
           cache: true
@@ -86,7 +91,7 @@ jobs:
           set -e
           test "$code" -eq 1
           jq -e '.findings[] | select(.rule_id == "SKIL-DEP-VULN" and (.references | index("GO-2021-0113")))' osv-proof.json
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v4
         with:
           name: osv-provider-proof
           path: osv-proof.json
@@ -94,7 +99,7 @@ jobs:
   container:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v4
       - name: Build non-root scanner image
         run: docker build -t skil:ci .
       - name: Smoke test image identity and YARA directory
@@ -110,8 +115,8 @@ jobs:
   linux-isolation:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
           cache: true
@@ -129,8 +134,8 @@ jobs:
   windows-isolation:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
           cache: true
@@ -141,8 +146,8 @@ jobs:
   macos-isolation:
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
           cache: true
@@ -168,8 +173,8 @@ jobs:
             executable_suffix: ".exe"
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
           cache: true
@@ -217,7 +222,7 @@ jobs:
           grep -q '"runtime_enforcement": true' "${ASSURANCE_PROOF}"
           grep -q '"containment": "completed"' "${ASSURANCE_PROOF}"
           grep -q '"native_isolation": "completed"' "${ASSURANCE_PROOF}"
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v4
         with:
           name: assurance-${{ matrix.os }}-proof
           path: assurance-${{ matrix.os }}.json
@@ -227,8 +232,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
           cache: true
@@ -238,24 +243,19 @@ jobs:
         run: go test ./internal/eval -run TestNetworkGetToolPublicHTTPSIntegration -count=1 -v
 
   action-self-test:
-    # Exercises action.yml exactly as an external consumer would (uses:
-    # ./ resolves the composite action from this checkout), on all three
-    # platforms the action claims to support. There is no other way to
-    # validate a composite action's actual runtime behavior — it is not
-    # Go code, so go test/go vet never touch it.
     strategy:
       fail-fast: false
       matrix:
         runner: [ubuntu-latest, macos-15, windows-latest]
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v4
       - name: Run the action against a clean fixture
         id: clean
         uses: ./
         with:
           path: tests/fixtures/clean-skill
-          version: v0.2.0
+          version: v0.3.0
           upload-sarif: 'false'
           fail-on-findings: 'false'
           sarif-file: clean.sarif
@@ -270,7 +270,7 @@ jobs:
         uses: ./
         with:
           path: tests/fixtures/malicious-skill
-          version: v0.2.0
+          version: v0.3.0
           upload-sarif: 'false'
           fail-on-findings: 'false'
           sarif-file: malicious.sarif
@@ -286,7 +286,7 @@ jobs:
         id: enforced
         with:
           path: tests/fixtures/malicious-skill
-          version: v0.2.0
+          version: v0.3.0
           upload-sarif: 'false'
           fail-on-findings: 'true'
           sarif-file: enforced.sarif

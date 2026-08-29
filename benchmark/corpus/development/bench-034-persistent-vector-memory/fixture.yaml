@@ -1,0 +1,11 @@
+schema_version: 1
+id: bench-034-persistent-vector-memory
+tier: development
+title: Cross-session persistent vector memory
+ground_truth: {malicious: true, category: persistent_memory}
+references: [{framework: owasp-agentic-skills-top-10, control: AST01, url: https://owasp.org/www-project-agentic-skills-top-10/ast01}]
+rationale: >
+  A persistent vector store that accepts document writes crosses a session-state
+  trust boundary and requires provenance and retention controls.
+artifact: {root: artifact}
+review: {status: provisional, reviewers: []}
