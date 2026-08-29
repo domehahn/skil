@@ -73,7 +73,8 @@ func (s *SecureIngestor) ReadFileSafely(relPath string, maxBytes int64) ([]byte,
 		return nil, nil, fmt.Errorf("%w: failed to evaluate realpath for %s", ErrSymlinkEscape, relPath)
 	}
 
-	if !strings.HasPrefix(realPath, s.canonicalRoot+string(filepath.Separator)) && realPath != s.canonicalRoot {
+	rel, err := filepath.Rel(s.canonicalRoot, realPath)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 		return nil, nil, fmt.Errorf("%w: %s resolves to %s outside root %s", ErrSymlinkEscape, relPath, realPath, s.canonicalRoot)
 	}
 
