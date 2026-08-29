@@ -38,6 +38,49 @@ const (
 	VerdictBlock  Verdict = "BLOCK"
 )
 
+// AssuranceState separates proven safety from both proven unsafety and an
+// incomplete proof. UNKNOWN must never be treated as SAFE by policy,
+// attestation, or runtime enforcement.
+type AssuranceState string
+
+const (
+	AssuranceSafe    AssuranceState = "SAFE"
+	AssuranceUnsafe  AssuranceState = "UNSAFE"
+	AssuranceUnknown AssuranceState = "UNKNOWN"
+)
+
+type NodeKind string
+
+const (
+	NodeRoot              NodeKind = "root"
+	NodeArtifact          NodeKind = "artifact"
+	NodeDependency        NodeKind = "dependency"
+	NodeExternalReference NodeKind = "external_reference"
+	NodeNestedArtifact    NodeKind = "nested_artifact"
+	NodeMCPSurface        NodeKind = "mcp_surface"
+	NodeRuntimeArtifact   NodeKind = "runtime_artifact"
+	NodeAgentSurface      NodeKind = "agent_execution_surface"
+	NodePersistentState   NodeKind = "persistent_state"
+)
+
+type AnalysisStatus string
+
+const (
+	AnalysisCompleted  AnalysisStatus = "completed"
+	AnalysisIncomplete AnalysisStatus = "incomplete"
+	AnalysisFailed     AnalysisStatus = "failed"
+	AnalysisNotRun     AnalysisStatus = "not_run"
+)
+
+type VerificationStatus string
+
+const (
+	VerificationVerified   VerificationStatus = "verified"
+	VerificationFailed     VerificationStatus = "failed"
+	VerificationUnresolved VerificationStatus = "unresolved"
+	VerificationNotNeeded  VerificationStatus = "not_required"
+)
+
 type Location struct {
 	File      string `json:"file" yaml:"file"`
 	StartLine int    `json:"start_line,omitempty" yaml:"start_line,omitempty"`
@@ -262,10 +305,17 @@ type AssuranceClosure struct {
 	Complete        bool          `json:"complete" yaml:"complete"`
 	Limitations     []string      `json:"limitations,omitempty" yaml:"limitations,omitempty"`
 	Digest          string        `json:"closure_digest" yaml:"closure_digest"`
+	State           AssuranceState `json:"state" yaml:"state"`
+	Verified        bool           `json:"verified" yaml:"verified"`
+	RequiredNodes   int            `json:"required_nodes" yaml:"required_nodes"`
+	UnresolvedNodes int            `json:"unresolved_nodes" yaml:"unresolved_nodes"`
+	BlockingFindings int           `json:"blocking_findings" yaml:"blocking_findings"`
+	MaxDepth        int            `json:"max_depth" yaml:"max_depth"`
 }
 
 type ClosureNode struct {
 	ID              string   `json:"id" yaml:"id"`
+	Kind            NodeKind `json:"kind,omitempty" yaml:"kind,omitempty"`
 	Source          string   `json:"source" yaml:"source"`
 	Digest          string   `json:"digest" yaml:"digest"`
 	ParentDigest    string   `json:"parent_digest,omitempty" yaml:"parent_digest,omitempty"`
@@ -277,6 +327,8 @@ type ClosureNode struct {
 	Resolved        bool     `json:"resolved" yaml:"resolved"`
 	Analyzed        bool     `json:"analyzed" yaml:"analyzed"`
 	Findings        []string `json:"findings,omitempty" yaml:"findings,omitempty"`
+	AnalysisStatus  AnalysisStatus `json:"analysis_status,omitempty" yaml:"analysis_status,omitempty"`
+	Verification    VerificationStatus `json:"verification,omitempty" yaml:"verification,omitempty"`
 }
 
 type ClosureEdge struct {
