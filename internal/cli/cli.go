@@ -574,19 +574,21 @@ func (a *App) scan(ctx context.Context, args []string) int {
 		result.References = transitive.Run(ctx, result.Artifact, transitive.Options{
 			Depth: *transitiveDepth, AllowPrefixes: splitNonEmpty(*transitiveAllow), DenyPrefixes: splitNonEmpty(*transitiveDeny),
 		}, httpsReferenceFetcher(), scanner)
-		closure := transitive.BuildAssuranceClosure(result.Artifact, result.References)
+		closure := transitive.BuildAssuranceClosureFromScan(result, result.References)
 		result.Closure = &closure
-		if closure.MaximumSeverity == skil.SeverityCritical {
+		switch closure.State {
+		case skil.AssuranceUnsafe:
 			result.Status = skil.StatusFail
 			result.Verdict = skil.VerdictBlock
-			result.Maximum = skil.SeverityCritical
-		} else if closure.MaximumSeverity == skil.SeverityHigh {
+			if severityRankCLI(closure.MaximumSeverity) > severityRankCLI(result.Maximum) {
+				result.Maximum = closure.MaximumSeverity
+			}
+		case skil.AssuranceUnknown:
 			if result.Status == skil.StatusPass {
 				result.Status = skil.StatusWarn
-				result.Verdict = skil.VerdictReview
 			}
-			if result.Maximum != skil.SeverityCritical {
-				result.Maximum = skil.SeverityHigh
+			if result.Verdict == skil.VerdictClear {
+				result.Verdict = skil.VerdictReview
 			}
 		}
 	}
@@ -624,6 +626,21 @@ func activeFindings(findings []skil.Finding) []skil.Finding {
 		}
 	}
 	return active
+}
+
+func severityRankCLI(severity skil.Severity) int {
+	switch severity {
+	case skil.SeverityCritical:
+		return 4
+	case skil.SeverityHigh:
+		return 3
+	case skil.SeverityMedium:
+		return 2
+	case skil.SeverityLow:
+		return 1
+	default:
+		return 0
+	}
 }
 
 type collectionScanResult struct {

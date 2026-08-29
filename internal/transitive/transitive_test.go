@@ -90,8 +90,8 @@ func TestRunDoesNotRecurseBeyondRequestedDepth(t *testing.T) {
 		"https://example.com/helper.md": "https://example.com/payload.py",
 	}
 	nodes := Run(context.Background(), root, Options{Depth: 1}, fakeFetcher(content), fakeScanner(content))
-	if len(nodes) != 1 {
-		t.Fatalf("expected only the depth-1 reference with Depth:1, got %#v", nodes)
+	if len(nodes) != 2 || !nodes[0].Fetched || nodes[1].Fetched || nodes[1].SkipReason != "maximum transitive depth exceeded" {
+		t.Fatalf("expected the depth-1 reference plus an explicit unresolved depth-limit node, got %#v", nodes)
 	}
 }
 
@@ -104,14 +104,18 @@ func TestRunEnforcesMaxAllowedDepthRegardlessOfRequest(t *testing.T) {
 		"https://a.example/4": "https://a.example/5",
 	}
 	nodes := Run(context.Background(), root, Options{Depth: 100}, fakeFetcher(content), fakeScanner(content))
-	var maxDepth int
+	var maxFetchedDepth int
 	for _, n := range nodes {
-		if n.Depth > maxDepth {
-			maxDepth = n.Depth
+		if n.Fetched && n.Depth > maxFetchedDepth {
+			maxFetchedDepth = n.Depth
 		}
 	}
-	if maxDepth > MaxAllowedDepth {
-		t.Fatalf("depth exceeded MaxAllowedDepth (%d): got %d", MaxAllowedDepth, maxDepth)
+	if maxFetchedDepth > MaxAllowedDepth {
+		t.Fatalf("fetched depth exceeded MaxAllowedDepth (%d): got %d", MaxAllowedDepth, maxFetchedDepth)
+	}
+	last := nodes[len(nodes)-1]
+	if last.Depth != MaxAllowedDepth+1 || last.SkipReason != "maximum transitive depth exceeded" {
+		t.Fatalf("expected an explicit unresolved boundary node, got %#v", last)
 	}
 }
 

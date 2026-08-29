@@ -298,36 +298,36 @@ type ScanResult struct {
 }
 
 type AssuranceClosure struct {
-	RootDigest      string        `json:"root_digest" yaml:"root_digest"`
-	Nodes           []ClosureNode `json:"nodes" yaml:"nodes"`
-	Edges           []ClosureEdge `json:"edges,omitempty" yaml:"edges,omitempty"`
-	MaximumSeverity Severity      `json:"maximum_severity" yaml:"maximum_severity"`
-	Complete        bool          `json:"complete" yaml:"complete"`
-	Limitations     []string      `json:"limitations,omitempty" yaml:"limitations,omitempty"`
-	Digest          string        `json:"closure_digest" yaml:"closure_digest"`
-	State           AssuranceState `json:"state" yaml:"state"`
-	Verified        bool           `json:"verified" yaml:"verified"`
-	RequiredNodes   int            `json:"required_nodes" yaml:"required_nodes"`
-	UnresolvedNodes int            `json:"unresolved_nodes" yaml:"unresolved_nodes"`
-	BlockingFindings int           `json:"blocking_findings" yaml:"blocking_findings"`
-	MaxDepth        int            `json:"max_depth" yaml:"max_depth"`
+	RootDigest       string         `json:"root_digest" yaml:"root_digest"`
+	Nodes            []ClosureNode  `json:"nodes" yaml:"nodes"`
+	Edges            []ClosureEdge  `json:"edges,omitempty" yaml:"edges,omitempty"`
+	MaximumSeverity  Severity       `json:"maximum_severity" yaml:"maximum_severity"`
+	Complete         bool           `json:"complete" yaml:"complete"`
+	Limitations      []string       `json:"limitations,omitempty" yaml:"limitations,omitempty"`
+	Digest           string         `json:"closure_digest" yaml:"closure_digest"`
+	State            AssuranceState `json:"state" yaml:"state"`
+	Verified         bool           `json:"verified" yaml:"verified"`
+	RequiredNodes    int            `json:"required_nodes" yaml:"required_nodes"`
+	UnresolvedNodes  int            `json:"unresolved_nodes" yaml:"unresolved_nodes"`
+	BlockingFindings int            `json:"blocking_findings" yaml:"blocking_findings"`
+	MaxDepth         int            `json:"max_depth" yaml:"max_depth"`
 }
 
 type ClosureNode struct {
-	ID              string   `json:"id" yaml:"id"`
-	Kind            NodeKind `json:"kind,omitempty" yaml:"kind,omitempty"`
-	Source          string   `json:"source" yaml:"source"`
-	Digest          string   `json:"digest" yaml:"digest"`
-	ParentDigest    string   `json:"parent_digest,omitempty" yaml:"parent_digest,omitempty"`
-	Depth           int      `json:"depth" yaml:"depth"`
-	ScanStatus      string   `json:"scan_status" yaml:"scan_status"`
-	MaximumSeverity Severity `json:"maximum_severity" yaml:"maximum_severity"`
-	Verdict         string   `json:"verdict" yaml:"verdict"`
-	Required        bool     `json:"required" yaml:"required"`
-	Resolved        bool     `json:"resolved" yaml:"resolved"`
-	Analyzed        bool     `json:"analyzed" yaml:"analyzed"`
-	Findings        []string `json:"findings,omitempty" yaml:"findings,omitempty"`
-	AnalysisStatus  AnalysisStatus `json:"analysis_status,omitempty" yaml:"analysis_status,omitempty"`
+	ID              string             `json:"id" yaml:"id"`
+	Kind            NodeKind           `json:"kind,omitempty" yaml:"kind,omitempty"`
+	Source          string             `json:"source" yaml:"source"`
+	Digest          string             `json:"digest" yaml:"digest"`
+	ParentDigest    string             `json:"parent_digest,omitempty" yaml:"parent_digest,omitempty"`
+	Depth           int                `json:"depth" yaml:"depth"`
+	ScanStatus      string             `json:"scan_status" yaml:"scan_status"`
+	MaximumSeverity Severity           `json:"maximum_severity" yaml:"maximum_severity"`
+	Verdict         string             `json:"verdict" yaml:"verdict"`
+	Required        bool               `json:"required" yaml:"required"`
+	Resolved        bool               `json:"resolved" yaml:"resolved"`
+	Analyzed        bool               `json:"analyzed" yaml:"analyzed"`
+	Findings        []string           `json:"findings,omitempty" yaml:"findings,omitempty"`
+	AnalysisStatus  AnalysisStatus     `json:"analysis_status,omitempty" yaml:"analysis_status,omitempty"`
 	Verification    VerificationStatus `json:"verification,omitempty" yaml:"verification,omitempty"`
 }
 
@@ -353,6 +353,10 @@ type ReferenceNode struct {
 	SkipReason string      `json:"skip_reason,omitempty"`
 	Digest     string      `json:"digest,omitempty"`
 	Scan       *ScanResult `json:"scan,omitempty"`
+	// AlreadyDiscovered records an additional provenance edge to a URL that
+	// was already materialized. The node is not fetched twice, but cycles and
+	// duplicate references remain visible in the closure graph.
+	AlreadyDiscovered bool `json:"already_discovered,omitempty"`
 }
 
 type AnalyzerMetadata struct {
