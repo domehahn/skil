@@ -75,9 +75,15 @@ as it is for a top-level `--allow-remote` source.
 
 ## Scope
 
-This is deliberately an observability/inventory feature in this first
-pass: a reference's own findings do not currently propagate into the root
-scan's `Status`/`Verdict`, verification, or policy decisions — the
-reference graph is reported for the operator to review. Feeding fetched
-references into verification/policy/attestation is a natural next step,
-not yet built.
+Every discovered reference is part of the assurance closure. A followed child
+contributes its digest, analysis status, findings, severity, and verdict. A
+denied, failed, budget-limited, or depth-limited reference remains an explicit
+unresolved required node. Unsafe children propagate `UNSAFE`; unresolved or
+incompletely analyzed children propagate `UNKNOWN`. Consequently the root
+cannot remain `CLEAR`/policy-allowed when a required descendant is unsafe or
+unknown. Closure evidence is included in reports and attestations, and exact
+node/edge drift is reported during verification.
+
+Cycles and duplicate discovery retain their provenance edges without causing
+repeat fetches. Closure identity is canonical and therefore independent of
+discovery order.

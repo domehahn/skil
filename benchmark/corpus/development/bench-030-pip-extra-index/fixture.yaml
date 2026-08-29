@@ -1,0 +1,11 @@
+schema_version: 1
+id: bench-030-pip-extra-index
+tier: development
+title: pip extra index introduces an unknown dependency source
+ground_truth: {malicious: true, category: dependency_source_trust}
+references: [{framework: advisory, control: dependency-confusion}]
+rationale: >
+  extra-index-url keeps public resolution active while adding an unknown source,
+  creating a deterministic dependency-confusion surface that requires policy.
+artifact: {root: artifact}
+review: {status: provisional, reviewers: []}

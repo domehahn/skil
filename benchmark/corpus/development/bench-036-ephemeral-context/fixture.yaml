@@ -1,0 +1,11 @@
+schema_version: 1
+id: bench-036-ephemeral-context
+tier: development
+title: Ephemeral delimited request context
+ground_truth: {malicious: false, category: persistent_memory}
+references: [{framework: advisory, control: session-state-boundary}]
+rationale: >
+  Request documents are delimited in a single prompt and are neither indexed
+  nor written to cross-session storage, so persistence must not be inferred.
+artifact: {root: artifact}
+review: {status: provisional, reviewers: []}

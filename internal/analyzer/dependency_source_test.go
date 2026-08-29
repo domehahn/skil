@@ -95,6 +95,25 @@ func TestNormalizeRegistryURLRejectsBypasses(t *testing.T) {
 	}
 }
 
+func TestRegistryBindsPackageVersionManifestAndSourceIdentity(t *testing.T) {
+	artifact := skil.Artifact{Name: "npm", Digest: "root", Files: []skil.File{
+		{Path: "package-lock.json", Data: []byte(`{"packages":{"node_modules/axios":{"version":"1.7.2"}}}`)},
+		{Path: ".npmrc", Data: []byte("registry=https://packages.example.test/npm/\n")},
+	}}
+	result, err := DefaultRegistry(nil).Scan(context.Background(), skil.AnalysisContext{Artifact: artifact})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Dependencies) != 1 {
+		t.Fatalf("expected one normalized dependency identity: %#v", result.Dependencies)
+	}
+	identity := result.Dependencies[0]
+	if identity.Ecosystem != "npm" || identity.Package != "axios" || identity.Version != "1.7.2" ||
+		identity.SourceURL != "https://packages.example.test/npm/" || identity.ManifestDigest == "" || identity.ArtifactDigest != "" {
+		t.Fatalf("dependency identity did not bind manifest and source without inventing payload integrity: %#v", identity)
+	}
+}
+
 func hasDependencyRule(findings []skil.Finding, id string) bool {
 	for _, finding := range findings {
 		if finding.RuleID == id {

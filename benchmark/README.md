@@ -167,6 +167,16 @@ python3 benchmark/runner/run_benchmark.py \
 Omit either `--*-binary` flag to skip that tool (no external install
 needed for a skil-only run).
 
+Development fixtures `bench-028` through `bench-036` exercise official and
+unknown npm sources, pip extra indexes, Cargo source replacement, nested Claude
+hooks and wildcard permissions, persistent vector memory, external RAG
+ingestion, and an ephemeral negative control. They are regression fixtures,
+not holdout evidence; adding them does not justify a before/after quality claim.
+Determinism, closure mutation/order/cycle behavior, budget fail-closed behavior,
+runtime pin drift, and two-phase persistence evidence are covered by Go tests
+where exact graph or execution-state assertions are more reliable than a
+scanner-level binary label.
+
 ## CI
 
 `.github/workflows/benchmark.yml` runs this weekly (`workflow_dispatch` also

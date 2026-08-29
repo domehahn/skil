@@ -23,9 +23,11 @@ func TestHookInstallAndUninstallCLI(t *testing.T) {
 		t.Fatalf("expected ExitOK (0) for hook install, got %d. stderr: %s", code, stderr.String())
 	}
 
-	hookPath := filepath.Join(gitDir, "hooks", "pre-commit")
-	if _, err := os.Stat(hookPath); os.IsNotExist(err) {
-		t.Fatalf("expected pre-commit hook file to exist after install")
+	for _, name := range []string{"pre-commit", "pre-push"} {
+		hookPath := filepath.Join(gitDir, "hooks", name)
+		if _, err := os.Stat(hookPath); os.IsNotExist(err) {
+			t.Fatalf("expected %s hook file to exist after install", name)
+		}
 	}
 
 	code = app.Run(context.Background(), []string{"hook", "uninstall", "--workspace", tempDir})
@@ -33,7 +35,10 @@ func TestHookInstallAndUninstallCLI(t *testing.T) {
 		t.Fatalf("expected ExitOK (0) for hook uninstall, got %d. stderr: %s", code, stderr.String())
 	}
 
-	if _, err := os.Stat(hookPath); !os.IsNotExist(err) {
-		t.Fatalf("expected pre-commit hook file to be uninstalled")
+	for _, name := range []string{"pre-commit", "pre-push"} {
+		hookPath := filepath.Join(gitDir, "hooks", name)
+		if _, err := os.Stat(hookPath); !os.IsNotExist(err) {
+			t.Fatalf("expected %s hook file to be uninstalled", name)
+		}
 	}
 }

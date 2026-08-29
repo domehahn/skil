@@ -19,6 +19,7 @@
     "evidence": {"type": "array", "items": {"type": "object"}},
     "reference_closure": {"$ref": "#/$defs/referenceClosure"},
     "assurance_closure": {"type": "object"},
+    "dependencies": {"type": "array", "items": {"$ref": "#/$defs/dependencyIdentity"}},
     "signature": {
       "type": "object",
       "required": ["provider", "algorithm", "key_id", "value"],
@@ -47,6 +48,21 @@
         "complete": {"type": "boolean"},
         "verified": {"type": "boolean"},
         "state": {"enum": ["SAFE", "UNSAFE", "UNKNOWN"]}
+      }
+    },
+    "dependencyIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ecosystem", "package", "source_kind", "source_url", "manifest_digest", "evidence"],
+      "properties": {
+        "ecosystem": {"type": "string", "minLength": 1},
+        "package": {"type": "string", "minLength": 1},
+        "version": {"type": "string"},
+        "source_kind": {"type": "string", "minLength": 1},
+        "source_url": {"type": "string"},
+        "artifact_digest": {"type": "string"},
+        "manifest_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "evidence": {"type": "object"}
       }
     }
   },

@@ -1,0 +1,11 @@
+schema_version: 1
+id: bench-029-unknown-npm-registry
+tier: development
+title: Unknown npm registry override requires review
+ground_truth: {malicious: true, category: dependency_source_trust}
+references: [{framework: advisory, control: dependency-source-redirection}]
+rationale: >
+  The artifact redirects all npm packages to an unknown registry. Registry
+  source is part of dependency identity and cannot be silently trusted.
+artifact: {root: artifact}
+review: {status: provisional, reviewers: []}

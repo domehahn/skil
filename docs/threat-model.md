@@ -41,3 +41,25 @@ The local simulator proves gateway and evidence behavior, not the absence of
 kernel, hypervisor, provider, or trusted-tool vulnerabilities.
 Deployments must reverify digests at install time and may layer stronger
 container or VM isolation around behavioral evaluation.
+
+## Assurance invariants
+
+The implementation and regression suite preserve these monotonic properties:
+
+1. Later or semantic analysis may add evidence, but cannot erase a
+   deterministic finding.
+2. A required unsafe descendant makes the root closure unsafe.
+3. A required unresolved, failed, or unanalyzed descendant cannot yield
+   `SAFE`; it yields `UNKNOWN` unless another required member is unsafe.
+4. Exhausting any analysis budget is explicit incomplete coverage and blocks a
+   policy allow decision.
+5. An attestation binds the canonical closure graph, its root and closure
+   digests, state, completeness, verification status, and dependency evidence.
+6. Runtime authorization rejects configured root or closure drift before
+   operations and rejects unreviewed runtime dependency loads.
+7. Dependency identity includes ecosystem, package/version, manifest digest,
+   source kind and canonical source URL, plus payload digest when available.
+8. Agent hooks, permissions, tool/MCP allowlists, bypass modes, and persistent
+   state are treated as executable or privileged assurance surfaces.
+9. `SAFE` is not an alias for `UNKNOWN`; missing evidence cannot increase
+   assurance.

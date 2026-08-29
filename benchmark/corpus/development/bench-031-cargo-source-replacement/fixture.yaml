@@ -1,0 +1,11 @@
+schema_version: 1
+id: bench-031-cargo-source-replacement
+tier: development
+title: Cargo crates.io source replacement
+ground_truth: {malicious: true, category: dependency_source_trust}
+references: [{framework: advisory, control: dependency-source-redirection}]
+rationale: >
+  Cargo source replacement changes where crates.io identities resolve and must
+  be treated as an explicit security-relevant redirect.
+artifact: {root: artifact}
+review: {status: provisional, reviewers: []}

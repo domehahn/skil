@@ -6,6 +6,15 @@ directories use their reproducible content-manifest SHA-256. An attestation
 summarizes completed analyses, result status, and the native
 `CLEAR`/`REVIEW`/`BLOCK` verdict for one exact subject.
 
+The attestation also binds the assurance closure summary and complete graph:
+root and closure digests, `SAFE`/`UNSAFE`/`UNKNOWN` state, completeness,
+verification, required/unresolved/blocking counts, depth, nodes, edges, and
+limitations. It embeds normalized dependency identities and separate digests
+of capability observations and dependency evidence. Verification can therefore
+name the exact node or edge that changed rather than reporting only a generic
+payload mismatch. An incomplete closure remains attested as incomplete; signing
+does not promote it to trusted.
+
 `skil key generate` creates a PKCS#8 Ed25519 private key without overwriting an
 existing file and prints the public key plus its fingerprint. `skil attest
 --signing-key` signs the canonical attestation envelope. A policy accepts that

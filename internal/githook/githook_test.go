@@ -18,21 +18,26 @@ func TestInstallAndUninstallGitHook(t *testing.T) {
 		t.Fatalf("InstallHook failed: %v", err)
 	}
 
-	hookPath := filepath.Join(gitDir, "hooks", "pre-commit")
-	info, err := os.Stat(hookPath)
-	if os.IsNotExist(err) {
-		t.Fatalf("expected pre-commit hook file to exist")
-	}
+	for _, name := range []string{"pre-commit", "pre-push"} {
+		hookPath := filepath.Join(gitDir, "hooks", name)
+		info, err := os.Stat(hookPath)
+		if os.IsNotExist(err) {
+			t.Fatalf("expected %s hook file to exist", name)
+		}
 
-	if runtime.GOOS != "windows" && info.Mode().Perm()&0111 == 0 {
-		t.Fatalf("expected pre-commit hook file to be executable")
+		if runtime.GOOS != "windows" && info.Mode().Perm()&0111 == 0 {
+			t.Fatalf("expected %s hook file to be executable", name)
+		}
 	}
 
 	if err := UninstallHook(tempDir); err != nil {
 		t.Fatalf("UninstallHook failed: %v", err)
 	}
 
-	if _, err := os.Stat(hookPath); !os.IsNotExist(err) {
-		t.Fatalf("expected pre-commit hook file to be uninstalled")
+	for _, name := range []string{"pre-commit", "pre-push"} {
+		hookPath := filepath.Join(gitDir, "hooks", name)
+		if _, err := os.Stat(hookPath); !os.IsNotExist(err) {
+			t.Fatalf("expected %s hook file to be uninstalled", name)
+		}
 	}
 }

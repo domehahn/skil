@@ -35,8 +35,8 @@ jobs:
       id-token: write
       attestations: write
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
           cache: true
@@ -130,7 +130,7 @@ jobs:
           gh attestation verify "$archive" --bundle "$PROVENANCE_BUNDLE" "${common[@]}"
           gh attestation verify "$archive" --bundle "$SBOM_BUNDLE" \
             --predicate-type https://spdx.dev/Document/v2.3 "${common[@]}"
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v4
         with:
           name: skil-${{ matrix.os }}-${{ matrix.arch }}
           path: |
@@ -150,8 +150,8 @@ jobs:
       # walk commit history against; this job otherwise only downloads
       # artifacts, so without this step it fails with "fatal: not a git
       # repository".
-      - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v8
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
         with:
           pattern: skil-*
           path: release

@@ -19,7 +19,7 @@ separate and connects them with digest-bound evidence:
 
 ```text
 contract ─┐
-analysis ─┼─> verification ─> policy ─> evidence ─> attestation
+analysis ─┼─> assurance closure ─> verification ─> policy ─> attestation
 eval ─────┘
 ```
 
@@ -33,6 +33,14 @@ eval ─────┘
 - **Policy** makes an explainable environment-specific decision.
 - **Runtime enforcement** is exposed as a fail-closed host capability gateway;
   scan results alone do not claim to enforce operations.
+
+An assurance closure is the deterministic graph of everything required for a
+decision: the root, local and nested artifacts, dependency identities, agent
+and MCP configuration, persistent-state surfaces, and opt-in external
+references. Required unresolved, unanalyzed, budget-limited, changed, or unsafe
+members prevent the root from being trusted. `SAFE`, `UNSAFE`, and `UNKNOWN`
+are distinct: absence of a known finding is never promoted to safety when work
+is incomplete. See [Assurance closure](docs/assurance-closure.md).
 
 ## Quick start
 
@@ -195,6 +203,8 @@ A non-root multi-stage container image can be built with `make docker-build`;
 | [CI and pre-commit integration](docs/ci-integration.md) | Official GitHub Action and pre-commit hooks |
 | [Local component discovery](docs/local-discovery.md) | `skil discover`: known-location inventory of installed skills and MCP servers |
 | [Transitive reference scanning](docs/transitive-scanning.md) | `skil scan --transitive`: bounded, opt-in traversal of external references a skill points at |
+| [Assurance closure](docs/assurance-closure.md) | Fail-closed graph, typed states, deterministic digest, and lifecycle |
+| [Runtime assurance](docs/runtime-assurance.md) | Reviewed root/closure pins and per-operation enforcement |
 | [Verification](docs/verification.md) | Declared-vs-observed capability checks |
 | [Policy](docs/policy.md) | Explainable install-time decisions |
 | [Attestations](docs/attestations.md) | Digest-bound evidence and signatures |

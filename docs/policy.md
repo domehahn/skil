@@ -19,6 +19,37 @@ scanners, attestation maximum age, and requirements for digest, signature, and
 provenance. Every denial contains expected and observed values. Policy consumes
 evidence; it does not conceal incomplete coverage or perform scanning itself.
 
+A present assurance closure is always fail closed: required `UNSAFE` or
+`UNKNOWN` members, incomplete verification, or an exhausted analysis budget
+deny the decision. These conditions are not converted to allow by omission of
+an optional hardening flag.
+
+Dependency sources are matched by ecosystem and canonical exact URL. Official
+registries are recognized; configured ecosystems reject unknown or unlisted
+sources:
+
+```yaml
+version: "1"
+dependency_sources:
+  npm:
+    allowed:
+      - https://registry.npmjs.org/
+  pypi:
+    allowed:
+      - https://pypi.org/simple/
+  cargo:
+    allowed:
+      - https://index.crates.io/
+  maven:
+    allowed:
+      - https://repo.maven.apache.org/maven2/
+```
+
+URLs are normalized before comparison. Credentials, fragments, query strings,
+non-HTTPS URLs, and malformed endpoints are rejected rather than compared as
+strings. Dependency identities and their source observations are included in
+attestation evidence so a later registry change is detectable.
+
 Trust policy additionally supports Ed25519 `trusted_signers`,
 `trusted_scanner_keys`, `trusted_builder_keys`, trusted builders, allowed source
 repositories and registries, DSSE SLSA-v1 provenance, and maximum
