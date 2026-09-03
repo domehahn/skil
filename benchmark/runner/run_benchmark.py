@@ -67,6 +67,7 @@ import argparse
 import hashlib
 import importlib.util
 import json
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -152,11 +153,18 @@ def verify_pin(tool_name: str, identity: dict, pinned: dict) -> tuple[str | None
     """Returns (expected_version_or_commit, verified) for a tool with a
     pinned-versions.json entry, or (None, None) when the tool has no pin
     (skil itself, or a reference tool this corpus hasn't pinned yet).
-    Verification is a case-insensitive substring check of the pinned
-    version/commit tag inside the adapter's own --version output -- robust
-    to each tool's own free-form version-string formatting, without
-    depending on an exact byte-for-byte match this benchmark doesn't
-    control."""
+
+    Verification is a case-insensitive match of the pinned version/commit
+    tag inside the adapter's own --version output, guarded on both sides so
+    it can only match a complete version token rather than a substring of a
+    longer one: a leading digit or '.' immediately before the pin (e.g. pin
+    "2.11.0" inside reported "12.11.0"), or a trailing digit, '.', or letter
+    immediately after it (e.g. pin "2.11.0" inside reported "2.11.0rc1" or
+    "2.11.00"), both fail the match rather than being treated as verified.
+    A non-digit/dot letter immediately before the pin (a leading "v", as in
+    "SkillSpector v2.11.0") is allowed -- that's the normal, expected
+    prefix a tool's own --version output uses, not part of the version
+    number itself."""
     entry = pinned.get(tool_name)
     if not entry:
         return None, None
@@ -164,8 +172,9 @@ def verify_pin(tool_name: str, identity: dict, pinned: dict) -> tuple[str | None
     if not expected:
         return None, None
     reported = str(identity.get("version", ""))
-    needle = expected.lstrip("v").lower()
-    return expected, needle in reported.lower()
+    needle = expected.lstrip("vV")
+    pattern = r"(?<![0-9.])" + re.escape(needle) + r"(?![0-9.A-Za-z])"
+    return expected, re.search(pattern, reported, re.IGNORECASE) is not None
 
 
 def summarize(fixtures: list[dict], per_fixture: dict, predicate) -> dict:
@@ -177,20 +186,29 @@ def summarize(fixtures: list[dict], per_fixture: dict, predicate) -> dict:
     return summary
 
 
+EVIDENCE_ALGORITHM = "sha256"
+EVIDENCE_CANONICALIZATION = "python json.dumps(sort_keys=True, separators=(',',':'), ensure_ascii=True), utf-8 encoded"
+
+
 def canonical_json(value) -> bytes:
     """A deterministic, minimal-whitespace, sorted-key JSON encoding: the
     same evidence dict always serializes to the exact same bytes, so its
     SHA-256 digest is reproducible by anyone re-running this function
     against the same published JSON values -- no dependency on this
-    process's own dict insertion order or key ordering."""
+    process's own dict insertion order or key ordering. This is exactly
+    what EVIDENCE_CANONICALIZATION above describes; keep the two in sync."""
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
 
 
 def evidence_payload(report: dict) -> dict:
     """The exact subset of the report that measurement_digest_sha256 binds:
-    every input that determines the reported numbers, and nothing that
-    could change from one otherwise-identical run to the next (results
-    file paths, wall-clock duration, etc. are deliberately excluded)."""
+    every input that determines the reported numbers (corpus digest, each
+    tool's identity and pin outcome, every reported metric), plus the
+    claimed generation timestamp itself -- included deliberately, not by
+    oversight: without it, an old result could be silently relabeled with
+    a newer generated_at and still verify. Results file paths and wall-
+    clock run *duration* (never captured here at all) are what's actually
+    excluded as pure storage/timing metadata with no evidentiary meaning."""
     tools = {}
     for name, tool_report in sorted(report["tools"].items()):
         tools[name] = {
@@ -288,8 +306,8 @@ def main() -> int:
         }
 
     report["evidence"] = {
-        "algorithm": "sha256",
-        "canonicalization": "python json.dumps(sort_keys=True, separators=(',',':'), ensure_ascii=True), utf-8 encoded",
+        "algorithm": EVIDENCE_ALGORITHM,
+        "canonicalization": EVIDENCE_CANONICALIZATION,
         "measurement_digest_sha256": measurement_digest(report),
         "verify_with": "benchmark/runner/verify_evidence.py",
     }

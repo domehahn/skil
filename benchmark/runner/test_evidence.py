@@ -5,11 +5,14 @@ import hashlib
 import unittest
 
 from run_benchmark import (
+    EVIDENCE_ALGORITHM,
+    EVIDENCE_CANONICALIZATION,
     canonical_json,
     evidence_payload,
     measurement_digest,
     verify_pin,
 )
+from verify_evidence import verify_report
 
 
 class VerifyPinTest(unittest.TestCase):
@@ -53,6 +56,26 @@ class VerifyPinTest(unittest.TestCase):
         expected, verified = verify_pin("skillspector", {"version": "v2.11.0"}, {})
         self.assertIsNone(expected)
         self.assertIsNone(verified)
+
+    def test_prefix_false_positive_is_rejected(self) -> None:
+        # pin "2.11.0" must not verify against a reported "12.11.0" merely
+        # because "2.11.0" is a substring of it.
+        _, verified = verify_pin("skillspector", {"version": "SkillSpector v12.11.0"}, self.pinned)
+        self.assertFalse(verified)
+
+    def test_suffix_false_positive_is_rejected(self) -> None:
+        # pin "2.11.0" must not verify against a reported prerelease
+        # "2.11.0rc1" or a longer patch "2.11.00".
+        _, rc_verified = verify_pin("skillspector", {"version": "SkillSpector v2.11.0rc1"}, self.pinned)
+        self.assertFalse(rc_verified)
+        _, longer_verified = verify_pin("skillspector", {"version": "SkillSpector v2.11.00"}, self.pinned)
+        self.assertFalse(longer_verified)
+
+    def test_leading_v_prefix_is_still_allowed(self) -> None:
+        # the normal "toolname vX.Y.Z" --version convention must still
+        # verify: a leading letter (not digit/dot) before the pin is fine.
+        _, verified = verify_pin("skillspector", {"version": "SkillSpector v2.11.0"}, self.pinned)
+        self.assertTrue(verified)
 
 
 class MeasurementDigestTest(unittest.TestCase):
@@ -120,6 +143,65 @@ class MeasurementDigestTest(unittest.TestCase):
         report["tools"]["skil"]["per_fixture"] = {"bench-001": {"detected": True}}
         payload = evidence_payload(report)
         self.assertNotIn("per_fixture", payload["tools"]["skil"])
+
+
+class VerifyReportTest(unittest.TestCase):
+    def make_verified_report(self) -> dict:
+        report = {
+            "schema_version": 2,
+            "benchmark_mode": "pinned",
+            "generated_at": "2026-01-01T00:00:00+00:00",
+            "corpus": {"digest": "abc123"},
+            "tools": {
+                "skil": {
+                    "identity": {"tool": "skil", "version": "0.1.0"},
+                    "pinned_expected_version": None,
+                    "pinned_version_verified": None,
+                    "headline_metric": "n/a",
+                    "development_set_metric_regression_only_never_a_generalization_claim": {"tp": 1},
+                    "evaluation_set_provisional_metric_informational_only": {"tp": 0},
+                }
+            },
+        }
+        report["evidence"] = {
+            "algorithm": EVIDENCE_ALGORITHM,
+            "canonicalization": EVIDENCE_CANONICALIZATION,
+            "measurement_digest_sha256": measurement_digest(report),
+        }
+        return report
+
+    def test_untampered_report_verifies_with_no_problems(self) -> None:
+        self.assertEqual(verify_report(self.make_verified_report()), [])
+
+    def test_tampered_metric_is_caught(self) -> None:
+        report = self.make_verified_report()
+        report["tools"]["skil"]["development_set_metric_regression_only_never_a_generalization_claim"] = {"tp": 999}
+        problems = verify_report(report)
+        self.assertEqual(len(problems), 1)
+        self.assertIn("recomputed", problems[0])
+
+    def test_falsely_claimed_algorithm_is_caught_even_if_digest_recomputes_fine(self) -> None:
+        # The digest itself is always recomputed with this verifier's real
+        # sha256/canonical_json regardless of what the file claims, so a
+        # bogus "algorithm" claim alone would otherwise slip through
+        # undetected -- this is exactly the gap a Copilot review caught.
+        report = self.make_verified_report()
+        report["evidence"]["algorithm"] = "md5"
+        problems = verify_report(report)
+        self.assertTrue(any("algorithm" in p for p in problems))
+
+    def test_falsely_claimed_canonicalization_is_caught(self) -> None:
+        report = self.make_verified_report()
+        report["evidence"]["canonicalization"] = "something else entirely"
+        problems = verify_report(report)
+        self.assertTrue(any("canonicalization" in p for p in problems))
+
+    def test_missing_evidence_block_is_its_own_problem(self) -> None:
+        report = self.make_verified_report()
+        del report["evidence"]
+        problems = verify_report(report)
+        self.assertEqual(len(problems), 1)
+        self.assertIn("measurement_digest_sha256", problems[0])
 
 
 if __name__ == "__main__":
