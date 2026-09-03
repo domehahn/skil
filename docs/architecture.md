@@ -16,6 +16,7 @@ runtimes remain source-compatible but cannot claim containment.
 
 ```text
 source -> race-resistant ingestor -> canonical artifact + digest
+                                     ├-> derived security views -> existing analyzers
                                      ├-> analyzers -> findings + coverage + inspection ledger
                                      ├-> local/transitive graph -> assurance closure + closure digest
 contract ----------------------------┴-> verification
@@ -63,3 +64,11 @@ attestations bind the complete graph and its digest. Verification compares the
 reviewed and current canonical graphs and names changed, missing, or unexpected
 nodes and edges. Runtime contracts can pin both root and closure digests before
 the existing host gateway authorizes any operation.
+
+`internal/derived` is a pure preprocessing boundary between immutable ingestion
+and the analyzer registry. It constructs bounded alternative full-file views,
+maps every transformed output range to original byte spans, and never performs
+execution, network access, or model calls. The registry analyzes original bytes
+first and then reuses eligible deterministic analyzers over derived views.
+Derived evidence is additive; ambiguity or resource exhaustion degrades
+coverage and therefore closure state.

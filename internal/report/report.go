@@ -100,6 +100,16 @@ func writeTerminal(w io.Writer, r skil.ScanResult) error {
 			fmt.Fprintf(w, "  %-58s %s\n", boundedDisplay(file.Path, 58), file.Encoding)
 		}
 	}
+	if r.DerivedViews != nil && (len(r.DerivedViews.Views) > 0 || !r.DerivedViews.Complete) {
+		fmt.Fprintln(w, "\nDERIVED SECURITY VIEWS")
+		fmt.Fprintf(w, "  Views         %d\n", len(r.DerivedViews.Views))
+		fmt.Fprintf(w, "  Complete      %t\n", r.DerivedViews.Complete)
+		fmt.Fprintf(w, "  Bytes         %d\n", r.DerivedViews.Bytes)
+		fmt.Fprintf(w, "  Maximum depth %d\n", r.DerivedViews.MaxDepth)
+		if len(r.DerivedViews.Limitations) > 0 {
+			fmt.Fprintf(w, "  Limitations   %s\n", boundedDisplay(strings.Join(r.DerivedViews.Limitations, "; "), 82))
+		}
+	}
 
 	findings := sortedFindings(r.Findings)
 	fmt.Fprintf(w, "\nFINDINGS (%d)\n", len(findings))
@@ -173,6 +183,9 @@ func writeTerminal(w io.Writer, r skil.ScanResult) error {
 		fmt.Fprintf(w, "  %-20s %14d %14d\n", "expanded_bytes", r.Budget.ExpandedBytes.Used, r.Budget.ExpandedBytes.Limit)
 		fmt.Fprintf(w, "  %-20s %14d %14d\n", "findings", r.Budget.Findings.Used, r.Budget.Findings.Limit)
 		fmt.Fprintf(w, "  %-20s %14d %14d\n", "inspection_events", r.Budget.InspectionEvents.Used, r.Budget.InspectionEvents.Limit)
+		fmt.Fprintf(w, "  %-20s %14d %14d\n", "derived_views", r.Budget.DerivedViews.Used, r.Budget.DerivedViews.Limit)
+		fmt.Fprintf(w, "  %-20s %14d %14d\n", "derived_depth", r.Budget.DerivedDepth.Used, r.Budget.DerivedDepth.Limit)
+		fmt.Fprintf(w, "  %-20s %14d %14d\n", "derived_bytes", r.Budget.DerivedBytes.Used, r.Budget.DerivedBytes.Limit)
 		fmt.Fprintf(w, "  %-20s %11dms %11dms\n", "wall_time", r.Budget.WallTime.Used, r.Budget.WallTime.Limit)
 		fmt.Fprintf(w, "  Exceeded: %s\n", strings.Join(r.Budget.Exceeded, ", "))
 	}
@@ -253,6 +266,13 @@ func writeMarkdown(w io.Writer, r skil.ScanResult) error {
 	for _, file := range sortedFiles(r.Artifact.Files) {
 		fmt.Fprintf(w, "| `%s` | %s | %d | %t |\n", MarkdownText(file.Path),
 			MarkdownText(componentType(file.Path)), lineCount(file.Data), file.Executable)
+	}
+	if r.DerivedViews != nil && (len(r.DerivedViews.Views) > 0 || !r.DerivedViews.Complete) {
+		fmt.Fprintf(w, "\n## Derived security views\n\n- Views: %d\n- Complete: **%t**\n- Bytes: %d\n- Maximum depth: %d\n",
+			len(r.DerivedViews.Views), r.DerivedViews.Complete, r.DerivedViews.Bytes, r.DerivedViews.MaxDepth)
+		for _, limitation := range r.DerivedViews.Limitations {
+			fmt.Fprintf(w, "- Limitation: %s\n", MarkdownText(limitation))
+		}
 	}
 
 	fmt.Fprintln(w, "\n## Findings")

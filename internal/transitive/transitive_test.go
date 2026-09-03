@@ -284,3 +284,16 @@ func TestLocalAssuranceClosureClassifiesRequiredSupplyChainSurfaces(t *testing.T
 		t.Fatalf("expected complete verified SAFE closure, got %#v", closure)
 	}
 }
+
+func TestDegradedDerivedCoverageMakesClosureUnknown(t *testing.T) {
+	scan := skil.ScanResult{
+		Artifact: skil.Artifact{Digest: "root-digest", Files: []skil.File{{Path: "SKILL.md", Data: []byte("base64: !!!")}}},
+		Status:   skil.StatusWarn,
+		Verdict:  skil.VerdictReview,
+		Coverage: map[string]skil.CoverageState{"derived-views": skil.CoverageDegraded},
+	}
+	closure := BuildAssuranceClosureFromScan(scan, nil)
+	if closure.State != skil.AssuranceUnknown || closure.Complete || closure.Verified {
+		t.Fatalf("degraded derived coverage must fail closed: %#v", closure)
+	}
+}

@@ -487,6 +487,11 @@ func scanAnalysisStatus(scan skil.ScanResult) skil.AnalysisStatus {
 	if scan.Status == skil.StatusError || scan.Completeness.Failed > 0 {
 		return skil.AnalysisFailed
 	}
+	for _, coverage := range scan.Coverage {
+		if coverage == skil.CoverageDegraded || coverage == skil.CoverageNotAvailable {
+			return skil.AnalysisIncomplete
+		}
+	}
 	if len(scan.Budget.Exceeded) > 0 || scan.Completeness.Skipped > 0 || scan.Completeness.Failed > 0 ||
 		(scan.Completeness.Applicable > 0 && scan.Completeness.Completeness < 1) {
 		return skil.AnalysisIncomplete

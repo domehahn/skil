@@ -188,7 +188,8 @@ coexist; `skil mcp assure` loads and compares against whichever is
 present (at least one is required).
 
 Every scan draws from one shared `AnalysisBudget` (raw bytes, expanded bytes
-from nested containers, findings, inspection events, and wall time). Raw and
+from nested containers, derived security views/depth/bytes, findings,
+inspection events, and wall time). Raw and
 expanded byte limits are checked before analyzer execution. Finding and
 inspection ceilings stop later analyzer work incrementally and record explicit
 skipped inspection entries; wall time uses a context deadline. No exhausted
@@ -197,6 +198,11 @@ values, degrades coverage, marks the closure `UNKNOWN`, prevents `CLEAR`, and
 causes policy denial. `--fail-on-incomplete` remains useful for direct CLI
 gating, while a present closure or policy evaluation always fails closed on
 budget exhaustion.
+
+Derived reconstruction is additionally capped at 64 views, three composed
+transformations, and 16 MiB cumulative output by default. Malformed explicit
+encodings and transformation limits are reported as degraded `derived-views`
+coverage. See [Derived security views](derived-security-views.md).
 
 Charset smuggling: content encoded as UTF-16 (with or without a byte-order
 mark) or UTF-8-with-BOM is detected and transcoded to canonical UTF-8 once,

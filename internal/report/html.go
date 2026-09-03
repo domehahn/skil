@@ -117,6 +117,19 @@ pre { padding: 12px; overflow-x: auto; }
 	}
 	buf.WriteString(`</div>`)
 
+	if r.DerivedViews != nil && (len(r.DerivedViews.Views) > 0 || !r.DerivedViews.Complete) {
+		buf.WriteString(`<div class="card">
+    <h3 style="margin-top:0;">Derived Security Views</h3>
+    <p>Views: <strong>` + fmt.Sprintf("%d", len(r.DerivedViews.Views)) + `</strong> |
+       Complete: <strong>` + fmt.Sprintf("%t", r.DerivedViews.Complete) + `</strong> |
+       Bytes: <strong>` + fmt.Sprintf("%d", r.DerivedViews.Bytes) + `</strong> |
+       Maximum depth: <strong>` + fmt.Sprintf("%d", r.DerivedViews.MaxDepth) + `</strong></p>`)
+		if len(r.DerivedViews.Limitations) > 0 {
+			buf.WriteString(`<p>Limitations: ` + html.EscapeString(strings.Join(r.DerivedViews.Limitations, "; ")) + `</p>`)
+		}
+		buf.WriteString(`</div>`)
+	}
+
 	// Transitive Closure Section if present
 	if r.Closure != nil {
 		buf.WriteString(`

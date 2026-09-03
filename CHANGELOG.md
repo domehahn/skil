@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Added deterministic Derived Security Views. A bounded local preprocessing
+  layer reconstructs Unicode-default-ignorable, bidi, curated confusable,
+  inter-character-spacing, explicitly declared marker, Base64, hex, URL,
+  escaped-string, and simple concatenation concealment. Existing deterministic
+  analyzers inspect the reconstructed views; findings retain original byte-span
+  provenance and transformation metadata. New view/depth/byte budgets and
+  malformed explicit encodings degrade coverage and assurance instead of
+  implying safety. JSON, terminal, Markdown, and HTML reports expose compact
+  view evidence. See `docs/derived-security-views.md` and change record 0012.
+
 - Evolved the existing transitive graph into a deterministic, fail-closed
   agentic supply-chain assurance closure. Every scan now binds required local,
   nested, dependency, agent/MCP configuration, and persistent-state surfaces;

@@ -177,6 +177,10 @@ runtime pin drift, and two-phase persistence evidence are covered by Go tests
 where exact graph or execution-state assertions are more reliable than a
 scanner-level binary label.
 
+`bench-037` and `bench-038` cover Base64 reconstruction of a concealed
+instruction and a printable benign payload. They are development-tier
+regression fixtures and therefore never contribute to the headline metric.
+
 ## CI
 
 `.github/workflows/benchmark.yml` runs this weekly (`workflow_dispatch` also

@@ -281,6 +281,7 @@ type ScanResult struct {
 	Findings      []Finding                `json:"findings"`
 	Observations  []CapabilityObservation  `json:"observations,omitempty"`
 	Dependencies  []DependencyIdentity     `json:"dependencies,omitempty"`
+	DerivedViews  *DerivedViewSummary      `json:"derived_security_views,omitempty"`
 	Coverage      map[string]CoverageState `json:"analysis"`
 	Scanners      []string                 `json:"scanners"`
 	Inspection    []InspectionWorkItem     `json:"inspection_ledger,omitempty"`
@@ -296,6 +297,42 @@ type ScanResult struct {
 	References  []ReferenceNode   `json:"references,omitempty"`
 	Closure     *AssuranceClosure `json:"assurance_closure,omitempty"`
 	GeneratedAt time.Time         `json:"generated_at"`
+}
+
+// DerivedViewSummary describes deterministic alternative representations used
+// during analysis. Reconstructed bytes are deliberately not serialized; their
+// digest and provenance bind findings without duplicating untrusted content in
+// reports or attestations.
+type DerivedViewSummary struct {
+	Views       []DerivedViewEvidence `json:"views" yaml:"views"`
+	Complete    bool                  `json:"complete" yaml:"complete"`
+	Bytes       int64                 `json:"bytes" yaml:"bytes"`
+	MaxDepth    int                   `json:"max_depth" yaml:"max_depth"`
+	Exceeded    []string              `json:"exceeded,omitempty" yaml:"exceeded,omitempty"`
+	Limitations []string              `json:"limitations,omitempty" yaml:"limitations,omitempty"`
+}
+
+type DerivedViewEvidence struct {
+	ID              string               `json:"id" yaml:"id"`
+	SourcePath      string               `json:"source_path" yaml:"source_path"`
+	SourceDigest    string               `json:"source_digest" yaml:"source_digest"`
+	Digest          string               `json:"digest" yaml:"digest"`
+	Depth           int                  `json:"depth" yaml:"depth"`
+	Transformations []TransformationStep `json:"transformations" yaml:"transformations"`
+}
+
+// TransformationStep maps a changed output range back to immutable original
+// bytes. One decoded token can map many output bytes to one original span; that
+// is explicit instead of being presented as exact character provenance.
+type TransformationStep struct {
+	Kind          string `json:"kind" yaml:"kind"`
+	InputStart    int    `json:"input_start" yaml:"input_start"`
+	InputEnd      int    `json:"input_end" yaml:"input_end"`
+	OutputStart   int    `json:"output_start" yaml:"output_start"`
+	OutputEnd     int    `json:"output_end" yaml:"output_end"`
+	OriginalStart int    `json:"original_start" yaml:"original_start"`
+	OriginalEnd   int    `json:"original_end" yaml:"original_end"`
+	Detail        string `json:"detail,omitempty" yaml:"detail,omitempty"`
 }
 
 // DependencyIdentity binds a declared/resolved package identity to the source
@@ -410,6 +447,9 @@ type AnalysisBudget struct {
 	MaxExpandedBytes    int64
 	MaxFindings         int
 	MaxInspectionEvents int
+	MaxDerivedViews     int
+	MaxDerivedDepth     int
+	MaxDerivedBytes     int64
 	MaxWallTime         time.Duration
 }
 
@@ -419,7 +459,9 @@ type AnalysisBudget struct {
 func DefaultAnalysisBudget() AnalysisBudget {
 	return AnalysisBudget{
 		MaxRawBytes: 100 << 20, MaxExpandedBytes: 150 << 20,
-		MaxFindings: 10_000, MaxInspectionEvents: 200_000, MaxWallTime: 2 * time.Minute,
+		MaxFindings: 10_000, MaxInspectionEvents: 200_000,
+		MaxDerivedViews: 64, MaxDerivedDepth: 3, MaxDerivedBytes: 16 << 20,
+		MaxWallTime: 2 * time.Minute,
 	}
 }
 
@@ -431,6 +473,9 @@ type AnalysisBudgetUsage struct {
 	ExpandedBytes    BudgetDimension `json:"expanded_bytes"`
 	Findings         BudgetDimension `json:"findings"`
 	InspectionEvents BudgetDimension `json:"inspection_events"`
+	DerivedViews     BudgetDimension `json:"derived_views"`
+	DerivedDepth     BudgetDimension `json:"derived_depth"`
+	DerivedBytes     BudgetDimension `json:"derived_bytes"`
 	WallTime         BudgetDimension `json:"wall_time"`
 	// Exceeded lists which dimensions (by JSON field name above) were
 	// over budget; empty means the whole scan stayed within budget.

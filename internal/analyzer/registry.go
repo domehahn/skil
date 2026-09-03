@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/domehahn/skil/internal/derived"
 	"github.com/domehahn/skil/pkg/skil"
 )
 
@@ -98,6 +99,18 @@ func (r *Registry) Scan(ctx context.Context, ac skil.AnalysisContext) (skil.Scan
 	budget := skil.DefaultAnalysisBudget()
 	if ac.Budget != nil {
 		budget = *ac.Budget
+		defaults := skil.DefaultAnalysisBudget()
+		// These dimensions are additive. Zero in callers compiled against the
+		// earlier struct means "unspecified", not an unbounded reconstruction.
+		if budget.MaxDerivedViews == 0 {
+			budget.MaxDerivedViews = defaults.MaxDerivedViews
+		}
+		if budget.MaxDerivedDepth == 0 {
+			budget.MaxDerivedDepth = defaults.MaxDerivedDepth
+		}
+		if budget.MaxDerivedBytes == 0 {
+			budget.MaxDerivedBytes = defaults.MaxDerivedBytes
+		}
 	}
 	wallStart := time.Now()
 	budgetCtx, cancelBudget := context.WithTimeout(ctx, budget.MaxWallTime)
@@ -114,6 +127,7 @@ func (r *Registry) Scan(ctx context.Context, ac skil.AnalysisContext) (skil.Scan
 			"behavioral": skil.CoverageNotRun, "trigger": skil.CoverageNotRequested,
 			"resource-config": skil.CoverageNotRequested, "taint-output": skil.CoverageNotRequested,
 			"analysis-budget": skil.CoverageCompleted,
+			"derived-views":   skil.CoverageCompleted,
 		},
 		Scanners: []string{"skil"},
 	}
@@ -133,6 +147,16 @@ func (r *Registry) Scan(ctx context.Context, ac skil.AnalysisContext) (skil.Scan
 	}
 	if len(ac.Artifact.LoadDiagnostics) > 0 {
 		result.Diagnostics = append(result.Diagnostics, ac.Artifact.LoadDiagnostics...)
+	}
+	derivedResult := derived.Build(budgetCtx, ac.Artifact, derived.Budget{
+		MaxViews: budget.MaxDerivedViews, MaxDepth: budget.MaxDerivedDepth, MaxBytes: budget.MaxDerivedBytes,
+	})
+	result.DerivedViews = derivedSummary(derivedResult)
+	if !derivedResult.Complete {
+		result.Coverage["derived-views"] = skil.CoverageDegraded
+		for _, limitation := range derivedResult.Limitations {
+			result.Diagnostics = append(result.Diagnostics, skil.Diagnostic{Component: "derived-views", Level: "warning", Message: limitation})
+		}
 	}
 	domainFilter := ac.DomainFilter
 	inspectionBudgetStopped := false
@@ -200,15 +224,7 @@ func (r *Registry) Scan(ctx context.Context, ac skil.AnalysisContext) (skil.Scan
 		var diagnostics []skil.Diagnostic
 		var coverageOverride map[string]skil.CoverageState
 		var err error
-		if ra, ok := a.(skil.ResultAnalyzer); ok {
-			analysisResult, analyzeErr := ra.AnalyzeResult(budgetCtx, ac)
-			findings, diagnostics, coverageOverride, err = analysisResult.Findings,
-				analysisResult.Diagnostics, analysisResult.Coverage, analyzeErr
-		} else if oa, ok := a.(skil.ObservationAnalyzer); ok {
-			findings, observations, err = oa.AnalyzeCapabilities(budgetCtx, ac)
-		} else {
-			findings, err = a.Analyze(budgetCtx, ac)
-		}
+		findings, observations, diagnostics, coverageOverride, err = invokeAnalyzer(budgetCtx, a, ac)
 		if err != nil {
 			if ctx.Err() == nil && budgetCtx.Err() != nil {
 				// The analyzer failed specifically because the budget's
@@ -243,6 +259,7 @@ func (r *Registry) Scan(ctx context.Context, ac skil.AnalysisContext) (skil.Scan
 		result.Findings = append(result.Findings, findings...)
 		result.Observations = append(result.Observations, observations...)
 		result.Diagnostics = append(result.Diagnostics, diagnostics...)
+		analyzeDerivedViews(budgetCtx, a, ac, derivedResult.Views, nativeRules, budget, &result)
 		if source, ok := a.(interface{ Diagnostics() []skil.Diagnostic }); ok {
 			result.Diagnostics = append(result.Diagnostics, source.Diagnostics()...)
 		}
@@ -306,6 +323,208 @@ func (r *Registry) Scan(ctx context.Context, ac skil.AnalysisContext) (skil.Scan
 		})
 	}
 	return result, nil
+}
+
+func invokeAnalyzer(ctx context.Context, analyzer skil.Analyzer, ac skil.AnalysisContext) ([]skil.Finding, []skil.CapabilityObservation, []skil.Diagnostic, map[string]skil.CoverageState, error) {
+	if resultAnalyzer, ok := analyzer.(skil.ResultAnalyzer); ok {
+		result, err := resultAnalyzer.AnalyzeResult(ctx, ac)
+		return result.Findings, nil, result.Diagnostics, result.Coverage, err
+	}
+	if observationAnalyzer, ok := analyzer.(skil.ObservationAnalyzer); ok {
+		findings, observations, err := observationAnalyzer.AnalyzeCapabilities(ctx, ac)
+		return findings, observations, nil, nil, err
+	}
+	findings, err := analyzer.Analyze(ctx, ac)
+	return findings, nil, nil, nil, err
+}
+
+func derivedSummary(result derived.Result) *skil.DerivedViewSummary {
+	views := make([]skil.DerivedViewEvidence, len(result.Views))
+	for index := range result.Views {
+		views[index] = result.Views[index].Evidence
+	}
+	return &skil.DerivedViewSummary{
+		Views: views, Complete: result.Complete, Bytes: result.Bytes, MaxDepth: result.MaxDepth,
+		Exceeded: append([]string(nil), result.Exceeded...), Limitations: append([]string(nil), result.Limitations...),
+	}
+}
+
+func analyzeDerivedViews(ctx context.Context, analyzer skil.Analyzer, ac skil.AnalysisContext, views []derived.View, nativeRules []string, budget skil.AnalysisBudget, result *skil.ScanResult) {
+	meta := analyzer.Metadata()
+	if meta.ID == "builtin.obfuscation" || slices.Contains(meta.AnalysisTypes, "semantic-provider") {
+		return
+	}
+	originals := map[string]skil.File{}
+	for _, file := range ac.Artifact.Files {
+		originals[file.Path] = file
+	}
+	for _, view := range views {
+		if ctx.Err() != nil {
+			degradeDerived(result, view.Evidence.SourcePath+": derived analyzer execution cancelled")
+			return
+		}
+		original, ok := originals[view.Evidence.SourcePath]
+		if !ok {
+			degradeDerived(result, view.Evidence.SourcePath+": original source for derived view is unavailable")
+			continue
+		}
+		derivedFile := original
+		derivedFile.Data = view.Data
+		derivedFile.SHA256 = view.Evidence.Digest
+		if !analyzerApplies(meta, derivedFile) {
+			continue
+		}
+		if budget.MaxInspectionEvents > 0 && len(result.Inspection) >= budget.MaxInspectionEvents {
+			degradeDerived(result, "derived analyzer inspection budget exhausted")
+			if result.DerivedViews != nil && !slices.Contains(result.DerivedViews.Exceeded, "inspection_events") {
+				result.DerivedViews.Exceeded = append(result.DerivedViews.Exceeded, "inspection_events")
+			}
+			return
+		}
+		item := skil.InspectionWorkItem{
+			Analyzer: meta.ID, Version: meta.Version, File: original.Path + "#" + view.Evidence.ID,
+			Outcome: skil.InspectionCompleted, Reason: "derived security view",
+		}
+		derivedArtifact := ac.Artifact
+		derivedArtifact.Files = []skil.File{derivedFile}
+		derivedContext := ac
+		derivedContext.Artifact = derivedArtifact
+		findings, observations, diagnostics, coverage, err := invokeAnalyzer(ctx, analyzer, derivedContext)
+		if err != nil {
+			item.Outcome = skil.InspectionFailed
+			item.Reason = "derived security view: " + err.Error()
+			result.Inspection = append(result.Inspection, item)
+			degradeDerived(result, fmt.Sprintf("%s: %s could not analyze %s: %v", original.Path, meta.ID, view.Evidence.ID, err))
+			continue
+		}
+		for _, state := range coverage {
+			if state == skil.CoverageDegraded || state == skil.CoverageNotAvailable {
+				degradeDerived(result, fmt.Sprintf("%s: %s reported degraded derived-view coverage", original.Path, meta.ID))
+			}
+		}
+		for _, diagnostic := range diagnostics {
+			diagnostic.Component = "derived-views/" + diagnostic.Component
+			diagnostic.Message = view.Evidence.ID + ": " + diagnostic.Message
+			result.Diagnostics = append(result.Diagnostics, diagnostic)
+		}
+		for _, finding := range findings {
+			if finding.Location.File != original.Path || strings.HasPrefix(finding.RuleID, "SKIL-") && !nativeRuleKnown(nativeRules, finding.RuleID) {
+				continue
+			}
+			annotated, ok := annotateDerivedFinding(finding, original, view)
+			if !ok {
+				continue
+			}
+			result.Findings = append(result.Findings, annotated)
+			item.Findings++
+		}
+		for _, observation := range observations {
+			if observation.Location.File != original.Path {
+				continue
+			}
+			annotated, ok := annotateDerivedObservation(observation, original, view)
+			if ok {
+				result.Observations = append(result.Observations, annotated)
+			}
+		}
+		result.Inspection = append(result.Inspection, item)
+	}
+}
+
+func annotateDerivedFinding(finding skil.Finding, original skil.File, view derived.View) (skil.Finding, bool) {
+	start, end := lineByteRange(view.Data, finding.Location.StartLine, finding.Location.EndLine)
+	span, changed := view.OriginalSpan(start, end)
+	if !changed {
+		return skil.Finding{}, false
+	}
+	if finding.Evidence == nil {
+		finding.Evidence = map[string]any{}
+	}
+	finding.Evidence["derived_view_id"] = view.Evidence.ID
+	finding.Evidence["derived_view_digest"] = view.Evidence.Digest
+	finding.Evidence["derived_source_digest"] = view.Evidence.SourceDigest
+	finding.Evidence["derived_transformations"] = view.Evidence.Transformations
+	finding.Evidence["derived_start_line"] = finding.Location.StartLine
+	finding.Evidence["derived_end_line"] = finding.Location.EndLine
+	finding.Evidence["original_start_offset"] = span.Start
+	finding.Evidence["original_end_offset"] = span.End
+	finding.Location.StartLine = lineForOffset(original.Data, span.Start)
+	finding.Location.EndLine = lineForOffset(original.Data, max(span.Start, span.End-1))
+	finding.Fingerprint = fingerprint(finding.Fingerprint, view.Evidence.ID, strconv.Itoa(span.Start), strconv.Itoa(span.End))
+	finding.ID = "F-" + strings.ToUpper(finding.Fingerprint[:12])
+	return finding, true
+}
+
+func annotateDerivedObservation(observation skil.CapabilityObservation, original skil.File, view derived.View) (skil.CapabilityObservation, bool) {
+	start, end := lineByteRange(view.Data, observation.Location.StartLine, observation.Location.EndLine)
+	span, changed := view.OriginalSpan(start, end)
+	if !changed {
+		return skil.CapabilityObservation{}, false
+	}
+	if observation.Evidence == nil {
+		observation.Evidence = map[string]any{}
+	}
+	observation.Evidence["derived_view_id"] = view.Evidence.ID
+	observation.Evidence["derived_view_digest"] = view.Evidence.Digest
+	observation.Evidence["derived_source_digest"] = view.Evidence.SourceDigest
+	observation.Evidence["derived_transformations"] = view.Evidence.Transformations
+	observation.Evidence["original_start_offset"] = span.Start
+	observation.Evidence["original_end_offset"] = span.End
+	observation.Location.StartLine = lineForOffset(original.Data, span.Start)
+	observation.Location.EndLine = lineForOffset(original.Data, max(span.Start, span.End-1))
+	return observation, true
+}
+
+func lineByteRange(data []byte, startLine, endLine int) (int, int) {
+	if startLine <= 0 {
+		return 0, len(data)
+	}
+	if endLine < startLine {
+		endLine = startLine
+	}
+	line, start, end := 1, 0, len(data)
+	for index, value := range data {
+		if line == startLine {
+			start = index
+			break
+		}
+		if value == '\n' {
+			line++
+		}
+	}
+	line = startLine
+	for index := start; index < len(data); index++ {
+		if data[index] == '\n' {
+			if line >= endLine {
+				end = index
+				break
+			}
+			line++
+		}
+	}
+	if end <= start {
+		end = min(len(data), start+1)
+	}
+	return start, end
+}
+
+func lineForOffset(data []byte, offset int) int {
+	if offset > len(data) {
+		offset = len(data)
+	}
+	return 1 + strings.Count(string(data[:offset]), "\n")
+}
+
+func degradeDerived(result *skil.ScanResult, limitation string) {
+	result.Coverage["derived-views"] = skil.CoverageDegraded
+	result.Diagnostics = append(result.Diagnostics, skil.Diagnostic{Component: "derived-views", Level: "warning", Message: limitation})
+	if result.DerivedViews != nil {
+		result.DerivedViews.Complete = false
+		if !slices.Contains(result.DerivedViews.Limitations, limitation) {
+			result.DerivedViews.Limitations = append(result.DerivedViews.Limitations, limitation)
+			sort.Strings(result.DerivedViews.Limitations)
+		}
+	}
 }
 
 func dependencyIdentities(artifact skil.Artifact, observations []skil.CapabilityObservation) ([]skil.DependencyIdentity, error) {
@@ -422,7 +641,16 @@ func computeBudgetUsage(artifact skil.Artifact, budget skil.AnalysisBudget, resu
 		ExpandedBytes:    skil.BudgetDimension{Used: expandedBytes, Limit: budget.MaxExpandedBytes},
 		Findings:         skil.BudgetDimension{Used: int64(len(result.Findings)), Limit: int64(budget.MaxFindings)},
 		InspectionEvents: skil.BudgetDimension{Used: int64(len(result.Inspection)), Limit: int64(budget.MaxInspectionEvents)},
+		DerivedViews:     skil.BudgetDimension{Limit: int64(budget.MaxDerivedViews)},
+		DerivedDepth:     skil.BudgetDimension{Limit: int64(budget.MaxDerivedDepth)},
+		DerivedBytes:     skil.BudgetDimension{Limit: budget.MaxDerivedBytes},
 		WallTime:         skil.BudgetDimension{Used: elapsed.Milliseconds(), Limit: budget.MaxWallTime.Milliseconds()},
+	}
+	if result.DerivedViews != nil {
+		usage.DerivedViews.Used = int64(len(result.DerivedViews.Views))
+		usage.DerivedDepth.Used = int64(result.DerivedViews.MaxDepth)
+		usage.DerivedBytes.Used = result.DerivedViews.Bytes
+		usage.Exceeded = append(usage.Exceeded, result.DerivedViews.Exceeded...)
 	}
 	if usage.RawBytes.Limit > 0 && usage.RawBytes.Used > usage.RawBytes.Limit {
 		usage.Exceeded = append(usage.Exceeded, "raw_bytes")
@@ -436,9 +664,19 @@ func computeBudgetUsage(artifact skil.Artifact, budget skil.AnalysisBudget, resu
 	if usage.InspectionEvents.Limit > 0 && usage.InspectionEvents.Used > usage.InspectionEvents.Limit {
 		usage.Exceeded = append(usage.Exceeded, "inspection_events")
 	}
+	if usage.DerivedViews.Limit > 0 && usage.DerivedViews.Used > usage.DerivedViews.Limit && !slices.Contains(usage.Exceeded, "derived_views") {
+		usage.Exceeded = append(usage.Exceeded, "derived_views")
+	}
+	if usage.DerivedDepth.Limit > 0 && usage.DerivedDepth.Used > usage.DerivedDepth.Limit && !slices.Contains(usage.Exceeded, "derived_depth") {
+		usage.Exceeded = append(usage.Exceeded, "derived_depth")
+	}
+	if usage.DerivedBytes.Limit > 0 && usage.DerivedBytes.Used > usage.DerivedBytes.Limit && !slices.Contains(usage.Exceeded, "derived_bytes") {
+		usage.Exceeded = append(usage.Exceeded, "derived_bytes")
+	}
 	if wallTimeExceeded {
 		usage.Exceeded = append(usage.Exceeded, "wall_time")
 	}
+	sort.Strings(usage.Exceeded)
 	return usage
 }
 
