@@ -1,0 +1,12 @@
+schema_version: 1
+id: bench-038-benign-printable-base64
+tier: development
+title: Benign printable Base64 remains non-malicious
+ground_truth: {malicious: false, category: derived_security_view}
+references: [{framework: advisory, control: reconstruction-false-positive-control}]
+rationale: >
+  Printable encoding alone is not abuse. The decoded text describes ordinary
+  public documentation and image content and must not be classified as a
+  security finding merely because a derived view exists.
+artifact: {root: artifact}
+review: {status: provisional, reviewers: []}

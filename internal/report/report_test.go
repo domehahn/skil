@@ -219,3 +219,38 @@ func TestTerminalReportOmitsAnalysisBudgetSectionWhenWithinBudget(t *testing.T) 
 		t.Fatalf("did not expect an ANALYSIS BUDGET section when nothing was exceeded: %s", out.String())
 	}
 }
+
+func TestReportsExposeDerivedSecurityViewSummary(t *testing.T) {
+	result := sample()
+	result.DerivedViews = &skil.DerivedViewSummary{
+		Views:    []skil.DerivedViewEvidence{{ID: "dv-example", SourcePath: "SKILL.md", Digest: "derived"}},
+		Complete: false, Bytes: 42, MaxDepth: 2, Limitations: []string{"derived view limit reached"},
+	}
+	result.Budget = skil.AnalysisBudgetUsage{
+		DerivedViews: skil.BudgetDimension{Used: 1, Limit: 1},
+		DerivedDepth: skil.BudgetDimension{Used: 2, Limit: 3},
+		DerivedBytes: skil.BudgetDimension{Used: 42, Limit: 1024},
+		Exceeded:     []string{"derived_views"},
+	}
+	for _, format := range []string{"terminal", "markdown", "html"} {
+		var out bytes.Buffer
+		if err := Write(&out, format, result); err != nil {
+			t.Fatal(err)
+		}
+		text := out.String()
+		if !strings.Contains(strings.ToLower(text), "derived security views") || !strings.Contains(text, "42") {
+			t.Fatalf("%s omitted the derived-view summary: %s", format, text)
+		}
+	}
+	var out bytes.Buffer
+	if err := Write(&out, "json", result); err != nil {
+		t.Fatal(err)
+	}
+	var document map[string]any
+	if err := json.Unmarshal(out.Bytes(), &document); err != nil {
+		t.Fatal(err)
+	}
+	if document["derived_security_views"] == nil {
+		t.Fatalf("JSON omitted machine-readable derived-view evidence: %s", out.String())
+	}
+}
