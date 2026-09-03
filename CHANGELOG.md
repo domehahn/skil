@@ -51,6 +51,19 @@
   implying safety. JSON, terminal, Markdown, and HTML reports expose compact
   view evidence. See `docs/derived-security-views.md` and change record 0012.
 
+- Extended Derived Security Views with five more reconstruction classes:
+  Unicode variation selectors (supplement, U+E0100-U+E01EF), mathematical
+  alphanumeric symbols (U+1D400-U+1D7FF, verified against the Unicode
+  character database), fullwidth forms (U+FF01-U+FF5E plus the ideographic
+  space), Braille-pattern byte decoding (runs of 4+ cells, kept only when the
+  decoded bytes are printable, so genuine Braille prose is not misdecoded),
+  and shell/script line-continuation joining. The last of these reconstructs
+  a dangerous command deliberately fragmented across multiple lines via a
+  trailing backslash into the single logical line an existing rule already
+  matches — severity is preserved automatically because no new detection
+  path is introduced, only reconstruction feeding the existing rule. See
+  `docs/derived-security-views.md`.
+
 - Evolved the existing transitive graph into a deterministic, fail-closed
   agentic supply-chain assurance closure. Every scan now binds required local,
   nested, dependency, agent/MCP configuration, and persistent-state surfaces;

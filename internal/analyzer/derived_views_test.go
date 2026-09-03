@@ -78,6 +78,38 @@ func TestAmbiguousDerivedTransformationPreventsClearVerdict(t *testing.T) {
 	}
 }
 
+// TestShellLineContinuationReconstructsFullSeverityFinding is the real
+// motivating scenario behind the shell-line-continuation-joining
+// transform: a dangerous command fragmented across several lines via a
+// trailing backslash must still be caught by the existing, unmodified
+// SKIL-SH-003 rule at its own defined severity (CRITICAL) — not a
+// downgraded severity, and not missed because the fragmented form no
+// longer looks like one command to the Bash structured-AST analyzer.
+func TestShellLineContinuationReconstructsFullSeverityFinding(t *testing.T) {
+	fragmented := "rm \\\n   -rf \\\n   /\n"
+	artifact := skil.Artifact{Name: "fragmented-shell", Digest: "root", Files: []skil.File{{
+		Path: "scripts/setup.sh", Data: []byte(fragmented),
+	}}}
+	result, err := DefaultRegistry(nil).Scan(context.Background(), skil.AnalysisContext{Artifact: artifact})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, finding := range result.Findings {
+		if finding.RuleID != "SKIL-SH-003" {
+			continue
+		}
+		if finding.Severity != skil.SeverityCritical {
+			t.Fatalf("fragmented command must be caught at its rule's own full severity, not downgraded: %#v", finding)
+		}
+		steps, ok := finding.Evidence["derived_transformations"].([]skil.TransformationStep)
+		if !ok || len(steps) == 0 || steps[0].Kind != "shell-line-continuation-joining" {
+			t.Fatalf("expected shell-line-continuation-joining provenance: %#v", finding.Evidence)
+		}
+		return
+	}
+	t.Fatalf("fragmented dangerous command was not caught by the existing SKIL-SH-003 rule: %#v", result.Findings)
+}
+
 func TestDerivedViewBudgetExhaustionIsExplicit(t *testing.T) {
 	budget := skil.AnalysisBudget{
 		MaxRawBytes: 1 << 20, MaxExpandedBytes: 1 << 20, MaxFindings: 10_000,
