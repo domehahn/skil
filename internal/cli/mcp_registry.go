@@ -32,6 +32,7 @@ func (a *App) mcpRegistry(ctx context.Context, args []string) int {
 	}
 	fs := newFlags("mcp registry scan", a.Err)
 	official := fs.Bool("official", false, "fetch from the official MCP Registry v0.1 API")
+	airgap := fs.Bool("airgap", false, "hard-fail if --official is set; see docs/airgap.md")
 	format := fs.String("format", "terminal", "terminal or json")
 	output := fs.String("output", "", "write the report to a file")
 	expectedDigest := fs.String("expected-record-sha256", "", "expected canonical SHA-256 for a single registry record")
@@ -39,6 +40,9 @@ func (a *App) mcpRegistry(ctx context.Context, args []string) int {
 	baselinePath := fs.String("baseline", "", "previous local registry snapshot used to detect repository ownership changes")
 	if err := fs.Parse(interspersed(fs, args[2:])); err != nil {
 		return ExitInput
+	}
+	if *airgap && *official {
+		return a.inputError(errors.New("--airgap forbids --official: fetching the official MCP Registry requires the network"))
 	}
 	if *format != "terminal" && *format != "json" {
 		return a.inputError(errors.New("MCP registry scan supports terminal or json output"))

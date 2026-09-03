@@ -83,6 +83,7 @@ type analysisFlags struct {
 	requireComplete      *bool
 	failOnIncomplete     *bool
 	allowRemote          *bool
+	airgap               *bool
 	dependencyReputation *string
 	domain               *string
 	listDomains          *bool
@@ -113,6 +114,7 @@ func bindAnalysisFlags(fs *flag.FlagSet) analysisFlags {
 		requireComplete:      fs.Bool("require-complete", false, "fail the gate unless every applicable inspection work item completed"),
 		failOnIncomplete:     fs.Bool("fail-on-incomplete", false, "fail the gate if the scan exceeded its analysis budget (raw/expanded bytes, findings, inspection events, or wall time)"),
 		allowRemote:          fs.Bool("allow-remote", false, "explicitly permit a public HTTPS archive or Git source"),
+		airgap:               fs.Bool("airgap", false, "hard-fail before any work starts if any network-capable flag is set without its offline-safe counterpart (--full, --osv without --osv-offline, --semantic without --semantic-allow-private, --allow-remote); see docs/airgap.md"),
 		dependencyReputation: fs.String("dependency-reputation", "", "trusted offline package-reputation JSON"),
 		domain:               fs.String("domain", "", "only run analyzers matching this taxonomy domain (comma-separated)"),
 		listDomains:          fs.Bool("list-domains", false, "list available taxonomy domains and exit"),
@@ -282,7 +284,7 @@ Usage:
   skil validate <skill> [--format json]
   skil lint <skill> [--strict|--profile default|strict|portable|publish] [--format terminal|json|markdown|sarif] [--output file]
   skil lint-all <collection> [--profile default|strict|portable|publish] [--workers N] [--format terminal|json|markdown] [--output file]
-   skil scan <skill> [--full] [--static-only] [--osv] [--yara-rules file|--yara-rules-dir dir] [--semantic --semantic-model model] [--semantic-validation review|strict] [--semantic-runs N] [--require-complete] [--fail-on-incomplete] [--allow-remote]
+   skil scan <skill> [--full] [--static-only] [--osv] [--yara-rules file|--yara-rules-dir dir] [--semantic --semantic-model model] [--semantic-validation review|strict] [--semantic-runs N] [--require-complete] [--fail-on-incomplete] [--allow-remote] [--airgap]
               [--format terminal|json|markdown|sarif] [--compact] [--output file] [--baseline file] [--show-suppressed=false] [--domain domain] [--list-domains]
               [--transitive [--transitive-depth N] [--transitive-allow-prefix p1,p2] [--transitive-deny-prefix p1,p2]]
   skil scan-all <collection> [analysis flags] [--workers N] [--format terminal|json|markdown] [--output file]
@@ -555,6 +557,9 @@ func (a *App) scan(ctx context.Context, args []string) int {
 			fmt.Fprintln(a.Out, d)
 		}
 		return ExitOK
+	}
+	if analysis.airgap != nil && *analysis.airgap && *transitiveFlag {
+		return a.inputError(errors.New("--airgap forbids --transitive: following an external reference requires the network regardless of any allow/deny prefix"))
 	}
 	result, _, err := a.performScanConfiguredExcluding(
 		ctx, fs.Arg(0), *baselinePath, analysis, scanOutputExcludes(fs.Arg(0), *output),
@@ -2006,9 +2011,38 @@ func (a *App) performScanConfiguredExcluding(
 	return result, contract, err
 }
 
+// checkAirgap is the single authoritative gate for air-gapped operation: if
+// --airgap is set, it fails closed before any work starts (registry
+// construction, artifact loading, anything) rather than relying on an
+// operator or a wrapping script having correctly set every individual
+// offline-safe flag themselves. It inspects flags in their pre-mutation
+// state, since --full's own side effect (implying --osv) happens later in
+// analysisRegistry and must not be allowed to slip past this check.
+func checkAirgap(flags analysisFlags) error {
+	if flags.airgap == nil || !*flags.airgap {
+		return nil
+	}
+	if flags.full != nil && *flags.full {
+		return errors.New("--airgap forbids --full: it implies online OSV lookup and the network is assumed unavailable")
+	}
+	if flags.useOSV != nil && *flags.useOSV && (flags.osvOffline == nil || !*flags.osvOffline) {
+		return errors.New("--airgap requires --osv-offline (with a pre-built --osv-cache) whenever --osv is set")
+	}
+	if flags.useSemantic != nil && *flags.useSemantic && (flags.semanticAllowPrivate == nil || !*flags.semanticAllowPrivate) {
+		return errors.New("--airgap requires --semantic-allow-private (pointed at a local model endpoint via --semantic-endpoint) whenever --semantic is set")
+	}
+	if flags.allowRemote != nil && *flags.allowRemote {
+		return errors.New("--airgap forbids --allow-remote: a public HTTPS archive or Git source requires the network")
+	}
+	return nil
+}
+
 func (a *App) analysisRegistry(ctx context.Context, flags analysisFlags) (*analyzer.Registry, error) {
 	if flags.staticOnly == nil {
 		return nil, errors.New("analysis flags are not initialized")
+	}
+	if err := checkAirgap(flags); err != nil {
+		return nil, err
 	}
 	if flags.full != nil && *flags.full {
 		*flags.useOSV = true

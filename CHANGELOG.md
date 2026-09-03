@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+- Added `--airgap`: skil is already offline by default (every
+  network-capable flag — `--osv`, `--semantic`, `--allow-remote`,
+  `--transitive`, `mcp registry scan --official`, `--full` — defaults
+  off), but `--airgap` turns that default posture into an enforced
+  guarantee. It fails closed, before any work starts, if any
+  network-capable flag is set without its offline-safe counterpart
+  (`--full`; `--osv` without `--osv-offline`; `--semantic` without
+  `--semantic-allow-private`; `--allow-remote`; `--transitive`;
+  `--official`) — so a misconfigured script or a forgotten flag can't
+  quietly reach the network in an environment that must never do so.
+  Accepted by every command sharing `analysis flags` (`scan`, `scan-all`,
+  `verify`, `attest`, `policy check`, `install`, `update`) and by `mcp
+  registry scan`. Does not disable `--osv`/`--semantic` outright — their
+  offline-safe forms (a pre-built `--osv-cache` with `--osv-offline`; a
+  local model endpoint with `--semantic-allow-private`) remain available
+  air-gapped. See `docs/airgap.md` for the recommended offline workflow.
+
 - Added deterministic Derived Security Views. A bounded local preprocessing
   layer reconstructs Unicode-default-ignorable, bidi, curated confusable,
   inter-character-spacing, explicitly declared marker, Base64, hex, URL,
