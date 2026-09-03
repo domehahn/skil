@@ -130,6 +130,14 @@ pre { padding: 12px; overflow-x: auto; }
 		buf.WriteString(`</div>`)
 	}
 
+	if r.EvidenceGraph != nil && (len(r.EvidenceGraph.Nodes) > 0 || len(r.EvidenceGraph.Edges) > 0) {
+		buf.WriteString(`<div class="card">
+    <h3 style="margin-top:0;">Evidence Graph</h3>
+    <p>Nodes: <strong>` + fmt.Sprintf("%d", len(r.EvidenceGraph.Nodes)) + `</strong> |
+       Edges: <strong>` + fmt.Sprintf("%d", len(r.EvidenceGraph.Edges)) + `</strong> (` + html.EscapeString(evidenceStateCounts(r.EvidenceGraph.Edges)) + `) |
+       Digest: <code>` + html.EscapeString(r.EvidenceGraph.Digest) + `</code></p></div>`)
+	}
+
 	// Transitive Closure Section if present
 	if r.Closure != nil {
 		buf.WriteString(`

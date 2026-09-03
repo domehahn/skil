@@ -96,12 +96,43 @@ combination of existing rule IDs that must *all* independently fire in the
 same skill. A hidden/encoded instruction is one finding and a confirmed
 taint flow to an execution sink is another; together they are
 `SKIL-CHAIN-INJECT-EXEC`, because the injected instruction now has a
-concrete place to run rather than a merely theoretical one. This is
-deliberately not a general graph/taint engine or a semantic/ML score: a
-chain firing is exactly as explainable and reproducible as any single rule,
-and its evidence lists exactly which constituent findings satisfied it.
-`skil compose` remains the cross-skill counterpart; threat chains correlate
+concrete place to run rather than a merely theoretical one. A chain firing
+is exactly as explainable and reproducible as any single rule, and its
+evidence lists exactly which constituent findings satisfied it. `skil
+compose` remains the cross-skill counterpart; threat chains correlate
 within one skill's own already-computed results.
+
+The Evidence Graph runs immediately after threat-chain correlation and
+gives that same already-computed evidence an actual graph structure —
+typed nodes (a finding, a capability observation, or a synthesized taint
+source/sink endpoint) and typed edges, each carrying an explicit
+confidence tier: `OBSERVED` (a single deterministic analyzer's own direct
+result, or a source-to-sink edge an analyzer's own AST/data-flow trace
+already connected — e.g. a taint finding's own recorded source and sink),
+`INFERRED` (a correlation the graph itself draws across independently
+OBSERVED signals with no actual traced flow between them — every existing
+threat chain's contributing findings, plus a new credential-read +
+separate-network-operation co-occurrence edge for exactly the case static
+taint tracing can't connect: a secret read and a network call in different
+functions or files), and `VERIFIED` (an INFERRED or OBSERVED claim a
+second, independent method corroborated). It still never invents a new
+*detection* primitive — every node and edge is backed by evidence an
+existing analyzer already produced.
+
+When `--semantic` is configured, the graph issues one narrowly-scoped
+semantic query per exfiltration-shaped candidate (bounded to 5 per scan,
+never a blanket new LLM call): given the specific correlated finding, the
+provider independently assesses — from the surrounding code and
+documentation — whether this is genuine exfiltration or the credential's
+own legitimate authenticated use (e.g. an `Authorization` header on the
+same request the credential was read for). A confirming response
+(`SKIL-SEM-EXFILTRATION-CONFIRMED`) adds a `VERIFIED` `confirms` edge; a
+provider error, a degraded/incomplete response, or an unconfirmed
+candidate all leave it at its prior `OBSERVED`/`INFERRED` state — semantic
+unavailability or disagreement never downgrades a deterministic signal
+that already stands on its own. `evidence_graph` in JSON output carries a
+SHA-256 digest over the canonical node/edge set, deterministic regardless
+of analyzer execution order.
 
 Dependency inventory covers `requirements.txt`, `pyproject.toml`,
 `poetry.lock`, `uv.lock`, `package.json`, `package-lock.json`, `go.mod`,

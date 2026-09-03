@@ -33,6 +33,9 @@ func (s *SemanticSuite) Metadata() skil.AnalyzerMetadata {
 		AnalysisTypes: []string{"semantic", "semantic-provider"}, SupportedTypes: []string{"text"}}
 }
 
+// Provider exposes the underlying semantic provider; see Semantic.Provider.
+func (s *SemanticSuite) Provider() skil.SemanticProvider { return s.provider }
+
 func (s *SemanticSuite) Analyze(ctx context.Context, ac skil.AnalysisContext) ([]skil.Finding, error) {
 	result, err := s.AnalyzeResult(ctx, ac)
 	return result.Findings, err
@@ -81,6 +84,13 @@ func (s *Semantic) Metadata() skil.AnalyzerMetadata {
 		Categories:    []string{"action-control", "tool-boundary", "activation-integrity", "contract-conformance", "intent-integrity"},
 		AnalysisTypes: []string{"semantic", "semantic-provider"}, SupportedTypes: []string{"text"}}
 }
+
+// Provider exposes the underlying semantic provider so registry-level
+// post-processing (the evidence graph's exfiltration-correlation
+// verification pass) can issue one additional, narrowly-scoped query
+// without the registry needing its own separate semantic-provider wiring.
+func (s *Semantic) Provider() skil.SemanticProvider { return s.provider }
+
 func (s *Semantic) Analyze(ctx context.Context, ac skil.AnalysisContext) ([]skil.Finding, error) {
 	result, err := s.AnalyzeResult(ctx, ac)
 	return result.Findings, err
