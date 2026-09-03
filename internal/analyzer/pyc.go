@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"path"
+	"sort"
 	"strings"
 
 	"github.com/domehahn/skil/pkg/skil"
@@ -47,6 +48,11 @@ func (p *PyC) Rules() []skil.Rule {
 			AppliesTo:   []string{"pyc"},
 			Description: "A .pyc file's PEP 552 header records a source-file size that does not match the accompanying .py file in this artifact.",
 			Remediation: "Recompile the .pyc from the exact reviewed source, or remove the stale .pyc and let Python regenerate it."},
+		{ID: "SKIL-PYC-DANGEROUS-SYMBOL", Title: "Dangerous symbol referenced by compiled Python bytecode",
+			Category: "dynamic-execution", Severity: skil.SeverityHigh, Analysis: "asset",
+			AppliesTo:   []string{"pyc"},
+			Description: "A .pyc file's compiled code object (and/or a nested code object reachable from it) references a process-execution, network, native-code, or dynamic-code-execution primitive. Compiled bytecode is not visible to source-based (AST/regex) analyzers, so shipping only a .pyc — with no accompanying .py — bypasses those rules entirely while remaining directly executable on import.",
+			Remediation: "Ship reviewable source instead of compiled-only bytecode, or justify and pin the exact reviewed .pyc alongside its source."},
 	}
 }
 
@@ -57,19 +63,94 @@ func (p *PyC) Analyze(_ context.Context, ac skil.AnalysisContext) ([]skil.Findin
 			continue
 		}
 		header, ok := parsePycHeader(file.Data)
-		if !ok || header.Invalidation != pycTimestampBased {
-			continue // unrecognized header, or hash-based: no size field to compare
-		}
-		source, ok := findPycSource(file.Path, ac.Artifact.Files)
 		if !ok {
-			continue // no accompanying source in this artifact at all
+			continue // unrecognized header
 		}
-		if int64(header.SourceSize) != int64(len(source.Data)) {
-			evidence := fmt.Sprintf("pyc declares source size %d, %s is %d bytes", header.SourceSize, source.Path, len(source.Data))
-			out = append(out, makeFinding(RulePattern{Rule: p.Rules()[0], Confidence: .9}, file, 1, evidence))
+		if header.Invalidation == pycTimestampBased {
+			if source, ok := findPycSource(file.Path, ac.Artifact.Files); ok {
+				if int64(header.SourceSize) != int64(len(source.Data)) {
+					evidence := fmt.Sprintf("pyc declares source size %d, %s is %d bytes", header.SourceSize, source.Path, len(source.Data))
+					out = append(out, makeFinding(RulePattern{Rule: p.ruleByID("SKIL-PYC-SOURCE-MISMATCH"), Confidence: .9}, file, 1, evidence))
+				}
+			}
 		}
+		out = append(out, p.scanDangerousSymbols(file, header, ac.Artifact.Files)...)
 	}
 	return out, nil
+}
+
+func (p *PyC) ruleByID(id string) skil.Rule {
+	for _, r := range p.Rules() {
+		if r.ID == id {
+			return r
+		}
+	}
+	return skil.Rule{ID: id}
+}
+
+// scanDangerousSymbols decodes the marshalled code object following the
+// 16-byte PEP 552 header (see marshal.go) and flags any process-execution,
+// network, native-code, or dynamic-execution primitive it references,
+// without ever unmarshalling into a live Python value, importing, or
+// executing the .pyc. It runs regardless of whether an accompanying .py
+// source exists — that's the point: a .pyc with no source is exactly the
+// case source-based (AST/regex) rules cannot see at all.
+func (p *PyC) scanDangerousSymbols(file skil.File, header pycHeader, files []skil.File) []skil.Finding {
+	if len(file.Data) < 16 {
+		return nil
+	}
+	names, ok := extractPycNames(file.Data[16:], header.PythonVersion)
+	if !ok {
+		return nil // unsupported Python version or malformed marshal stream: decline rather than guess
+	}
+	var matched []string
+	for _, pair := range pycDangerousSymbolPairs {
+		if names[pair.module] && names[pair.attr] {
+			matched = append(matched, pair.module+"."+pair.attr)
+		}
+	}
+	for name := range pycBareDangerousNames {
+		if names[name] {
+			matched = append(matched, name)
+		}
+	}
+	if len(matched) == 0 {
+		return nil
+	}
+	sort.Strings(matched)
+	_, hasSource := findPycSource(file.Path, files)
+	finding := makeFinding(RulePattern{Rule: p.ruleByID("SKIL-PYC-DANGEROUS-SYMBOL"), Confidence: .8}, file, 1, strings.Join(matched, ", "))
+	finding.Evidence["pyc_symbols"] = matched
+	finding.Evidence["source_available"] = hasSource
+	return []skil.Finding{finding}
+}
+
+// pycDangerousSymbolPairs mirrors dangerousPickleCallables' (module, name)
+// style, but bytecode's co_names has no module/attribute pairing (a call
+// like os.system(...) compiles to separate LOAD_GLOBAL "os" and LOAD_METHOD
+// "system" entries with no positional link retained here) — matching
+// requires both names to appear anywhere in the same code object (or one
+// of its nested code objects), which is coarser than pickle's opcode-order
+// evidence but still a meaningfully narrow signal: e.g. "os" alone is
+// common and unremarkable, but "os" co-occurring with "system" in a
+// compiled-only file with no legitimate ordinary-file-I/O explanation is not.
+var pycDangerousSymbolPairs = []struct{ module, attr string }{
+	{"os", "system"}, {"os", "popen"}, {"os", "execv"}, {"os", "execve"}, {"os", "execl"},
+	{"os", "spawnl"}, {"os", "spawnv"}, {"os", "fork"},
+	{"posix", "system"}, {"nt", "system"},
+	{"subprocess", "Popen"}, {"subprocess", "call"}, {"subprocess", "run"},
+	{"subprocess", "check_call"}, {"subprocess", "check_output"},
+	{"socket", "socket"}, {"socket", "create_connection"},
+	{"ctypes", "CDLL"}, {"ctypes", "cdll"}, {"ctypes", "windll"}, {"ctypes", "PyDLL"},
+	{"shutil", "rmtree"},
+	{"pty", "spawn"},
+}
+
+// pycBareDangerousNames flags dynamic-execution builtins that are
+// unambiguous on their own, without needing a co-occurring module name:
+// they're already the specific callable, not just a namespace reference.
+var pycBareDangerousNames = map[string]bool{
+	"eval": true, "exec": true, "compile": true, "__import__": true, "marshal": true,
 }
 
 type pycInvalidationMode int

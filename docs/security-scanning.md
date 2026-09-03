@@ -230,6 +230,23 @@ cryptographically verified against their source (reimplementing
 CPython's exact source-hashing scheme incorrectly would be worse than
 not attempting it) — only the timestamp-based size check is performed.
 
+Independently of the source-size check, and regardless of whether a `.py`
+source is present, skil decodes the `.pyc`'s marshalled code object (a
+bounded, read-only walk of CPython's stable `marshal` wire format,
+version-dispatched off the header's declared Python version — never
+unmarshalled into a live value, imported, or executed) and collects every
+identifier in `co_names` across it and every nested code object reachable
+through `co_consts` (closures, nested/decorated functions). A
+process-execution, network, native-code, or dynamic-execution primitive
+found among them (`os`+`system`, `subprocess.Popen`, `socket.socket`,
+bare `eval`/`exec`/`compile`/`__import__`, and similar) raises
+`SKIL-PYC-DANGEROUS-SYMBOL` (HIGH) — this is exactly the case source-based
+AST/regex rules cannot see at all: a `.pyc` shipped with no `.py` next to
+it remains directly executable on import while being invisible to every
+rule that only reads source text. A Python version with no known code-
+object field layout, or a marshal stream that doesn't parse as a
+well-formed code object, declines rather than guessing.
+
 `scan-all` discovers concrete `SKILL.md` roots below a local or explicitly
 allowed remote collection and returns one independently digest-bound result per
 skill. `--workers` provides bounded parallelism while preserving discovery

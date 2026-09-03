@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- Added deeper compiled Python bytecode (`.pyc`) analysis: a bounded,
+  read-only decoder for CPython's `marshal` wire format (version-dispatched
+  off the `.pyc` header's declared Python version, across the 3.7, 3.8-3.10,
+  and 3.11+ code-object field layouts) extracts every identifier in
+  `co_names` across the compiled code object and every nested code object
+  reachable through `co_consts` (closures, nested/decorated functions) —
+  without ever unmarshalling into a live Python value, importing, or
+  executing the `.pyc`. A process-execution, network, native-code, or
+  dynamic-execution primitive found among them raises new rule
+  `SKIL-PYC-DANGEROUS-SYMBOL` (HIGH), regardless of whether an accompanying
+  `.py` source is present — closing the specific gap where a `.pyc` shipped
+  with no source remains directly executable on import while being
+  invisible to every source-based (AST/regex) rule. See
+  `docs/security-scanning.md`.
+
 - Fixed: a single semantic-provider pass failure (a transport error, an
   oversized or malformed response, a non-2xx HTTP status, the provider
   truncating its own output before finishing, or more than 100 findings)
