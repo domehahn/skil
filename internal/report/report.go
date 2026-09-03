@@ -110,6 +110,12 @@ func writeTerminal(w io.Writer, r skil.ScanResult) error {
 			fmt.Fprintf(w, "  Limitations   %s\n", boundedDisplay(strings.Join(r.DerivedViews.Limitations, "; "), 82))
 		}
 	}
+	if r.EvidenceGraph != nil && (len(r.EvidenceGraph.Nodes) > 0 || len(r.EvidenceGraph.Edges) > 0) {
+		fmt.Fprintln(w, "\nEVIDENCE GRAPH")
+		fmt.Fprintf(w, "  Nodes    %d\n", len(r.EvidenceGraph.Nodes))
+		fmt.Fprintf(w, "  Edges    %d (%s)\n", len(r.EvidenceGraph.Edges), evidenceStateCounts(r.EvidenceGraph.Edges))
+		fmt.Fprintf(w, "  Digest   %s\n", boundedDisplay(r.EvidenceGraph.Digest, 82))
+	}
 
 	findings := sortedFindings(r.Findings)
 	fmt.Fprintf(w, "\nFINDINGS (%d)\n", len(findings))
@@ -273,6 +279,10 @@ func writeMarkdown(w io.Writer, r skil.ScanResult) error {
 		for _, limitation := range r.DerivedViews.Limitations {
 			fmt.Fprintf(w, "- Limitation: %s\n", MarkdownText(limitation))
 		}
+	}
+	if r.EvidenceGraph != nil && (len(r.EvidenceGraph.Nodes) > 0 || len(r.EvidenceGraph.Edges) > 0) {
+		fmt.Fprintf(w, "\n## Evidence graph\n\n- Nodes: %d\n- Edges: %d (%s)\n- Digest: `%s`\n",
+			len(r.EvidenceGraph.Nodes), len(r.EvidenceGraph.Edges), evidenceStateCounts(r.EvidenceGraph.Edges), MarkdownText(r.EvidenceGraph.Digest))
 	}
 
 	fmt.Fprintln(w, "\n## Findings")
@@ -551,6 +561,26 @@ func MarkdownText(value string) string {
 
 // DisplayText strips control characters from untrusted text before terminal output.
 func DisplayText(value string) string { return safeDisplay(value) }
+
+// evidenceStateCounts renders a compact "N OBSERVED, N INFERRED, N VERIFIED"
+// breakdown, omitting any tier with zero edges, for the terminal/Markdown
+// evidence-graph summary.
+func evidenceStateCounts(edges []skil.EvidenceGraphEdge) string {
+	counts := map[skil.EvidenceState]int{}
+	for _, edge := range edges {
+		counts[edge.State]++
+	}
+	var parts []string
+	for _, state := range []skil.EvidenceState{skil.EvidenceObserved, skil.EvidenceInferred, skil.EvidenceVerified} {
+		if counts[state] > 0 {
+			parts = append(parts, fmt.Sprintf("%d %s", counts[state], state))
+		}
+	}
+	if len(parts) == 0 {
+		return "none"
+	}
+	return strings.Join(parts, ", ")
+}
 
 func boundedDisplay(value string, maximum int) string {
 	value = safeDisplay(value)

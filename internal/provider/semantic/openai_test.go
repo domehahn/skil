@@ -93,11 +93,52 @@ func TestSemanticPolicyControlAllowed(t *testing.T) {
 		{"quality", "semantic_quality", true},
 		{"", "semantic_policy", true},
 		{"all", "semantic_policy", true},
+		{"exfiltration-correlation", "exfiltration_confirmed", true},
+		{"exfiltration-correlation", "semantic_security", false},
+		{"security", "exfiltration_confirmed", false},
+		{"", "exfiltration_confirmed", true},
 	}
 	for _, tc := range cases {
 		if got := semanticControlAllowed(tc.focus, tc.control); got != tc.want {
 			t.Errorf("semanticControlAllowed(%q, %q) = %v, want %v", tc.focus, tc.control, got, tc.want)
 		}
+	}
+}
+
+func TestExfiltrationConfirmedControlNormalizesToItsOwnRuleID(t *testing.T) {
+	items := []semanticFinding{{
+		Control: "exfiltration_confirmed", Severity: "CRITICAL", Confidence: .9,
+		Title: "confirmed exfiltration", Message: "evidence", File: "SKILL.md", StartLine: 1, EndLine: 1,
+		Remediation: "remove the flow",
+	}}
+	findings, err := normalizeFindings(items, skil.SemanticRequest{
+		ArtifactDigest: "abc", Files: map[string]string{"SKILL.md": "content"},
+		Focus:         "exfiltration-correlation",
+		PriorFindings: []skil.Finding{{RuleID: "SKIL-SEC-001"}},
+	}, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(findings) != 1 || findings[0].RuleID != "SKIL-SEM-EXFILTRATION-CONFIRMED" {
+		t.Fatalf("exfiltration_confirmed normalized to %#v", findings)
+	}
+	if findings[0].Category != "data-exfiltration" {
+		t.Fatalf("expected data-exfiltration category, got %q", findings[0].Category)
+	}
+}
+
+func TestExfiltrationCorrelationFocusRequiresACandidatePriorFinding(t *testing.T) {
+	items := []semanticFinding{{
+		Control: "exfiltration_confirmed", Severity: "CRITICAL", Confidence: .9,
+		Title: "confirmed exfiltration", Message: "evidence", File: "SKILL.md", StartLine: 1, EndLine: 1,
+		Remediation: "remove the flow",
+	}}
+	_, err := normalizeFindings(items, skil.SemanticRequest{
+		ArtifactDigest: "abc", Files: map[string]string{"SKILL.md": "content"},
+		Focus: "exfiltration-correlation", // no PriorFindings
+	}, "test")
+	if err == nil {
+		t.Fatal("expected an error when exfiltration-correlation has no candidate prior finding")
 	}
 }
 

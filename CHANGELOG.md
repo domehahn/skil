@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+- Added an Evidence Graph: already-computed findings and capability
+  observations are now also correlated into typed nodes and edges, each
+  carrying an explicit confidence tier — `OBSERVED` (a single deterministic
+  analyzer's own result, or a real AST/data-flow-traced source-to-sink
+  edge), `INFERRED` (a correlation across independently OBSERVED signals
+  with no actual traced flow between them — every existing threat chain's
+  contributing findings, plus a new credential-read + separate-network-
+  operation co-occurrence edge for exactly the case static taint tracing
+  can't connect), and `VERIFIED` (an INFERRED or OBSERVED claim a second,
+  independent method corroborated). Never invents a new detection
+  primitive: every node/edge is backed by evidence an existing analyzer
+  already produced. When `--semantic` is configured, a new
+  exfiltration-correlation semantic pass issues one narrowly-scoped query
+  per exfiltration-shaped candidate (bounded to 5 per scan) asking the
+  provider to independently confirm or refuse genuine exfiltration vs. the
+  credential's own legitimate authenticated use; a confirming response
+  (new rule `SKIL-SEM-EXFILTRATION-CONFIRMED`) promotes that specific edge
+  to `VERIFIED` — a provider error, degraded response, or disagreement
+  always leaves the deterministic signal at its prior state, never
+  downgraded. `evidence_graph` in JSON output carries a SHA-256 digest over
+  the canonical node/edge set. See `docs/security-scanning.md`.
+
 - Added pinned + rolling benchmark modes and cryptographically-bound
   measurement evidence to the vendor-neutral benchmark. `--mode pinned`
   (the default) verifies each reference scanner's reported version against

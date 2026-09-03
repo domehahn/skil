@@ -254,3 +254,50 @@ func TestReportsExposeDerivedSecurityViewSummary(t *testing.T) {
 		t.Fatalf("JSON omitted machine-readable derived-view evidence: %s", out.String())
 	}
 }
+
+func TestReportsExposeEvidenceGraphSummary(t *testing.T) {
+	result := sample()
+	result.EvidenceGraph = &skil.EvidenceGraphSummary{
+		Nodes:  []skil.EvidenceGraphNode{{ID: "finding:abc123", Kind: "finding", RefID: "SKIL-SEC-001", State: skil.EvidenceObserved}},
+		Edges:  []skil.EvidenceGraphEdge{{From: "finding:abc123", To: "finding:def456", Relation: "potential-exfiltration", State: skil.EvidenceInferred}},
+		Digest: "evidencegraphdigest99",
+	}
+	for _, format := range []string{"terminal", "markdown", "html"} {
+		var out bytes.Buffer
+		if err := Write(&out, format, result); err != nil {
+			t.Fatal(err)
+		}
+		text := out.String()
+		if !strings.Contains(strings.ToLower(text), "evidence graph") || !strings.Contains(text, "evidencegraphdigest99") {
+			t.Fatalf("%s omitted the evidence graph summary: %s", format, text)
+		}
+		if !strings.Contains(text, "INFERRED") {
+			t.Fatalf("%s omitted the evidence graph's state breakdown: %s", format, text)
+		}
+	}
+	var out bytes.Buffer
+	if err := Write(&out, "json", result); err != nil {
+		t.Fatal(err)
+	}
+	var document map[string]any
+	if err := json.Unmarshal(out.Bytes(), &document); err != nil {
+		t.Fatal(err)
+	}
+	if document["evidence_graph"] == nil {
+		t.Fatalf("JSON omitted machine-readable evidence graph: %s", out.String())
+	}
+}
+
+func TestReportsOmitEvidenceGraphSectionWhenEmpty(t *testing.T) {
+	result := sample()
+	result.EvidenceGraph = &skil.EvidenceGraphSummary{Digest: "emptydigest"}
+	for _, format := range []string{"terminal", "markdown", "html"} {
+		var out bytes.Buffer
+		if err := Write(&out, format, result); err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(strings.ToLower(out.String()), "evidence graph") {
+			t.Fatalf("%s rendered an evidence-graph section with zero nodes and edges: %s", format, out.String())
+		}
+	}
+}

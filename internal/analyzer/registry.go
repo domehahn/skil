@@ -30,6 +30,20 @@ func DefaultRegistry(vuln skil.VulnerabilityProvider) *Registry {
 	return &Registry{analyzers: items}
 }
 
+// registeredSemanticProvider returns the semantic provider backing whichever
+// Semantic/SemanticSuite analyzer is registered (--semantic was set), or nil
+// when none is — the evidence graph's exfiltration-correlation verification
+// pass reuses this instead of the registry needing its own separate
+// semantic-provider wiring.
+func (r *Registry) registeredSemanticProvider() skil.SemanticProvider {
+	for _, a := range r.analyzers {
+		if withProvider, ok := a.(interface{ Provider() skil.SemanticProvider }); ok {
+			return withProvider.Provider()
+		}
+	}
+	return nil
+}
+
 func (r *Registry) Register(a skil.Analyzer) error {
 	meta := a.Metadata()
 	if meta.ID == "" || meta.Version == "" {
@@ -286,6 +300,7 @@ func (r *Registry) Scan(ctx context.Context, ac skil.AnalysisContext) (skil.Scan
 		}
 	}
 	result.Findings = append(result.Findings, correlateThreatChains(result.Findings, result.Observations)...)
+	result.EvidenceGraph = buildEvidenceGraph(ctx, r.registeredSemanticProvider(), ac, result.Findings, result.Observations)
 	dependencies, err := dependencyIdentities(ac.Artifact, result.Observations)
 	if err != nil {
 		return result, fmt.Errorf("build dependency identities: %w", err)

@@ -294,9 +294,80 @@ type ScanResult struct {
 	// explicitly requested (skil scan --transitive) — nil/omitted
 	// otherwise. skil never fetches external content on its own; this is
 	// always an explicit, opt-in traversal the operator started.
-	References  []ReferenceNode   `json:"references,omitempty"`
-	Closure     *AssuranceClosure `json:"assurance_closure,omitempty"`
-	GeneratedAt time.Time         `json:"generated_at"`
+	References []ReferenceNode   `json:"references,omitempty"`
+	Closure    *AssuranceClosure `json:"assurance_closure,omitempty"`
+	// EvidenceGraph correlates already-computed Findings and
+	// CapabilityObservations into typed nodes and edges rather than leaving
+	// them as a flat, uncorrelated list. It never invents a new detection
+	// primitive: every node and edge is backed by evidence an existing
+	// analyzer already produced (a Finding's own source/sink evidence for a
+	// traced data flow, or a threat-chain's own contributing findings for a
+	// co-occurrence correlation). See EvidenceState for what its three
+	// confidence tiers mean.
+	EvidenceGraph *EvidenceGraphSummary `json:"evidence_graph,omitempty"`
+	GeneratedAt   time.Time             `json:"generated_at"`
+}
+
+// EvidenceState is the confidence tier of one EvidenceGraph node or edge.
+type EvidenceState string
+
+const (
+	// EvidenceObserved: directly produced by a single deterministic
+	// analyzer reading the artifact — a Finding or a CapabilityObservation
+	// on its own, or a source-to-sink edge an analyzer's own AST/data-flow
+	// trace already connected (e.g. a taint finding's recorded source and
+	// sink). Not a correlation across independent signals.
+	EvidenceObserved EvidenceState = "OBSERVED"
+	// EvidenceInferred: a correlation the evidence graph itself draws
+	// across two or more independently OBSERVED signals that co-occur in
+	// the same artifact without an actual traced flow connecting them
+	// (e.g. a threat chain's contributing findings). A real signal worth
+	// surfacing, but explicitly weaker than a traced flow — never
+	// presented at the same confidence as EvidenceObserved.
+	EvidenceInferred EvidenceState = "INFERRED"
+	// EvidenceVerified: an INFERRED or OBSERVED claim that a second,
+	// independent method has corroborated — currently, a semantic-provider
+	// pass reaching the same conclusion as a deterministic correlation
+	// through its own separate reasoning. Reserved for actual cross-method
+	// agreement; never assigned merely because semantic analysis was
+	// requested, and never assigned when semantic analysis is unavailable,
+	// degraded, or disagrees — an unconfirmed claim stays at its prior
+	// state rather than being silently upgraded or downgraded.
+	EvidenceVerified EvidenceState = "VERIFIED"
+)
+
+// EvidenceGraphNode is one correlated unit of evidence: a Finding, a
+// CapabilityObservation, a taint-flow source/sink endpoint synthesized
+// from a Finding's own evidence, or a semantic-provider assessment.
+type EvidenceGraphNode struct {
+	ID       string        `json:"id"`
+	Kind     string        `json:"kind"` // "finding" | "capability" | "taint-endpoint" | "semantic-assessment"
+	RefID    string        `json:"ref_id"`
+	State    EvidenceState `json:"state"`
+	Location Location      `json:"location,omitempty"`
+	Detail   string        `json:"detail,omitempty"`
+}
+
+// EvidenceGraphEdge connects two EvidenceGraphNode IDs. Relation names the
+// kind of connection (e.g. "flows-to" for a traced source/sink pair,
+// "correlates-with" for a threat-chain's contributing findings,
+// "confirms" for a semantic assessment corroborating another node).
+type EvidenceGraphEdge struct {
+	From      string        `json:"from"`
+	To        string        `json:"to"`
+	Relation  string        `json:"relation"`
+	State     EvidenceState `json:"state"`
+	Rationale string        `json:"rationale,omitempty"`
+}
+
+// EvidenceGraphSummary is the report-facing serialization of one scan's
+// evidence graph. Digest is a deterministic SHA-256 over the canonical
+// (sorted) node/edge set, so two scans of byte-identical input produce an
+// identical digest regardless of analyzer execution order.
+type EvidenceGraphSummary struct {
+	Nodes  []EvidenceGraphNode `json:"nodes"`
+	Edges  []EvidenceGraphEdge `json:"edges"`
+	Digest string              `json:"digest"`
 }
 
 // DerivedViewSummary describes deterministic alternative representations used
