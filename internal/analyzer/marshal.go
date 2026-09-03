@@ -219,7 +219,21 @@ func (r *marshalReader) readObjectBody(base byte, depth int) (interface{}, bool)
 		}
 		_, ok = r.readN(count * 2)
 		return nil, ok
-	case marshalTypeString, marshalTypeInterned, marshalTypeUnicode, marshalTypeASCII, marshalTypeASCIIInterned:
+	case marshalTypeString:
+		// TYPE_STRING carries a raw bytes payload (co_code's compiled
+		// bytecode is the common, often large, case) rather than an
+		// identifier — this scanner never needs its content, only to stay
+		// correctly positioned past it, so it's read and discarded without
+		// the allocation+copy string(b) would cost on a large payload.
+		n, ok := r.readInt32()
+		if !ok || n < 0 {
+			return nil, false
+		}
+		if _, ok := r.readN(int(n)); !ok {
+			return nil, false
+		}
+		return nil, true
+	case marshalTypeInterned, marshalTypeUnicode, marshalTypeASCII, marshalTypeASCIIInterned:
 		n, ok := r.readInt32()
 		if !ok || n < 0 {
 			return nil, false
