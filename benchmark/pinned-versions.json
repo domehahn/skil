@@ -1,0 +1,17 @@
+{
+  "_comment": "Exact reference-scanner versions the 'pinned' benchmark mode verifies against. Update by re-checking each tool's latest published release and its exact source commit, then bump both fields together in the same PR that updates this file's own review — never just the version string alone. skil itself is intentionally absent: it is built directly from this repository's own source, so 'pinned' has no separate meaning for it.",
+  "skillspector": {
+    "source": "https://github.com/NVIDIA/SkillSpector",
+    "install": "git+https://github.com/NVIDIA/skillspector.git@v2.11.0",
+    "tag": "v2.11.0",
+    "commit": "b7241089d7ec15d8b30df980dacbb428214732b9",
+    "verified_at": "2026-09-03"
+  },
+  "cisco-skill-scanner": {
+    "source": "https://github.com/cisco-ai-defense/skill-scanner",
+    "install": "cisco-ai-skill-scanner==2.0.14",
+    "version": "2.0.14",
+    "commit": "a49c8d9f7555dd99a9f5e4430c3bb8d4fe4a9371",
+    "verified_at": "2026-09-03"
+  }
+}

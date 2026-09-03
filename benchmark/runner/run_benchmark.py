@@ -32,6 +32,33 @@ Usage:
         --skil-binary /path/to/skil \
         --skillspector-binary skillspector \
         --output results/latest.json
+
+Pinned vs. rolling mode, and measurement evidence
+--------------------------------------------------
+--mode pinned (the default) verifies each reference scanner's reported
+--version output against the exact version/commit recorded in
+pinned-versions.json, so a result can be reproduced later against a known,
+fixed competitor release rather than silently drifting whenever upstream
+cuts a new one. A mismatch is recorded (per tool, `pinned_version_verified:
+false`) rather than silently ignored or treated as fatal -- the metric is
+still computed and reported, just honestly labeled as not reproducible
+against the pin. --mode rolling skips that check entirely, intentionally
+measuring against whatever is actually installed (catching upstream drift
+is the point of that mode); this is what the weekly CI cron runs alongside
+the pinned mode, so both a stable baseline and a live drift signal exist
+side by side.
+
+Every run embeds a top-level "evidence" block: a SHA-256 digest
+(`measurement_digest_sha256`) over a canonical JSON encoding of every input
+that determines the reported numbers -- the corpus digest, each tool's
+identity and pin-verification outcome, and every reported metric. Changing
+any one of those (a single fixture byte, a tool version, one metric) changes
+the digest. This is a self-verifying tamper-evidence chain, not an
+asymmetric signature: signing would need a private key, and this benchmark
+deliberately carries no secrets (see benchmark/README.md); anyone with the
+published results.json can recompute the same digest with
+verify_evidence.py and confirm it matches, without trusting anything but
+SHA-256 and the canonicalization documented in evidence_payload() below.
 """
 
 from __future__ import annotations
@@ -40,6 +67,7 @@ import argparse
 import hashlib
 import importlib.util
 import json
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -114,6 +142,41 @@ def run_tool(adapter_name: str, binary: str, fixtures: list[dict]) -> dict:
     return {"identity": identity, "per_fixture": per_fixture}
 
 
+def load_pinned_versions(path: Path) -> dict:
+    if not path.is_file():
+        return {}
+    with open(path) as f:
+        return json.load(f)
+
+
+def verify_pin(tool_name: str, identity: dict, pinned: dict) -> tuple[str | None, bool | None]:
+    """Returns (expected_version_or_commit, verified) for a tool with a
+    pinned-versions.json entry, or (None, None) when the tool has no pin
+    (skil itself, or a reference tool this corpus hasn't pinned yet).
+
+    Verification is a case-insensitive match of the pinned version/commit
+    tag inside the adapter's own --version output, guarded on both sides so
+    it can only match a complete version token rather than a substring of a
+    longer one: a leading digit or '.' immediately before the pin (e.g. pin
+    "2.11.0" inside reported "12.11.0"), or a trailing digit, '.', or letter
+    immediately after it (e.g. pin "2.11.0" inside reported "2.11.0rc1" or
+    "2.11.00"), both fail the match rather than being treated as verified.
+    A non-digit/dot letter immediately before the pin (a leading "v", as in
+    "SkillSpector v2.11.0") is allowed -- that's the normal, expected
+    prefix a tool's own --version output uses, not part of the version
+    number itself."""
+    entry = pinned.get(tool_name)
+    if not entry:
+        return None, None
+    expected = entry.get("tag") or entry.get("version")
+    if not expected:
+        return None, None
+    reported = str(identity.get("version", ""))
+    needle = expected.lstrip("vV")
+    pattern = r"(?<![0-9.])" + re.escape(needle) + r"(?![0-9.A-Za-z])"
+    return expected, re.search(pattern, reported, re.IGNORECASE) is not None
+
+
 def summarize(fixtures: list[dict], per_fixture: dict, predicate) -> dict:
     scoped = [f for f in fixtures if predicate(f)]
     results = [(f["ground_truth"]["malicious"], per_fixture[f["id"]].get("detected")) for f in scoped]
@@ -123,14 +186,67 @@ def summarize(fixtures: list[dict], per_fixture: dict, predicate) -> dict:
     return summary
 
 
+EVIDENCE_ALGORITHM = "sha256"
+EVIDENCE_CANONICALIZATION = "python json.dumps(sort_keys=True, separators=(',',':'), ensure_ascii=True), utf-8 encoded"
+
+
+def canonical_json(value) -> bytes:
+    """A deterministic, minimal-whitespace, sorted-key JSON encoding: the
+    same evidence dict always serializes to the exact same bytes, so its
+    SHA-256 digest is reproducible by anyone re-running this function
+    against the same published JSON values -- no dependency on this
+    process's own dict insertion order or key ordering. This is exactly
+    what EVIDENCE_CANONICALIZATION above describes; keep the two in sync."""
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
+
+
+def evidence_payload(report: dict) -> dict:
+    """The exact subset of the report that measurement_digest_sha256 binds:
+    every input that determines the reported numbers (corpus digest, each
+    tool's identity and pin outcome, every reported metric), plus the
+    claimed generation timestamp itself -- included deliberately, not by
+    oversight: without it, an old result could be silently relabeled with
+    a newer generated_at and still verify. Results file paths and wall-
+    clock run *duration* (never captured here at all) are what's actually
+    excluded as pure storage/timing metadata with no evidentiary meaning."""
+    tools = {}
+    for name, tool_report in sorted(report["tools"].items()):
+        tools[name] = {
+            "identity": tool_report["identity"],
+            "pinned_expected_version": tool_report.get("pinned_expected_version"),
+            "pinned_version_verified": tool_report.get("pinned_version_verified"),
+            "headline_metric": tool_report["headline_metric"],
+            "development_set_metric_regression_only_never_a_generalization_claim": tool_report[
+                "development_set_metric_regression_only_never_a_generalization_claim"
+            ],
+            "evaluation_set_provisional_metric_informational_only": tool_report[
+                "evaluation_set_provisional_metric_informational_only"
+            ],
+        }
+    return {
+        "schema_version": report["schema_version"],
+        "benchmark_mode": report["benchmark_mode"],
+        "generated_at": report["generated_at"],
+        "corpus_digest": report["corpus"]["digest"],
+        "tools": tools,
+    }
+
+
+def measurement_digest(report: dict) -> str:
+    return hashlib.sha256(canonical_json(evidence_payload(report))).hexdigest()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--skil-binary", help="path to the skil binary")
     parser.add_argument("--skillspector-binary", help="path to the skillspector binary")
     parser.add_argument("--cisco-skill-scanner-binary", help="path to the skill-scanner binary")
     parser.add_argument("--mode", choices=["pinned", "rolling"], default="pinned", help="benchmark mode: pinned baseline vs rolling current")
+    parser.add_argument("--pinned-versions", default=str(ROOT / "pinned-versions.json"), help="exact reference-scanner versions 'pinned' mode verifies against")
     parser.add_argument("--output", default=str(ROOT / "results" / "latest.json"))
     args = parser.parse_args()
+
+    pinned_versions = load_pinned_versions(Path(args.pinned_versions)) if args.mode == "pinned" else {}
 
     try:
         fixtures = load_fixtures()
@@ -176,8 +292,11 @@ def main() -> int:
         evaluation_provisional_informational = summarize(
             fixtures, run["per_fixture"], lambda f: f["tier"] == "evaluation" and f["review"]["status"] == "provisional"
         )
+        expected_pin, pin_verified = verify_pin(tool_name, run["identity"], pinned_versions)
         report["tools"][tool_name] = {
             "identity": run["identity"],
+            "pinned_expected_version": expected_pin,
+            "pinned_version_verified": pin_verified,
             "headline_metric": headline
             if headline["fixture_count"] > 0
             else "n/a — zero gold-reviewed evaluation fixtures yet, see benchmark/README.md",
@@ -186,6 +305,13 @@ def main() -> int:
             "per_fixture": run["per_fixture"],
         }
 
+    report["evidence"] = {
+        "algorithm": EVIDENCE_ALGORITHM,
+        "canonicalization": EVIDENCE_CANONICALIZATION,
+        "measurement_digest_sha256": measurement_digest(report),
+        "verify_with": "benchmark/runner/verify_evidence.py",
+    }
+
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(report, indent=2) + "\n")
@@ -193,9 +319,14 @@ def main() -> int:
 
     for tool_name, tool_report in report["tools"].items():
         print(f"\n{tool_name} ({tool_report['identity']}):")
+        if tool_report["pinned_expected_version"] is not None:
+            status = "verified" if tool_report["pinned_version_verified"] else "MISMATCH — not reproducible against the pin"
+            print(f"  pinned version {tool_report['pinned_expected_version']}: {status}")
         print(f"  HEADLINE (evaluation, gold only): {tool_report['headline_metric']}")
         print(f"  development set (regression-only, not a claim): {tool_report['development_set_metric_regression_only_never_a_generalization_claim']}")
         print(f"  evaluation set, provisional (informational): {tool_report['evaluation_set_provisional_metric_informational_only']}")
+
+    print(f"\nmeasurement_digest_sha256: {report['evidence']['measurement_digest_sha256']}")
 
     return 0
 

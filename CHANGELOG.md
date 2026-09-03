@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+- Added pinned + rolling benchmark modes and cryptographically-bound
+  measurement evidence to the vendor-neutral benchmark. `--mode pinned`
+  (the default) verifies each reference scanner's reported version against
+  an exact version/commit recorded in `benchmark/pinned-versions.json`,
+  recording (never silently ignoring) a mismatch as
+  `pinned_version_verified: false`; `--mode rolling` skips that check to
+  intentionally measure against whatever's actually installed, catching
+  upstream drift. Every run now embeds a top-level `evidence` block: a
+  SHA-256 `measurement_digest_sha256` over a canonical encoding of every
+  input that determines the reported numbers (corpus digest, each tool's
+  identity and pin-verification outcome, every reported metric) — a
+  tamper-evidence chain anyone can recompute and check with the new
+  `benchmark/runner/verify_evidence.py`, deliberately a digest rather than
+  an asymmetric signature since this benchmark carries no private key or
+  secret. CI (`benchmark.yml`) now installs the exact pinned reference-
+  scanner versions, runs both modes weekly, and uploads each as its own
+  90-day-retention artifact — a real rolling history, not a single
+  overwritten snapshot. See `benchmark/README.md`.
+
 - Added deeper compiled Python bytecode (`.pyc`) analysis: a bounded,
   read-only decoder for CPython's `marshal` wire format (version-dispatched
   off the `.pyc` header's declared Python version, across the 3.7, 3.8-3.10,
