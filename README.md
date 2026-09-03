@@ -205,6 +205,7 @@ A non-root multi-stage container image can be built with `make docker-build`;
 | [Transitive reference scanning](docs/transitive-scanning.md) | `skil scan --transitive`: bounded, opt-in traversal of external references a skill points at |
 | [Assurance closure](docs/assurance-closure.md) | Fail-closed graph, typed states, deterministic digest, and lifecycle |
 | [Derived security views](docs/derived-security-views.md) | Bounded reconstruction, provenance, analyzer reuse, and incomplete-state behavior |
+| [Air-gapped operation](docs/airgap.md) | `--airgap`: hard-fail before any work starts on any misconfigured network-capable flag |
 | [Runtime assurance](docs/runtime-assurance.md) | Reviewed root/closure pins and per-operation enforcement |
 | [Verification](docs/verification.md) | Declared-vs-observed capability checks |
 | [Policy](docs/policy.md) | Explainable install-time decisions |
