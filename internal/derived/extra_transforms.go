@@ -169,12 +169,28 @@ func decodeBraille(data []byte) ([]replacement, []string) {
 // already-defined rule severity — no separate "severity preservation"
 // logic is needed once the fragmented form reconstructs to what an
 // existing rule already matches.
-var shellContinuation = regexp.MustCompile(`\\\r?\n`)
+//
+// A run of backslashes immediately preceding the line ending only ends in
+// an actual continuation when that run's length is odd: each preceding
+// pair of backslashes is itself an escaped, literal backslash (in both
+// languages), so an even-length run leaves a bare, un-escaped newline —
+// an ordinary line break, not a continuation — and must not be joined.
+var shellContinuationRun = regexp.MustCompile(`\\+\r?\n`)
 
 func joinShellLineContinuations(data []byte) ([]replacement, []string) {
 	var out []replacement
-	for _, index := range shellContinuation.FindAllIndex(data, -1) {
-		out = append(out, replacement{start: index[0], end: index[1], detail: "joined a backslash line continuation"})
+	for _, index := range shellContinuationRun.FindAllIndex(data, -1) {
+		match := data[index[0]:index[1]]
+		backslashes := 0
+		for backslashes < len(match) && match[backslashes] == '\\' {
+			backslashes++
+		}
+		if backslashes%2 == 0 {
+			continue // the run's final backslash is itself escaped: not a continuation.
+		}
+		// Only the continuation backslash and the line ending it hides are
+		// removed; any preceding escaped-backslash pairs are left untouched.
+		out = append(out, replacement{start: index[0] + backslashes - 1, end: index[1], detail: "joined a backslash line continuation"})
 	}
 	return out, nil
 }

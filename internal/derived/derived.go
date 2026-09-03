@@ -91,7 +91,7 @@ var transformations = []transformer{
 	{kind: "url-encoding", mayApply: func(data []byte) bool { return urlToken.Match(data) || explicitBadURL.Match(data) }, apply: decodeURL},
 	{kind: "escaped-string", mayApply: func(data []byte) bool { return doubleQuote.Match(data) && strings.Contains(string(data), `\`) }, apply: decodeEscapedStrings},
 	{kind: "simple-string-concatenation", mayApply: func(data []byte) bool { return doubleConcat.Match(data) }, apply: joinStringConcatenation},
-	{kind: "shell-line-continuation-joining", mayApply: func(data []byte) bool { return shellContinuation.Match(data) }, apply: joinShellLineContinuations},
+	{kind: "shell-line-continuation-joining", mayApply: func(data []byte) bool { return shellContinuationRun.Match(data) }, apply: joinShellLineContinuations},
 }
 
 // Build derives views breadth-first in a fixed transformation order. Original
