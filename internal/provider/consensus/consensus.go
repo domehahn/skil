@@ -75,6 +75,14 @@ func (p *Provider) AnalyzeUntrustedDetailed(ctx context.Context, request skil.Se
 		diagnostics.Accepted += analysis.Diagnostics.Accepted
 		diagnostics.Rejected += analysis.Diagnostics.Rejected
 		diagnostics.Errors = append(diagnostics.Errors, analysis.Diagnostics.Errors...)
+		// A single incomplete underlying run (a truncated/malformed/
+		// transport-failed response) means the consensus result is
+		// itself not fully trustworthy, even though it returned no Go
+		// error and its zero findings simply didn't contribute to the
+		// majority vote — this must not be silently absorbed.
+		if analysis.Diagnostics.Incomplete {
+			diagnostics.Incomplete = true
+		}
 	}
 	return skil.SemanticAnalysis{
 		Findings:    aggregate(runs, p.runs),

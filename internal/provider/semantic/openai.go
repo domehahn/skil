@@ -95,6 +95,7 @@ type chatResponse struct {
 		Message struct {
 			Content string `json:"content"`
 		} `json:"message"`
+		FinishReason string `json:"finish_reason"`
 	} `json:"choices"`
 }
 type semanticResult struct {
@@ -146,29 +147,36 @@ func (p *Provider) AnalyzeUntrustedDetailed(ctx context.Context, request skil.Se
 	}
 	response, err := p.client.Do(httpRequest)
 	if err != nil {
-		return skil.SemanticAnalysis{}, fmt.Errorf("semantic provider request: %w", err)
+		return degradedResult(fmt.Sprintf("semantic provider request failed: %v", err)), nil
 	}
 	responseBody, readErr := io.ReadAll(io.LimitReader(response.Body, maxResponse+1))
 	_ = response.Body.Close()
 	if readErr != nil {
-		return skil.SemanticAnalysis{}, readErr
+		return degradedResult(fmt.Sprintf("semantic provider response read failed: %v", readErr)), nil
 	}
 	if len(responseBody) > maxResponse {
-		return skil.SemanticAnalysis{}, errors.New("semantic response exceeds size limit")
+		return degradedResult("semantic response exceeds size limit"), nil
 	}
 	if response.StatusCode != http.StatusOK {
-		return skil.SemanticAnalysis{}, fmt.Errorf("semantic provider returned HTTP %d", response.StatusCode)
+		return degradedResult(fmt.Sprintf("semantic provider returned HTTP %d", response.StatusCode)), nil
 	}
 	var decoded chatResponse
 	if err := json.Unmarshal(responseBody, &decoded); err != nil || len(decoded.Choices) == 0 {
-		return skil.SemanticAnalysis{}, errors.New("semantic provider returned an invalid chat response")
+		return degradedResult("semantic provider returned an invalid chat response"), nil
+	}
+	// finish_reason=="length" means the provider truncated its own output
+	// because it hit the output-token limit before finishing — the
+	// content is not a complete response and must not be parsed as one,
+	// even if what survived happens to look like valid-prefix JSON.
+	if reason := decoded.Choices[0].FinishReason; reason == "length" {
+		return degradedResult("semantic provider truncated its response (finish_reason=length); output token limit reached before completion"), nil
 	}
 	var result semanticResult
 	if err := json.Unmarshal([]byte(decoded.Choices[0].Message.Content), &result); err != nil {
-		return skil.SemanticAnalysis{}, fmt.Errorf("semantic provider returned invalid structured output: %w", err)
+		return degradedResult(fmt.Sprintf("semantic provider returned invalid structured output: %v", err)), nil
 	}
 	if len(result.Findings) > 100 {
-		return skil.SemanticAnalysis{}, errors.New("semantic provider returned too many findings")
+		return degradedResult("semantic provider returned too many findings"), nil
 	}
 	return normalizeFindingsDetailed(result.Findings, request, p.ID(), p.validationMode)
 }

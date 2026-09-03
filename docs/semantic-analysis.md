@@ -38,9 +38,26 @@ Semantic output validation defaults to `--semantic-validation review`. Valid
 findings remain available when a model also returns malformed findings; every
 rejection is reported in `diagnostics` and `semantic-provider` coverage becomes
 `degraded`. Use `--semantic-validation strict` for fail-closed workflows where
-any invalid finding must fail the complete semantic pass. Structural response
-errors, response-size violations, provider failures, and more than 100 findings
-always fail in both modes.
+any invalid finding must fail the complete semantic pass.
+
+A pass-level provider or response problem — a transport failure, an oversized
+or malformed response, a non-2xx HTTP status, the provider truncating its own
+output (OpenAI's `finish_reason=="length"`, Anthropic/Bedrock's
+`stop_reason=="max_tokens"`), or more than 100 findings — never fails the
+whole scan and never propagates as a Go error, in either mode: a provider
+reports it as an *incomplete* pass instead (`SemanticDiagnostics.incomplete`),
+which degrades `semantic-provider` coverage exactly like a per-finding
+rejection does. A truncated response's surviving prefix is never parsed as a
+complete one, even when it happens to look like valid JSON. This is
+deliberate: treating a probabilistic provider's own hiccup as a hard error
+would abort the entire scan and discard every deterministic analyzer's
+already-computed findings along with it; degrading coverage instead keeps
+the rest of the scan intact while still making sure `semantic-provider`
+coverage — and, through the assurance closure, the overall result — never
+implies `SAFE` on an incomplete semantic pass. Semantic Multi-Run Consensus
+propagates an incomplete underlying run the same way: even though its zero
+findings simply don't contribute to the majority vote, the run being
+incomplete is never silently absorbed.
 
 ## Semantic Multi-Run Consensus
 

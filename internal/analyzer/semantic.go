@@ -121,12 +121,21 @@ func semanticDiagnostics(focus, provider string, diagnostics skil.SemanticDiagno
 	if diagnostics.Rejected == 0 {
 		return nil
 	}
-	out := []skil.Diagnostic{{
-		Component: "semantic-provider", Level: "warning",
-		Message: fmt.Sprintf("%s semantic pass from %s accepted %d findings and rejected %d; coverage is degraded",
-			focus, provider, diagnostics.Accepted, diagnostics.Rejected),
-	}}
+	summary := fmt.Sprintf("%s semantic pass from %s accepted %d findings and rejected %d; coverage is degraded",
+		focus, provider, diagnostics.Accepted, diagnostics.Rejected)
+	if diagnostics.Incomplete {
+		summary = fmt.Sprintf("%s semantic pass from %s was incomplete (provider/response problem, not a per-finding rejection); coverage is degraded",
+			focus, provider)
+	}
+	out := []skil.Diagnostic{{Component: "semantic-provider", Level: "warning", Message: summary}}
 	for _, validationError := range diagnostics.Errors {
+		if validationError.Index < 0 {
+			out = append(out, skil.Diagnostic{
+				Component: "semantic-provider", Level: "warning",
+				Message: fmt.Sprintf("%s semantic pass incomplete: %s", focus, validationError.Message),
+			})
+			continue
+		}
 		out = append(out, skil.Diagnostic{
 			Component: "semantic-provider", Level: "warning",
 			Message: fmt.Sprintf("%s semantic finding %d rejected: %s", focus, validationError.Index, validationError.Message),

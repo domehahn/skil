@@ -90,19 +90,23 @@ func (p *BedrockProvider) AnalyzeUntrustedDetailed(ctx context.Context, request 
 		ModelId: aws.String(p.model), Body: body, ContentType: &contentType, Accept: &contentType,
 	})
 	if err != nil {
-		return skil.SemanticAnalysis{}, fmt.Errorf("bedrock semantic provider request: %w", err)
+		return degradedResult(fmt.Sprintf("bedrock semantic provider request failed: %v", err)), nil
 	}
 	if len(response.Body) > maxResponse {
-		return skil.SemanticAnalysis{}, errors.New("semantic response exceeds size limit")
+		return degradedResult("semantic response exceeds size limit"), nil
 	}
 	var decoded struct {
 		Content []struct {
 			Type string `json:"type"`
 			Text string `json:"text"`
 		} `json:"content"`
+		StopReason string `json:"stop_reason"`
 	}
 	if err := json.Unmarshal(response.Body, &decoded); err != nil {
-		return skil.SemanticAnalysis{}, errors.New("bedrock returned an invalid response")
+		return degradedResult("bedrock returned an invalid response"), nil
+	}
+	if decoded.StopReason == "max_tokens" {
+		return degradedResult("bedrock semantic provider truncated its response (stop_reason=max_tokens); output token limit reached before completion"), nil
 	}
 	text := ""
 	for _, block := range decoded.Content {
@@ -112,10 +116,10 @@ func (p *BedrockProvider) AnalyzeUntrustedDetailed(ctx context.Context, request 
 	}
 	var result semanticResult
 	if text == "" || json.Unmarshal([]byte(text), &result) != nil {
-		return skil.SemanticAnalysis{}, errors.New("bedrock returned invalid structured output")
+		return degradedResult("bedrock returned invalid structured output"), nil
 	}
 	if len(result.Findings) > 100 {
-		return skil.SemanticAnalysis{}, errors.New("semantic provider returned too many findings")
+		return degradedResult("semantic provider returned too many findings"), nil
 	}
 	return normalizeFindingsDetailed(result.Findings, request, p.ID(), p.validationMode)
 }

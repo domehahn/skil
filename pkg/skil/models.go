@@ -577,6 +577,17 @@ type SemanticDiagnostics struct {
 	Accepted int                       `json:"accepted"`
 	Rejected int                       `json:"rejected"`
 	Errors   []SemanticValidationError `json:"errors,omitempty"`
+	// Incomplete is true when this entire pass produced no usable findings
+	// because of a provider- or response-level problem — a transport
+	// failure, an oversized or malformed response, a non-2xx HTTP status,
+	// the provider truncating its own output (e.g. hitting its output
+	// token limit), or more findings than the accepted maximum — rather
+	// than a per-finding schema/location/severity rejection. A provider
+	// reports this instead of returning a Go error so one pass's failure
+	// degrades semantic-provider coverage (and, through the assurance
+	// closure, the overall result to UNKNOWN) instead of aborting the
+	// whole scan and discarding every other analyzer's findings.
+	Incomplete bool `json:"incomplete,omitempty"`
 }
 
 type SemanticAnalysis struct {
