@@ -55,7 +55,7 @@ func (s *SemanticSuite) AnalyzeResult(ctx context.Context, ac skil.AnalysisConte
 		}
 		findings = append(findings, pass...)
 		diagnostics = append(diagnostics, semanticDiagnostics(focus, s.provider.ID(), passDiagnostics)...)
-		degraded = degraded || passDiagnostics.Rejected > 0
+		degraded = degraded || semanticPassDegraded(passDiagnostics)
 	}
 	synthesis, synthesisDiagnostics, err := analyzeSemanticPass(ctx, s.provider, skil.SemanticRequest{
 		ArtifactDigest: ac.Artifact.Digest, Files: files, Contract: ac.Contract,
@@ -66,7 +66,7 @@ func (s *SemanticSuite) AnalyzeResult(ctx context.Context, ac skil.AnalysisConte
 	}
 	findings = append(findings, synthesis...)
 	diagnostics = append(diagnostics, semanticDiagnostics("meta", s.provider.ID(), synthesisDiagnostics)...)
-	degraded = degraded || synthesisDiagnostics.Rejected > 0
+	degraded = degraded || semanticPassDegraded(synthesisDiagnostics)
 	coverage := map[string]skil.CoverageState{}
 	if degraded {
 		coverage["semantic-provider"] = skil.CoverageDegraded
@@ -98,7 +98,7 @@ func (s *Semantic) AnalyzeResult(ctx context.Context, ac skil.AnalysisContext) (
 		return skil.AnalyzerResult{}, err
 	}
 	coverage := map[string]skil.CoverageState{}
-	if providerDiagnostics.Rejected > 0 {
+	if semanticPassDegraded(providerDiagnostics) {
 		coverage["semantic-provider"] = skil.CoverageDegraded
 	}
 	return skil.AnalyzerResult{
@@ -117,8 +117,19 @@ func analyzeSemanticPass(ctx context.Context, provider skil.SemanticProvider, re
 	return findings, skil.SemanticDiagnostics{Accepted: len(findings)}, err
 }
 
+// semanticPassDegraded is the single source of truth for "does this pass's
+// diagnostics mean semantic-provider coverage must degrade" — checked
+// against Incomplete explicitly, not merely inferred from Rejected>0, so a
+// provider that ever reports Incomplete without also incrementing
+// Rejected (a different provider implementation than skil's own, or a
+// future internal one) still degrades coverage instead of being silently
+// treated as a clean pass.
+func semanticPassDegraded(diagnostics skil.SemanticDiagnostics) bool {
+	return diagnostics.Rejected > 0 || diagnostics.Incomplete
+}
+
 func semanticDiagnostics(focus, provider string, diagnostics skil.SemanticDiagnostics) []skil.Diagnostic {
-	if diagnostics.Rejected == 0 {
+	if !semanticPassDegraded(diagnostics) {
 		return nil
 	}
 	summary := fmt.Sprintf("%s semantic pass from %s accepted %d findings and rejected %d; coverage is degraded",

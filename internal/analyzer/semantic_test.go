@@ -151,6 +151,46 @@ func TestOneIncompletePassDegradesCoverageWithoutAbortingTheScan(t *testing.T) {
 	}
 }
 
+type incompleteWithoutRejectedProvider struct{}
+
+func (*incompleteWithoutRejectedProvider) ID() string { return "incomplete-without-rejected-test" }
+func (*incompleteWithoutRejectedProvider) AnalyzeUntrusted(context.Context, skil.SemanticRequest) ([]skil.Finding, error) {
+	return nil, nil
+}
+
+// AnalyzeUntrustedDetailed deliberately reports Incomplete without also
+// incrementing Rejected — a different, defensible provider implementation
+// than skil's own degradedResult (which always sets both), used here to
+// prove degradation is never inferred from Rejected>0 alone.
+func (*incompleteWithoutRejectedProvider) AnalyzeUntrustedDetailed(context.Context, skil.SemanticRequest) (skil.SemanticAnalysis, error) {
+	return skil.SemanticAnalysis{Diagnostics: skil.SemanticDiagnostics{Incomplete: true}}, nil
+}
+
+// TestIncompleteWithoutRejectedStillDegradesCoverage guards against
+// inferring "this pass is degraded" from Rejected>0 alone: a provider
+// that sets Incomplete without incrementing Rejected must still degrade
+// semantic-provider coverage and still produce a diagnostic.
+func TestIncompleteWithoutRejectedStillDegradesCoverage(t *testing.T) {
+	suite, err := NewSemanticSuite(&incompleteWithoutRejectedProvider{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	registry := DefaultRegistry(nil)
+	if err := registry.Register(suite); err != nil {
+		t.Fatal(err)
+	}
+	result, err := registry.Scan(context.Background(), skil.AnalysisContext{Artifact: artifactWith("SKILL.md", "# test")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Coverage["semantic-provider"] != skil.CoverageDegraded {
+		t.Fatalf("Incomplete without Rejected>0 must still degrade coverage: %#v", result.Coverage)
+	}
+	if len(result.Diagnostics) == 0 {
+		t.Fatalf("Incomplete without Rejected>0 must still produce a diagnostic: %#v", result.Diagnostics)
+	}
+}
+
 func TestSemanticSuiteRunsIndependentPasses(t *testing.T) {
 	provider := &focusProvider{}
 	suite, err := NewSemanticSuite(provider)
