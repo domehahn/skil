@@ -30,6 +30,10 @@ jobs:
         run: python3 -m unittest discover -s compat/external-scanner -p 'test_*.py'
       - name: Crosswalk generation check
         run: python3 compat/external-scanner/generate_crosswalk.py --check docs/external-control-crosswalk.md
+      - name: Benchmark pin-verification and measurement-evidence tests
+        run: |
+          pip install --user pyyaml
+          python3 -m unittest discover -s benchmark/runner -p 'test_*.py'
       - run: go build -trimpath -o bin/skil ./cmd/skil
       - run: go run ./cmd/skil validate tests/fixtures/clean-skill
       - run: go run ./cmd/skil scan tests/fixtures/clean-skill --format sarif --output skil.sarif

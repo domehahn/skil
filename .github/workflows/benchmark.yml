@@ -30,23 +30,58 @@ jobs:
           python-version: "3.12"
       - name: Build skil
         run: go build -trimpath -o /tmp/skil ./cmd/skil
-      - name: Install reference scanners (Apache-2.0, from their own repositories)
+      - name: Read pinned reference-scanner versions
+        id: pins
+        run: |
+          python3 -c "
+          import json
+          pins = json.load(open('benchmark/pinned-versions.json'))
+          print('skillspector_install=' + pins['skillspector']['install'])
+          print('cisco_install=' + pins['cisco-skill-scanner']['install'])
+          " >> "$GITHUB_OUTPUT"
+      - name: Install reference scanners, pinned exact versions (Apache-2.0, from their own repositories)
+        # Installs the exact version/commit recorded in benchmark/pinned-versions.json
+        # — update that file (not this step) to bump a pin.
         run: |
           pip install --user uv
-          "$HOME/.local/bin/uv" tool install git+https://github.com/NVIDIA/skillspector.git
+          "$HOME/.local/bin/uv" tool install "${{ steps.pins.outputs.skillspector_install }}"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-          pip install --user cisco-ai-skill-scanner
+          pip install --user "${{ steps.pins.outputs.cisco_install }}"
       - name: Install runner dependencies
         run: pip install pyyaml
-      - name: Run benchmark
+      - name: Run pinned-mode benchmark (reproducible baseline against benchmark/pinned-versions.json)
         run: |
           python3 benchmark/runner/run_benchmark.py \
             --skil-binary /tmp/skil \
             --skillspector-binary skillspector \
             --cisco-skill-scanner-binary skill-scanner \
-            --output benchmark/results/latest.json
+            --mode pinned \
+            --output benchmark/results/latest-pinned.json
+          python3 benchmark/runner/verify_evidence.py benchmark/results/latest-pinned.json
+      - name: Install reference scanners, latest (Apache-2.0, from their own repositories)
+        # Deliberately un-pinned: this mode exists to catch upstream drift
+        # (a competitor's new release changing what "detected" means for a
+        # fixture) between pin bumps, which the pinned run above cannot see
+        # by design.
+        run: |
+          "$HOME/.local/bin/uv" tool install --force git+https://github.com/NVIDIA/skillspector.git
+          pip install --user --upgrade cisco-ai-skill-scanner
+      - name: Run rolling-mode benchmark (latest upstream, drift signal)
+        run: |
+          python3 benchmark/runner/run_benchmark.py \
+            --skil-binary /tmp/skil \
+            --skillspector-binary skillspector \
+            --cisco-skill-scanner-binary skill-scanner \
+            --mode rolling \
+            --output benchmark/results/latest-rolling.json
+          python3 benchmark/runner/verify_evidence.py benchmark/results/latest-rolling.json
       - uses: actions/upload-artifact@v4
         with:
-          name: benchmark-results
-          path: benchmark/results/latest.json
+          name: benchmark-results-pinned
+          path: benchmark/results/latest-pinned.json
+          retention-days: 90
+      - uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-rolling
+          path: benchmark/results/latest-rolling.json
           retention-days: 90

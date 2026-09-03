@@ -152,9 +152,10 @@ eyes, see [issue #36](https://github.com/domehahn/skil/issues/36).
 # Build skil
 go build -o /tmp/skil ./cmd/skil
 
-# Install the reference scanners (Apache-2.0, from their own repositories)
-uv tool install git+https://github.com/NVIDIA/skillspector.git
-pip install cisco-ai-skill-scanner
+# Install the exact pinned reference-scanner versions (Apache-2.0, from
+# their own repositories) — see benchmark/pinned-versions.json
+uv tool install git+https://github.com/NVIDIA/skillspector.git@v2.11.0
+pip install cisco-ai-skill-scanner==2.0.14
 
 pip install pyyaml
 python3 benchmark/runner/run_benchmark.py \
@@ -162,10 +163,56 @@ python3 benchmark/runner/run_benchmark.py \
   --skillspector-binary skillspector \
   --cisco-skill-scanner-binary skill-scanner \
   --output benchmark/results/latest.json
+
+# Anyone can recompute and check the digest below without trusting
+# anything but SHA-256 and this repository's own verify_evidence.py.
+python3 benchmark/runner/verify_evidence.py benchmark/results/latest.json
 ```
 
 Omit either `--*-binary` flag to skip that tool (no external install
 needed for a skil-only run).
+
+### Pinned vs. rolling mode
+
+`--mode pinned` (the default) verifies each reference scanner's reported
+`--version` output against the exact version/commit recorded in
+[`pinned-versions.json`](pinned-versions.json), so a result is reproducible
+later against a known, fixed competitor release rather than silently
+drifting whenever upstream cuts a new one. A mismatch is recorded per tool
+(`pinned_version_verified: false`) rather than being fatal or silently
+ignored — the metric is still computed, just honestly labeled as not
+reproducible against the pin.
+
+`--mode rolling` skips that check, intentionally measuring against
+whatever reference-scanner version is actually installed — catching
+upstream drift (a competitor's new release quietly changing what
+"detected" means for a fixture) is the entire point of this mode, and it
+cannot see that if it's pinned. The weekly CI run (below) runs both modes
+back to back, uploading each as a separately named artifact, so a stable
+pinned baseline and a live drift signal exist side by side, and 90 days of
+history accumulate as one Actions artifact set per week — a rolling
+series, not just a single overwritten snapshot.
+
+Bumping a pin is a normal PR: update `pinned-versions.json`'s `install`,
+`tag`/`version`, `commit`, and `verified_at` fields together (re-verify the
+tag's commit SHA against the upstream repository directly — don't just
+bump the version string), which keeps the CI install step, the local
+install instructions above, and the runner's own verification all reading
+from one source of truth rather than three that can silently disagree.
+
+### Measurement evidence
+
+Every run's `results.json` embeds a top-level `evidence` block: a SHA-256
+digest (`measurement_digest_sha256`) over a canonical encoding of every
+input that determines the reported numbers — the corpus digest, each
+tool's identity and pin-verification outcome, and every reported metric
+(see `run_benchmark.py`'s `evidence_payload()` for the exact, documented
+list). Changing any one of those changes the digest. `verify_evidence.py`
+recomputes it from the published JSON alone and confirms the match — a
+tamper-evidence chain, not an asymmetric signature: signing would require
+a private key, and this benchmark deliberately carries no secrets (see
+above). Anyone with a published `results.json` can run the same check
+without trusting anything else.
 
 Development fixtures `bench-028` through `bench-036` exercise official and
 unknown npm sources, pip extra indexes, Cargo source replacement, nested Claude
@@ -188,7 +235,10 @@ available for on-demand runs) on a GitHub-hosted runner with `permissions:
 contents: read` and no secrets — see that file's header comment for why this
 is deliberately never a required PR gate: skil's trusted build chain must
 not depend on a third party's release cadence, dependencies, or CLI
-interface staying stable.
+interface staying stable. Each run produces both a pinned-mode and a
+rolling-mode result (see "Pinned vs. rolling mode" above), uploaded as two
+separately named artifacts and verified with `verify_evidence.py` in the
+same job before upload.
 
 ## Extending the corpus
 
