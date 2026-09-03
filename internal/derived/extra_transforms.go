@@ -1,6 +1,7 @@
 package derived
 
 import (
+	"fmt"
 	"regexp"
 	"unicode/utf8"
 )
@@ -124,7 +125,7 @@ func normalizeFullwidth(data []byte) ([]replacement, []string) {
 // misleading "reconstruction".
 const brailleMinRun = 4
 
-var braillePattern = regexp.MustCompile(`[\x{2800}-\x{28FF}]{4,}`)
+var braillePattern = regexp.MustCompile(fmt.Sprintf(`[\x{2800}-\x{28FF}]{%d,}`, brailleMinRun))
 
 func mayContainBrailleRun(data []byte) bool {
 	return braillePattern.Match(data)
