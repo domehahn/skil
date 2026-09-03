@@ -1,0 +1,13 @@
+schema_version: 1
+id: bench-040-benign-fullwidth-text
+tier: development
+title: Benign fullwidth-form text remains non-malicious
+ground_truth: {malicious: false, category: derived_security_view}
+references: [{framework: advisory, control: reconstruction-false-positive-control}]
+rationale: >
+  Fullwidth-form Latin text (a CJK-typesetting convention, U+FF01-U+FF5E plus
+  the ideographic space U+3000) alone is not abuse. The normalized text
+  describes ordinary public documentation and image content and must not be
+  classified as a security finding merely because a derived view exists.
+artifact: {root: artifact}
+review: {status: provisional, reviewers: []}

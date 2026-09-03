@@ -79,7 +79,11 @@ var (
 var transformations = []transformer{
 	{kind: "unicode-default-ignorables", mayApply: mayContainDefaultIgnorable, apply: removeDefaultIgnorables},
 	{kind: "unicode-bidi-controls", mayApply: mayContainBidi, apply: removeBidiControls},
+	{kind: "unicode-variation-selectors-supplement", mayApply: mayContainVariationSelectorSupplement, apply: removeVariationSelectorSupplement},
 	{kind: "unicode-confusable-normalization", mayApply: mayContainConfusable, apply: normalizeConfusables},
+	{kind: "unicode-mathematical-alphanumeric", mayApply: mayContainMathAlphanumeric, apply: normalizeMathAlphanumeric},
+	{kind: "unicode-fullwidth-forms", mayApply: mayContainFullwidth, apply: normalizeFullwidth},
+	{kind: "unicode-braille-reconstruction", mayApply: mayContainBrailleRun, apply: decodeBraille},
 	{kind: "inter-character-spacing", mayApply: func(data []byte) bool { return spacedWord.Match(data) }, apply: collapseInterCharacterSpacing},
 	{kind: "declared-marker-removal", mayApply: func(data []byte) bool { return markerDirective.Match(data) }, apply: removeDeclaredMarker},
 	{kind: "base64", mayApply: func(data []byte) bool { return base64Token.Match(data) || explicitBadBase64.Match(data) }, apply: decodeBase64},
@@ -87,6 +91,7 @@ var transformations = []transformer{
 	{kind: "url-encoding", mayApply: func(data []byte) bool { return urlToken.Match(data) || explicitBadURL.Match(data) }, apply: decodeURL},
 	{kind: "escaped-string", mayApply: func(data []byte) bool { return doubleQuote.Match(data) && strings.Contains(string(data), `\`) }, apply: decodeEscapedStrings},
 	{kind: "simple-string-concatenation", mayApply: func(data []byte) bool { return doubleConcat.Match(data) }, apply: joinStringConcatenation},
+	{kind: "shell-line-continuation-joining", mayApply: func(data []byte) bool { return shellContinuation.Match(data) }, apply: joinShellLineContinuations},
 }
 
 // Build derives views breadth-first in a fixed transformation order. Original

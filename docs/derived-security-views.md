@@ -13,14 +13,28 @@ views up to the configured depth:
 
 - Unicode default-ignorable removal, while retaining legitimate emoji ZWJ use;
 - bidi-control removal;
+- Unicode variation-selector (supplement, U+E0100-U+E01EF) removal;
 - curated Cyrillic/Greek confusable normalization;
+- mathematical alphanumeric symbol normalization (U+1D400-U+1D7FF), verified
+  against the Unicode character database, Latin letters and digits only;
+- fullwidth form normalization (U+FF01-U+FF5E plus the ideographic space
+  U+3000);
 - collapse of runs of single characters separated by spaces or tabs;
 - removal of a punctuation marker only after an explicit
   `obfuscation-marker`, `remove-marker`, or `separator-character` declaration;
 - printable Base64 and hexadecimal decoding;
 - URL percent decoding;
 - quoted escape-sequence decoding;
-- joining simple quoted string-literal concatenations.
+- joining simple quoted string-literal concatenations;
+- Braille-pattern (U+2800-U+28FF) byte decoding, for runs of four or more
+  cells, kept only when the decoded bytes are printable — genuine Braille
+  transliteration of language text uses an unrelated encoding and does not
+  generally survive this check;
+- shell/script line-continuation joining: a trailing backslash immediately
+  before a line ending is removed the same way POSIX shell and Python treat
+  it, so a command fragmented across several lines reconstructs to the single
+  logical line an existing rule already matches, at that rule's own
+  unmodified severity.
 
 This is not general evaluation or model-based deobfuscation. SKIL does not
 execute reconstructed content and does not make a network request to derive a
@@ -61,4 +75,3 @@ assurance closure `UNKNOWN` unless stronger unsafe evidence already exists.
 Machine-readable output exposes `derived_security_views` metadata and the
 three derived budget dimensions. Terminal, Markdown, and HTML reports show a
 compact summary rather than dumping reconstructed content.
-
