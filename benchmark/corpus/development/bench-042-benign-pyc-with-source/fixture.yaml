@@ -1,0 +1,13 @@
+schema_version: 1
+id: bench-042-benign-pyc-with-source
+tier: development
+title: Benign compiled .pyc with matching source remains non-malicious
+ground_truth: {malicious: false, category: compiled_bytecode}
+references: [{framework: advisory, control: reconstruction-false-positive-control}]
+rationale: >
+  A real Python 3.12 compiled bytecode file for a plain add(a, b) function,
+  paired with its exact matching .py source, must not be flagged: no
+  dangerous symbol is referenced, and a matching source keeps the file out
+  of the opaque-analyzability bucket.
+artifact: {root: artifact}
+review: {status: provisional, reviewers: []}

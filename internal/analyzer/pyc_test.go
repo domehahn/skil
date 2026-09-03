@@ -152,6 +152,80 @@ func TestPyCAnalyzeSkipsHashBasedAndMissingSource(t *testing.T) {
 	}
 }
 
+func TestPyCAnalyzeFlagsDangerousSymbolWithNoAccompanyingSource(t *testing.T) {
+	artifact := skil.Artifact{Name: "test", Digest: "digest", Files: []skil.File{
+		{Path: "helper.pyc", Data: decodePyc(t, realPyc312Danger)},
+	}}
+	findings, err := NewPyC().Analyze(context.Background(), skil.AnalysisContext{Artifact: artifact})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var found *skil.Finding
+	for i := range findings {
+		if findings[i].RuleID == "SKIL-PYC-DANGEROUS-SYMBOL" {
+			found = &findings[i]
+		}
+	}
+	if found == nil {
+		t.Fatalf("expected a SKIL-PYC-DANGEROUS-SYMBOL finding: %#v", findings)
+	}
+	if found.Severity != skil.SeverityHigh {
+		t.Fatalf("severity = %v, want HIGH", found.Severity)
+	}
+	symbols, ok := found.Evidence["pyc_symbols"].([]string)
+	if !ok || !containsString(symbols, "os.system") {
+		t.Fatalf("expected os.system in pyc_symbols evidence: %#v", found.Evidence)
+	}
+	if available, ok := found.Evidence["source_available"].(bool); !ok || available {
+		t.Fatalf("expected source_available=false with no accompanying .py: %#v", found.Evidence)
+	}
+}
+
+func TestPyCAnalyzeDangerousSymbolNotesAccompanyingSource(t *testing.T) {
+	artifact := skil.Artifact{Name: "test", Digest: "digest", Files: []skil.File{
+		{Path: "danger.pyc", Data: decodePyc(t, realPyc312Danger)},
+		{Path: "danger.py", Data: []byte("import os\n\n\ndef run():\n    os.system(\"id\")\n")},
+	}}
+	findings, err := NewPyC().Analyze(context.Background(), skil.AnalysisContext{Artifact: artifact})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, finding := range findings {
+		if finding.RuleID != "SKIL-PYC-DANGEROUS-SYMBOL" {
+			continue
+		}
+		if available, ok := finding.Evidence["source_available"].(bool); !ok || !available {
+			t.Fatalf("expected source_available=true: %#v", finding.Evidence)
+		}
+		return
+	}
+	t.Fatalf("expected a SKIL-PYC-DANGEROUS-SYMBOL finding: %#v", findings)
+}
+
+func TestPyCAnalyzeBenignModuleProducesNoDangerousSymbolFinding(t *testing.T) {
+	artifact := skil.Artifact{Name: "test", Digest: "digest", Files: []skil.File{
+		{Path: "benign.pyc", Data: decodePyc(t, realPyc312Benign)},
+	}}
+	findings, err := NewPyC().Analyze(context.Background(), skil.AnalysisContext{Artifact: artifact})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, finding := range findings {
+		if finding.RuleID == "SKIL-PYC-DANGEROUS-SYMBOL" {
+			t.Fatalf("did not expect a dangerous-symbol finding for a benign module: %#v", findings)
+		}
+	}
+}
+
+func containsString(items []string, want string) bool {
+	for _, item := range items {
+		if item == want {
+			return true
+		}
+	}
+	return false
+}
+
 func TestClassifyAnalyzabilityPyCWithSourceIsPartial(t *testing.T) {
 	source := []byte("print(1)\n")
 	header := buildPycHeader(3495, 0, 1700000000, uint32(len(source)))

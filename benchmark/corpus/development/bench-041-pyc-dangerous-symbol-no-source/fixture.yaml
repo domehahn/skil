@@ -1,0 +1,13 @@
+schema_version: 1
+id: bench-041-pyc-dangerous-symbol-no-source
+tier: development
+title: Compiled-only .pyc referencing os.system with no accompanying source
+ground_truth: {malicious: true, category: compiled_bytecode}
+references: [{framework: advisory, control: deep-pyc-symbol-analysis}]
+rationale: >
+  A real Python 3.12 compiled bytecode file (no accompanying .py source in
+  the artifact) references os.system inside a nested function's code
+  object. Source-based AST/regex analyzers cannot see this at all; the
+  marshalled code object must be decoded directly to find it.
+artifact: {root: artifact}
+review: {status: provisional, reviewers: []}
