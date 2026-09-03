@@ -297,3 +297,21 @@ func TestDegradedDerivedCoverageMakesClosureUnknown(t *testing.T) {
 		t.Fatalf("degraded derived coverage must fail closed: %#v", closure)
 	}
 }
+
+// TestDegradedSemanticProviderCoverageMakesClosureUnknown proves a
+// truncated/malformed/failed semantic-provider response — degrading
+// "semantic-provider" coverage, not just "derived-views" — is caught by
+// the same generic degraded-coverage rule: an incomplete probabilistic
+// pass must never let the closure claim SAFE.
+func TestDegradedSemanticProviderCoverageMakesClosureUnknown(t *testing.T) {
+	scan := skil.ScanResult{
+		Artifact: skil.Artifact{Digest: "root-digest", Files: []skil.File{{Path: "SKILL.md", Data: []byte("# demo")}}},
+		Status:   skil.StatusWarn,
+		Verdict:  skil.VerdictReview,
+		Coverage: map[string]skil.CoverageState{"semantic-provider": skil.CoverageDegraded},
+	}
+	closure := BuildAssuranceClosureFromScan(scan, nil)
+	if closure.State != skil.AssuranceUnknown || closure.Complete || closure.Verified {
+		t.Fatalf("degraded semantic-provider coverage must fail closed: %#v", closure)
+	}
+}

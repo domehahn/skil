@@ -147,27 +147,35 @@ func (p *AnthropicProvider) AnalyzeUntrustedDetailed(ctx context.Context, reques
 	}
 	response, err := p.client.Do(httpRequest)
 	if err != nil {
-		return skil.SemanticAnalysis{}, fmt.Errorf("semantic provider request: %w", err)
+		return degradedResult(fmt.Sprintf("semantic provider request failed: %v", err)), nil
 	}
 	responseBody, readErr := io.ReadAll(io.LimitReader(response.Body, maxResponse+1))
 	_ = response.Body.Close()
 	if readErr != nil {
-		return skil.SemanticAnalysis{}, readErr
+		return degradedResult(fmt.Sprintf("semantic provider response read failed: %v", readErr)), nil
 	}
 	if len(responseBody) > maxResponse {
-		return skil.SemanticAnalysis{}, errors.New("semantic response exceeds size limit")
+		return degradedResult("semantic response exceeds size limit"), nil
 	}
 	if response.StatusCode != http.StatusOK {
-		return skil.SemanticAnalysis{}, fmt.Errorf("semantic provider returned HTTP %d", response.StatusCode)
+		return degradedResult(fmt.Sprintf("semantic provider returned HTTP %d", response.StatusCode)), nil
 	}
 	var decoded struct {
 		Content []struct {
 			Type string `json:"type"`
 			Text string `json:"text"`
 		} `json:"content"`
+		StopReason string `json:"stop_reason"`
 	}
 	if err := json.Unmarshal(responseBody, &decoded); err != nil {
-		return skil.SemanticAnalysis{}, errors.New("semantic provider returned an invalid response")
+		return degradedResult("semantic provider returned an invalid response"), nil
+	}
+	// stop_reason=="max_tokens" is Anthropic's truncation signal: the
+	// provider stopped because it hit the output-token limit, not because
+	// it finished — the content is an incomplete prefix, not a complete
+	// response, even if it happens to look parseable.
+	if decoded.StopReason == "max_tokens" {
+		return degradedResult("semantic provider truncated its response (stop_reason=max_tokens); output token limit reached before completion"), nil
 	}
 	text := ""
 	for _, block := range decoded.Content {
@@ -177,10 +185,10 @@ func (p *AnthropicProvider) AnalyzeUntrustedDetailed(ctx context.Context, reques
 	}
 	var result semanticResult
 	if text == "" || json.Unmarshal([]byte(text), &result) != nil {
-		return skil.SemanticAnalysis{}, errors.New("semantic provider returned invalid structured output")
+		return degradedResult("semantic provider returned invalid structured output"), nil
 	}
 	if len(result.Findings) > 100 {
-		return skil.SemanticAnalysis{}, errors.New("semantic provider returned too many findings")
+		return degradedResult("semantic provider returned too many findings"), nil
 	}
 	return normalizeFindingsDetailed(result.Findings, request, p.ID(), p.validationMode)
 }

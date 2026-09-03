@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+- Fixed: a single semantic-provider pass failure (a transport error, an
+  oversized or malformed response, a non-2xx HTTP status, the provider
+  truncating its own output before finishing, or more than 100 findings)
+  no longer aborts the whole scan. Previously this propagated as a hard Go
+  error all the way up through `Registry.Scan`, discarding every
+  deterministic analyzer's already-computed findings along with it — the
+  opposite of fail-closed. Every semantic provider (OpenAI-compatible,
+  Anthropic, Bedrock) now reports this as an *incomplete* pass
+  (`SemanticDiagnostics.incomplete`) instead of a Go error, which degrades
+  `semantic-provider` coverage exactly like a per-finding rejection
+  already does — the rest of the scan, and every other semantic pass,
+  comes back intact, while the assurance closure still correctly reports
+  `UNKNOWN` rather than `SAFE`. New truncation detection: OpenAI's
+  `finish_reason=="length"` and Anthropic/Bedrock's
+  `stop_reason=="max_tokens"` are recognized explicitly, so a truncated
+  response's surviving prefix is never parsed as if it were complete, even
+  when it happens to look like valid JSON. Semantic Multi-Run Consensus
+  now also propagates an incomplete underlying run rather than silently
+  absorbing it (its zero findings simply don't contribute to the majority
+  vote, but the incompleteness itself must still surface). See
+  `docs/semantic-analysis.md`.
+
 - Added `--airgap`: skil is already offline by default (every
   network-capable flag — `--osv`, `--semantic`, `--allow-remote`,
   `--transitive`, `mcp registry scan --official`, `--full` — defaults

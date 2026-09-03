@@ -31,6 +31,54 @@ func finding(ruleID, file string, line int, confidence float64) skil.Finding {
 	return skil.Finding{RuleID: ruleID, Location: skil.Location{File: file, StartLine: line}, Confidence: confidence}
 }
 
+// incompleteOnceProvider returns a normal, complete result on every call
+// except the given call index, where it returns exactly what a real
+// provider now returns for a truncated/malformed/transport-failed
+// response: zero findings, Incomplete=true, no Go error.
+type incompleteOnceProvider struct {
+	incompleteAt int
+	calls        int
+}
+
+func (p *incompleteOnceProvider) ID() string { return "incomplete-test" }
+func (p *incompleteOnceProvider) AnalyzeUntrusted(ctx context.Context, request skil.SemanticRequest) ([]skil.Finding, error) {
+	result, err := p.AnalyzeUntrustedDetailed(ctx, request)
+	return result.Findings, err
+}
+func (p *incompleteOnceProvider) AnalyzeUntrustedDetailed(context.Context, skil.SemanticRequest) (skil.SemanticAnalysis, error) {
+	call := p.calls
+	p.calls++
+	if call == p.incompleteAt {
+		return skil.SemanticAnalysis{Diagnostics: skil.SemanticDiagnostics{
+			Rejected: 1, Incomplete: true,
+			Errors: []skil.SemanticValidationError{{Index: -1, Message: "provider truncated its response"}},
+		}}, nil
+	}
+	return skil.SemanticAnalysis{
+		Findings:    []skil.Finding{finding("SKIL-SEM-QUALITY", "SKILL.md", 1, .9)},
+		Diagnostics: skil.SemanticDiagnostics{Accepted: 1},
+	}, nil
+}
+
+// TestConsensusPropagatesIncompleteRunWithoutSilentlyAbsorbingIt proves a
+// single incomplete underlying run (out of N) is never silently absorbed
+// just because it returned no Go error and its zero findings simply
+// didn't contribute to the majority vote.
+func TestConsensusPropagatesIncompleteRunWithoutSilentlyAbsorbingIt(t *testing.T) {
+	provider := &incompleteOnceProvider{incompleteAt: 2}
+	wrapped, err := New(provider, 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := wrapped.AnalyzeUntrustedDetailed(context.Background(), skil.SemanticRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.Diagnostics.Incomplete {
+		t.Fatalf("expected the incomplete underlying run to propagate: %#v", result.Diagnostics)
+	}
+}
+
 func TestConsensusKeepsMajorityAgreedFindingAndDropsMinorityOne(t *testing.T) {
 	provider := &scriptedProvider{script: [][]skil.Finding{
 		{finding("SKIL-INTENT-SCOPE", "SKILL.md", 3, .9), finding("SKIL-SEM-QUALITY", "SKILL.md", 10, .6)},
