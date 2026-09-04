@@ -97,6 +97,10 @@ skil update my-skill.tgz --destination .skills --lock agent-skills.lock \
   --policy .skil/install-policy.yaml --package-signature package-signature.json \
   --attestation attestation.json --provenance provenance.json
 skil uninstall my-skill --destination .skills --lock agent-skills.lock
+skil registry index .agents/skills --catalog .skil/catalog.json
+skil registry check ./my-skill --catalog .skil/catalog.json
+skil registry search "kubernetes deployment" --catalog .skil/catalog.json
+skil registry compare ./candidate-skill ./existing-skill
 ```
 
 Local development:
@@ -213,6 +217,7 @@ A non-root multi-stage container image can be built with `make docker-build`;
 | [Supply chain](docs/supply-chain.md) | SBOM, provenance, and dependency checks |
 | [Semantic analysis](docs/semantic-analysis.md) | Provider-backed model passes |
 | [MCP Registry posture](docs/mcp-registry.md) | Publisher and official-registry supply-chain checks |
+| [Registry admission](docs/registry-admission.md) | Skill registry duplicate intelligence, capability overlap, and admission control |
 | [External control crosswalk](docs/external-control-crosswalk.md) | Rule-ID mapping to external scanners |
 | [External scanner feature parity](docs/external-scanner-feature-parity.md) | Differential harness results and rationale |
 | [Release identity checklist](docs/release-identity-checklist.md) | Release hardening checklist |
