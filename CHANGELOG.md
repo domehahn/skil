@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Added SKIL Behavioral Live Evaluation, Adversarial Red-Teaming, Host-Mediated Runtime Proxy, and OpenTelemetry Audit Platform (`v0.6.0`):
+  - **Behavioral Live Evaluation Harness (`internal/evalharness`, `skil eval run`)**:
+    Runs synthetic test suites in isolated mock environments to compute `Pass@1`, `Pass@5`, Tool Call Accuracy, Error Recovery Rate, and Failure Escalation Safety.
+  - **Adversarial Red-Teaming & Probing Engine (`internal/redteam`, `skil probe`)**:
+    Probes skills against mutated indirect prompt injections, encoding obfuscation, jailbreaks, tool parameter abuse, and context flooding (`SKIL-RED-001` .. `SKIL-RED-005`), computing a Vulnerability Exploitability Score (VES).
+  - **Host-Mediated Guardrail Runtime Proxy (`internal/runtimeproxy`, `skil proxy serve`)**:
+    Host-mediated runtime guardrail proxy enforcing parameter type constraints, real-time PII/secret redaction, network egress domain whitelists, and forbidden subcommand blocking.
+  - **OpenTelemetry Agent Audit Telemetry Exporter (`internal/telemetry`, `skil telemetry export`)**:
+    Exports OTLP/JSON structured audit trace spans for SIEM and observability integration.
+  - Added ADRs 0019 (`Behavioral Live Evaluation Harness`), 0020 (`Adversarial Red-Teaming Engine`), 0021 (`Host-Mediated Runtime Egress & Guardrail Proxy`), 0022 (`OpenTelemetry Agent Audit Telemetry`), and user guide `docs/runtime-governance-and-eval.md`.
+
 - Added SKIL Skill Trust Graph & Agentic Supply Chain Governance Platform (`skil trust`, `skil card`, `skil optimize context`, `skil graph`, `skil compare`):
   - **Skill Trust Pipeline & Multi-Metric Trust Score (`internal/trust`, `skil trust`)**:
     Computes a weighted 0-100 Trust Score across 7 dimensions (Security 30%, Evaluation 20%, Quality 15%, Provenance 15%, Permission Risk 10%, Duplicate Risk 5%, Runtime Stability 5%) and assigns a Trust Level (`UNTRUSTED`, `RESTRICTED`, `REVIEWED`, `TRUSTED`, `VERIFIED`, `REVOKED`) with detailed deduction breakdowns.

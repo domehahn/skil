@@ -182,12 +182,22 @@ func (a *App) Run(ctx context.Context, args []string) int {
 		code = RunGraph(args[1:], a.Out, a.Err)
 	case "compare", "drift":
 		code = RunCompare(args[1:], a.Out, a.Err)
+	case "probe", "redteam":
+		code = RunProbe(args[1:], a.Out, a.Err)
+	case "proxy":
+		code = RunProxy(args[1:], a.Out, a.Err)
+	case "telemetry":
+		code = RunTelemetry(args[1:], a.Out, a.Err)
 	case "admission":
 		code = a.admission(ctx, args[1:])
 	case "verify":
 		code = a.verify(ctx, args[1:])
 	case "eval":
-		code = a.evaluate(ctx, args[1:])
+		if len(args) > 1 && args[1] == "run" {
+			code = RunEval(args[1:], a.Out, a.Err)
+		} else {
+			code = a.evaluate(ctx, args[1:])
+		}
 	case "assure":
 		code = a.assure(ctx, args[1:])
 	case "attest":

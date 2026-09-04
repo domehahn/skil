@@ -28,3 +28,4 @@ Implement **SKIL Skill Cards** and an **Agentic Supply Chain Control Plane** in 
 
 - Skill authors, security reviewers, and platform teams have a unified, machine-readable artifact summarizing skill capabilities and trust posture.
 - Skill Cards act as the governance attestation statement throughout the publishing, admission, and deployment lifecycle.
+

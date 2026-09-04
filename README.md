@@ -107,6 +107,10 @@ skil optimize context ./my-skill
 skil graph capabilities .agents/skills --format json
 skil graph attack-path ./skill-a ./skill-b --format text
 skil compare ./v1/my-skill ./v2/my-skill --format json
+skil eval run ./my-skill --format json
+skil probe ./my-skill --payloads INDIRECT_INJECTION,OBFUSCATION_ENCODING --format json
+skil proxy serve --port 8080
+skil telemetry export ./my-skill --format json
 ```
 
 Local development:

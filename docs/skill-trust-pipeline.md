@@ -203,3 +203,4 @@ Added Permissions: [secrets.read, cluster.write]
 | `skil graph capabilities <skills...>` | Render capability node & edge graph statistics |
 | `skil graph attack-path <skills...>` | Discover cross-skill exfiltration attack paths |
 | `skil compare <base> <target>` | Compare versions and detect permission/capability drift |
+
