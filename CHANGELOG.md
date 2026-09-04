@@ -4,7 +4,7 @@
 
 - Added SKIL Skill Trust Graph & Agentic Supply Chain Governance Platform (`skil trust`, `skil card`, `skil optimize context`, `skil graph`, `skil compare`):
   - **Skill Trust Pipeline & Multi-Metric Trust Score (`internal/trust`, `skil trust`)**:
-    Computes a weighted 0-100 Trust Score across 7 dimensions (Security 35%, Provenance 15%, Quality 15%, Permission Risk 15%, Duplicate Risk 10%, Evaluation/Lift 5%, Stability 5%) and assigns a Trust Level (`UNTRUSTED`, `RESTRICTED`, `REVIEWED`, `TRUSTED`, `VERIFIED`, `REVOKED`) with detailed deduction breakdowns.
+    Computes a weighted 0-100 Trust Score across 7 dimensions (Security 30%, Evaluation 20%, Quality 15%, Provenance 15%, Permission Risk 10%, Duplicate Risk 5%, Runtime Stability 5%) and assigns a Trust Level (`UNTRUSTED`, `RESTRICTED`, `REVIEWED`, `TRUSTED`, `VERIFIED`, `REVOKED`) with detailed deduction breakdowns.
   - **SKIL Skill Cards (`internal/card`, `skil card`)**:
     Generates machine-readable (YAML, JSON) and Markdown-formatted Skill Cards documenting skill metadata, capabilities, permissions, trust breakdown, evidence graph digests, and supply chain provenance.
   - **Skill Quality Analysis Engine (`internal/quality`)**:
