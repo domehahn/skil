@@ -62,10 +62,21 @@ func TestCLITrustCommands(t *testing.T) {
 		var stdout, stderr bytes.Buffer
 		code := RunGraph([]string{"capabilities", fixtureSkill}, &stdout, &stderr)
 		if code != 0 {
-			t.Fatalf("Expected exit code 0 for skil graph, got %d", code)
+			t.Fatalf("Expected exit code 0 for skil graph capabilities, got %d", code)
 		}
-		if !strings.Contains(stdout.String(), "Capability & Attack Path Graph") {
-			t.Errorf("Expected graph header, got: %s", stdout.String())
+		if !strings.Contains(stdout.String(), "SKIL Capability Graph") {
+			t.Errorf("Expected capability graph header, got: %s", stdout.String())
+		}
+	})
+
+	t.Run("skil graph attack-path", func(t *testing.T) {
+		var stdout, stderr bytes.Buffer
+		code := RunGraph([]string{"attack-path", fixtureSkill}, &stdout, &stderr)
+		if code != 0 {
+			t.Fatalf("Expected exit code 0 for skil graph attack-path, got %d", code)
+		}
+		if !strings.Contains(stdout.String(), "Cross-Skill Attack Path Graph") {
+			t.Errorf("Expected attack path graph header, got: %s", stdout.String())
 		}
 	})
 

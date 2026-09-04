@@ -31,7 +31,7 @@ func RunGraph(args []string, stdout, stderr io.Writer) int {
 	var format string
 	fs.StringVar(&format, "format", "terminal", "Output format: terminal|json")
 
-	if err := fs.Parse(args); err != nil {
+	if err := fs.Parse(interspersed(fs, args)); err != nil {
 		return 1
 	}
 
@@ -61,14 +61,31 @@ func RunGraph(args []string, stdout, stderr io.Writer) int {
 	if format == "json" {
 		enc := json.NewEncoder(stdout)
 		enc.SetIndent("", "  ")
-		if err := enc.Encode(result); err != nil {
+		var outData any = result
+		if subCmd == "capabilities" {
+			outData = g
+		}
+		if err := enc.Encode(outData); err != nil {
 			fmt.Fprintf(stderr, "Error encoding JSON output: %v\n", err)
 			return 1
 		}
 		return 0
 	}
 
-	fmt.Fprintln(stdout, "SKIL Capability & Attack Path Graph")
+	if subCmd == "capabilities" {
+		fmt.Fprintln(stdout, "SKIL Capability Graph")
+		fmt.Fprintln(stdout, "────────────────────────────────────────────────────────────")
+		fmt.Fprintf(stdout, "Total Graph Nodes: %d\n", len(g.Nodes))
+		fmt.Fprintf(stdout, "Total Graph Edges: %d\n", len(g.Edges))
+		fmt.Fprintln(stdout)
+		fmt.Fprintln(stdout, "Discovered Nodes:")
+		for _, node := range g.Nodes {
+			fmt.Fprintf(stdout, "  - [%s] %s (%s)\n", node.Type, node.Label, node.Owner)
+		}
+		return 0
+	}
+
+	fmt.Fprintln(stdout, "SKIL Cross-Skill Attack Path Graph")
 	fmt.Fprintln(stdout, "────────────────────────────────────────────────────────────")
 	fmt.Fprintf(stdout, "Total Graph Nodes: %d\n", len(g.Nodes))
 	fmt.Fprintf(stdout, "Total Graph Edges: %d\n", len(g.Edges))

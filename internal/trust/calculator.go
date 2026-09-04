@@ -88,7 +88,9 @@ func EvaluateTrust(inputs TrustInputs, weights TrustWeights) TrustAssessment {
 
 	// 3. Evaluation & Skill Lift Score
 	evalScore := 100.0
-	if inputs.SkillLift < 0 {
+	if inputs.SkillLift == 0 && inputs.PassAtK == 0 {
+		evalScore = 50.0 // Neutral score for unevaluated skills
+	} else if inputs.SkillLift < 0 {
 		pts := 35.0
 		evalScore -= pts
 		deductions = append(deductions, TrustDeduction{

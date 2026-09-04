@@ -24,7 +24,7 @@ func RunCompare(args []string, stdout, stderr io.Writer) int {
 	var format string
 	fs.StringVar(&format, "format", "terminal", "Output format: terminal|json")
 
-	if err := fs.Parse(args); err != nil {
+	if err := fs.Parse(interspersed(fs, args)); err != nil {
 		return 1
 	}
 
