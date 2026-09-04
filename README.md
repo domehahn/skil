@@ -101,6 +101,12 @@ skil registry index .agents/skills --catalog .skil/catalog.json
 skil registry check ./my-skill --catalog .skil/catalog.json
 skil registry search "kubernetes deployment" --catalog .skil/catalog.json
 skil registry compare ./candidate-skill ./existing-skill
+skil trust ./my-skill --format json
+skil card ./my-skill --format markdown --output SKILL_CARD.md
+skil optimize context ./my-skill
+skil graph capabilities .agents/skills --format json
+skil graph attack-path ./skill-a ./skill-b --format text
+skil compare ./v1/my-skill ./v2/my-skill --format json
 ```
 
 Local development:

@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+- Added SKIL Skill Trust Graph & Agentic Supply Chain Governance Platform (`skil trust`, `skil card`, `skil optimize context`, `skil graph`, `skil compare`):
+  - **Skill Trust Pipeline & Multi-Metric Trust Score (`internal/trust`, `skil trust`)**:
+    Computes a weighted 0-100 Trust Score across 7 dimensions (Security 30%, Evaluation 20%, Quality 15%, Provenance 15%, Permission Risk 10%, Duplicate Risk 5%, Runtime Stability 5%) and assigns a Trust Level (`UNTRUSTED`, `RESTRICTED`, `REVIEWED`, `TRUSTED`, `VERIFIED`, `REVOKED`) with detailed deduction breakdowns.
+  - **SKIL Skill Cards (`internal/card`, `skil card`)**:
+    Generates machine-readable (YAML, JSON) and Markdown-formatted Skill Cards documenting skill metadata, capabilities, permissions, trust breakdown, evidence graph digests, and supply chain provenance.
+  - **Skill Quality Analysis Engine (`internal/quality`)**:
+    Evaluates documentation completeness, instruction clarity, usage examples, and rollback/undo safety (`SKIL-QUAL-001` .. `SKIL-QUAL-004`).
+  - **Context Efficiency & Token Optimizer (`internal/contextefficiency`, `skil optimize context`)**:
+    Analyzes intra-skill prompt redundancy, verbosity, and token overhead, reporting estimated token savings and optimization suggestions.
+  - **Capability Graph & Cross-Skill Attack Paths (`internal/attackpath`, `skil graph`)**:
+    Constructs multi-skill capability dependency graphs and identifies cross-skill exfiltration attack paths (`SKIL-ATTACK-001`) where a skill with credential access co-exists with a skill exposing network capabilities.
+  - **Side-by-Side Version Comparison & Drift Detection (`internal/drift`, `skil compare` / `skil drift`)**:
+    Compares base and target skill versions to detect permission escalation, capability drift, structural diffs, and risk score deltas.
+  - **External Security & Evaluation Provider Adapters (`internal/provider/external`)**:
+    Standardized adapter architecture allowing third-party security and evaluation frameworks to normalize findings into SKIL's trust and governance model.
+  - Added ADRs 0016 (`Skill Trust Pipeline & Score`), 0017 (`Capability Graph & Cross-Skill Attack Paths`), and 0018 (`Skill Card & Agentic Supply Chain Governance`), plus user guide `docs/skill-trust-pipeline.md`.
+
 - Added Skill Registry Duplicate Intelligence and Admission Control (`skil registry`):
   a multi-stage governance and analysis subsystem in `internal/registry` that evaluates
   candidate skills before publication into a Skill Registry. Prevents redundant, duplicate,

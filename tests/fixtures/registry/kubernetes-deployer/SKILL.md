@@ -5,3 +5,4 @@ Actions: deploy, rollback, health-check
 Tools: kubectl, helm
 Resources: deployment, service, ingress
 Permissions: cluster-write
+
