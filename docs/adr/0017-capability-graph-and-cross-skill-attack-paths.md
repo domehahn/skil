@@ -30,3 +30,4 @@ Implement a graph-based **Capability Graph & Cross-Skill Attack Path Analysis** 
 
 - SKIL can analyze composed risk across collections of skills rather than evaluating each skill in isolation.
 - Security teams can identify and block dangerous skill combinations before deployment into multi-agent systems.
+
