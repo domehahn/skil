@@ -1,11 +1,14 @@
 package telemetry
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/domehahn/skil/internal/trust"
+	"github.com/domehahn/skil/pkg/skil"
 )
 
 // OTelSpanFormat represents a structured OpenTelemetry audit span.
@@ -28,8 +31,12 @@ type OTelTraceBatch struct {
 
 // BuildTrustTraceSpan constructs an OTel span from a Skill Trust Assessment.
 func BuildTrustTraceSpan(assessment trust.TrustAssessment) OTelSpanFormat {
-	traceID := fmt.Sprintf("skil-trace-%d", time.Now().UnixNano())
-	spanID := fmt.Sprintf("span-%d", time.Now().UnixNano()%100000)
+	seed := fmt.Sprintf("%s:%s:%d", assessment.ArtifactName, assessment.Digest, assessment.Timestamp.UnixNano())
+	hash := sha256.Sum256([]byte(seed))
+	hashHex := hex.EncodeToString(hash[:])
+
+	traceID := fmt.Sprintf("skil-trace-%s", hashHex[:16])
+	spanID := fmt.Sprintf("span-%s", hashHex[16:24])
 
 	attrs := map[string]interface{}{
 		"skill.name":         assessment.ArtifactName,
@@ -54,10 +61,15 @@ func BuildTrustTraceSpan(assessment trust.TrustAssessment) OTelSpanFormat {
 
 // ExportTraceBatch formats spans as OTLP JSON.
 func ExportTraceBatch(spans []OTelSpanFormat) ([]byte, error) {
+	ver := skil.Version
+	if ver == "" {
+		ver = "0.6.0"
+	}
+
 	batch := OTelTraceBatch{
 		ResourceAttributes: map[string]string{
 			"service.name":    "skil-agent-governance",
-			"service.version": "0.6.0",
+			"service.version": ver,
 		},
 		Spans: spans,
 	}
