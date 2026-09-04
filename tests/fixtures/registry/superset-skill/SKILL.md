@@ -5,3 +5,4 @@ Actions: deploy, rollback, canary, health-check, validate, monitor, cleanup
 Tools: kubectl, helm, trivy, git
 Resources: deployment, service, ingress, secret, configmap
 Permissions: cluster-write, cluster-read
+

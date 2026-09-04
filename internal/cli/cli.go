@@ -172,6 +172,16 @@ func (a *App) Run(ctx context.Context, args []string) int {
 		code = a.mcp(ctx, args[1:])
 	case "registry":
 		code = a.registryCommand(ctx, args[1:])
+	case "trust":
+		code = RunTrust(args[1:], a.Out, a.Err)
+	case "card":
+		code = RunCard(args[1:], a.Out, a.Err)
+	case "optimize":
+		code = RunOptimize(args[1:], a.Out, a.Err)
+	case "graph":
+		code = RunGraph(args[1:], a.Out, a.Err)
+	case "compare", "drift":
+		code = RunCompare(args[1:], a.Out, a.Err)
 	case "admission":
 		code = a.admission(ctx, args[1:])
 	case "verify":
@@ -319,6 +329,11 @@ Usage:
   skil registry search <query> [--catalog file] [--top-k N]
   skil registry similar <skill> [--catalog file] [--top-k N]
   skil registry compare <candidate> <existing> [--catalog file]
+  skil trust <skill> [--format terminal|json|sarif] [--catalog file] [--output file]
+  skil card <skill> [--format yaml|markdown|json] [--output file]
+  skil optimize context <skill> [--format terminal|json]
+  skil graph capabilities|attack-path <skill-paths...> [--format terminal|json]
+  skil compare <base-skill> <target-skill> [--format terminal|json]
   skil admission serve --root dir --listen 127.0.0.1:port --policy file [--token-env VAR]
   skil analyzers list
   skil capabilities

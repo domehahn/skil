@@ -284,3 +284,4 @@ skill-registry-admission:
 1. **Data-Not-Instruction Boundary**: Candidate `SKILL.md` content and prompt text are strictly treated as untrusted data inputs. Structured XML/JSON delimiters prevent candidate text from altering LLM judge system rules or governance control flow.
 2. **Static Analysis Only**: No candidate scripts or executable code are invoked during duplicate analysis.
 3. **Path Confinement**: All catalog file reads and workspace scans enforce strict root directory boundary checks.
+

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net"
 	"net/http"
 	"os"
@@ -24,10 +25,15 @@ func freeLoopbackAddress(t *testing.T) string {
 	return address
 }
 
-func waitForAdmissionServer(t *testing.T, address string) {
+func waitForAdmissionServer(t *testing.T, address string, done <-chan int, errOut fmt.Stringer) {
 	t.Helper()
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
+		select {
+		case code := <-done:
+			t.Fatalf("admission serve exited early with code %d: %s", code, errOut.String())
+		default:
+		}
 		conn, err := net.DialTimeout("tcp", address, 50*time.Millisecond)
 		if err == nil {
 			conn.Close()
@@ -79,7 +85,7 @@ func TestAdmissionServeAllowsCleanSkill(t *testing.T) {
 	go func() {
 		done <- app.Run(ctx, []string{"admission", "serve", "--root", rootDir, "--listen", address, "--policy", policyPath})
 	}()
-	waitForAdmissionServer(t, address)
+	waitForAdmissionServer(t, address, done, &errOut)
 
 	response := postAdmission(t, address, token, "clean-skill")
 	if response.Decision != "ALLOW" {
@@ -110,7 +116,7 @@ func TestAdmissionServeDeniesPolicyViolation(t *testing.T) {
 	go func() {
 		done <- app.Run(ctx, []string{"admission", "serve", "--root", rootDir, "--listen", address, "--policy", policyPath})
 	}()
-	waitForAdmissionServer(t, address)
+	waitForAdmissionServer(t, address, done, &errOut)
 
 	response := postAdmission(t, address, token, "malicious-skill")
 	if response.Decision != "DENY" {
@@ -138,7 +144,7 @@ func TestAdmissionServeDeniesUnauthenticatedRequest(t *testing.T) {
 	go func() {
 		done <- app.Run(ctx, []string{"admission", "serve", "--root", rootDir, "--listen", address, "--policy", policyPath})
 	}()
-	waitForAdmissionServer(t, address)
+	waitForAdmissionServer(t, address, done, &errOut)
 
 	body, err := json.Marshal(admissionRequest{Path: "clean-skill"})
 	if err != nil {
@@ -180,7 +186,7 @@ func TestAdmissionServeRejectsPathEscapingRoot(t *testing.T) {
 	go func() {
 		done <- app.Run(ctx, []string{"admission", "serve", "--root", rootDir, "--listen", address, "--policy", policyPath})
 	}()
-	waitForAdmissionServer(t, address)
+	waitForAdmissionServer(t, address, done, &errOut)
 
 	response := postAdmission(t, address, token, "../../../etc")
 	if response.Decision != "ERROR" || response.Error == "" {

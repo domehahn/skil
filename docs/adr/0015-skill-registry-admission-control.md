@@ -47,3 +47,4 @@ Implement a multi-stage **Skill Registry Duplicate Intelligence & Admission Cont
 - Skill registry maintainers and CI pipelines can enforce automated admission gates to keep registries clean, deduplicated, and auditable.
 - Teams receive actionable guidance on whether to reject a duplicate, request integration with an existing skill, or publish a specialized extension.
 - SARIF export allows seamless integration with GitHub/GitLab code scanning and governance dashboards.
+

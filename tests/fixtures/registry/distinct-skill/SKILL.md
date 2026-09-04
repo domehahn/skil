@@ -4,3 +4,4 @@ Scan HCL code and Terraform modules for hardcoded secrets and unencrypted S3 buc
 Actions: scan, lint
 Tools: terraform, yara
 Resources: terraform
+

@@ -5,3 +5,4 @@ Actions: audit, scan
 Tools: trivy, kubectl
 Resources: cluster, pod, secret
 Permissions: cluster-read
+
