@@ -82,17 +82,17 @@ func RunCard(args []string, stdout, stderr io.Writer) int {
 			fmt.Fprintf(stderr, "Error generating JSON card: %v\n", err)
 			return 1
 		}
-		outWriter.Write(data)
-		outWriter.Write([]byte("\n"))
+		_, _ = outWriter.Write(data)
+		_, _ = outWriter.Write([]byte("\n"))
 	case "markdown":
-		outWriter.Write([]byte(skillCard.ToMarkdown()))
+		_, _ = outWriter.Write([]byte(skillCard.ToMarkdown()))
 	default:
 		data, err := skillCard.ToYAML()
 		if err != nil {
 			fmt.Fprintf(stderr, "Error generating YAML card: %v\n", err)
 			return 1
 		}
-		outWriter.Write(data)
+		_, _ = outWriter.Write(data)
 	}
 
 	return 0
