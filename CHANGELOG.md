@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- Added Skill Registry Duplicate Intelligence and Admission Control (`skil registry`):
+  a multi-stage governance and analysis subsystem in `internal/registry` that evaluates
+  candidate skills before publication into a Skill Registry. Prevents redundant, duplicate,
+  near-duplicate, or subset skills while permitting legitimate specializations, extensions,
+  supersets, and complementary skills. Features canonical SHA-256 fingerprinting, name/metadata
+  similarity, capability extraction with synonym normalization and directional containment,
+  offline-first TF-IDF n-gram vector similarity (`local-tfidf`), thread-safe embedding cache,
+  ten explicit relationship categories (`EXACT_DUPLICATE`, `SEMANTIC_DUPLICATE`, `HIGH_SIMILARITY`,
+  `CAPABILITY_OVERLAP`, `SUBSET`, `SUPERSET`, `COMPLEMENTARY`, `RELATED`, `DISTINCT`, `UNKNOWN`),
+  four admission decisions (`ACCEPT`, `ACCEPT_WITH_WARNING`, `REVIEW`, `REJECT`), policy exceptions/allow
+  rules, SARIF output exporter (`SKIL-REG-001` .. `SKIL-REG-006`), CLI suite (`check`, `index`,
+  `update`, `list`, `search`, `similar`, `compare`), golden test fixtures, and ADR 0015.
+  See `docs/registry-admission.md` and `docs/adr/0015-skill-registry-admission-control.md`.
+
 - Added an Evidence Graph: already-computed findings and capability
   observations are now also correlated into typed nodes and edges, each
   carrying an explicit confidence tier — `OBSERVED` (a single deterministic

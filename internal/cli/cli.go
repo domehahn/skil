@@ -170,6 +170,8 @@ func (a *App) Run(ctx context.Context, args []string) int {
 		code = a.serve(ctx, args[1:])
 	case "mcp":
 		code = a.mcp(ctx, args[1:])
+	case "registry":
+		code = a.registryCommand(ctx, args[1:])
 	case "admission":
 		code = a.admission(ctx, args[1:])
 	case "verify":
@@ -311,6 +313,12 @@ Usage:
   skil baseline create <skill> [--output file] [--approved-by name] [--reason text]
   skil rules list | show <rule-id>
   skil conform --profile core|identity|multi-agent|supply-chain|mcp|privacy|resilience|audit [--format json]
+  skil registry check <skill> [--catalog file] [--namespace ns] [--format terminal|json|sarif] [--fail-on reject|review|duplicate]
+  skil registry index <directory> [--catalog file] [--namespace ns]
+  skil registry list [--catalog file] [--namespace ns] [--domain domain]
+  skil registry search <query> [--catalog file] [--top-k N]
+  skil registry similar <skill> [--catalog file] [--top-k N]
+  skil registry compare <candidate> <existing> [--catalog file]
   skil admission serve --root dir --listen 127.0.0.1:port --policy file [--token-env VAR]
   skil analyzers list
   skil capabilities
