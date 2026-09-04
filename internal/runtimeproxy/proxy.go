@@ -3,6 +3,7 @@ package runtimeproxy
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"regexp"
 	"strings"
 	"time"
@@ -86,18 +87,25 @@ func EvaluateToolCall(ctx context.Context, req ToolCallRequest, policy ProxyPoli
 	// 2. Network egress checks
 	if strings.Contains(toolLower, "http") || strings.Contains(toolLower, "fetch") || strings.Contains(toolLower, "url") {
 		if urlVal, ok := req.Arguments["url"].(string); ok {
-			allowed := false
-			for _, domain := range policy.AllowedDomains {
-				if strings.Contains(strings.ToLower(urlVal), strings.ToLower(domain)) {
-					allowed = true
-					break
+			if u, err := url.Parse(urlVal); err == nil && u.Host != "" {
+				host := strings.ToLower(u.Host)
+				if idx := strings.Index(host, ":"); idx != -1 {
+					host = host[:idx]
 				}
-			}
-			if !allowed {
-				return ProxyResponse{
-					Decision:  DecisionBlock,
-					Reason:    fmt.Sprintf("Network egress to domain in URL '%s' is not in allowed list", urlVal),
-					Timestamp: time.Now().UTC(),
+				allowed := false
+				for _, domain := range policy.AllowedDomains {
+					d := strings.ToLower(domain)
+					if host == d || strings.HasSuffix(host, "."+d) {
+						allowed = true
+						break
+					}
+				}
+				if !allowed {
+					return ProxyResponse{
+						Decision:  DecisionBlock,
+						Reason:    fmt.Sprintf("Network egress host '%s' is not in allowed domain list", host),
+						Timestamp: time.Now().UTC(),
+					}
 				}
 			}
 		}

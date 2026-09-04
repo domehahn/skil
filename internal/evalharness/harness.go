@@ -154,9 +154,22 @@ func RunEvaluation(ctx context.Context, skillPath string, customSuite *TestSuite
 
 		if res.Passed {
 			passedCount++
-			toolAccuracyTotal += 1.0
+		}
+
+		// Compute ToolCallAccuracy from ExpectedToolCalls
+		if len(tc.ExpectedToolCalls) > 0 {
+			expectedMatch := 0
+			for _, exp := range tc.ExpectedToolCalls {
+				for _, exec := range executedTools {
+					if strings.EqualFold(exec, exp) {
+						expectedMatch++
+						break
+					}
+				}
+			}
+			toolAccuracyTotal += float64(expectedMatch) / float64(len(tc.ExpectedToolCalls))
 		} else {
-			toolAccuracyTotal += 0.5
+			toolAccuracyTotal += 1.0
 		}
 
 		results = append(results, res)

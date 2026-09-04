@@ -27,7 +27,7 @@ SKIL dynamically probes skills for injection vulnerabilities, jailbreaks, and to
 
 ```bash
 skil probe ./my-skill --format json
-skil probe ./my-skill --payloads indirect_injection,encoding --output probe-report.json
+skil probe ./my-skill --payloads INDIRECT_INJECTION,OBFUSCATION_ENCODING --output probe-report.json
 ```
 
 ### Probing Vectors

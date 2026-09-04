@@ -22,6 +22,25 @@ const (
 	AttackContextFlood      AttackCategory = "CONTEXT_FLOOD"
 )
 
+// NormalizeCategory normalizes input string aliases to canonical AttackCategory.
+func NormalizeCategory(s string) AttackCategory {
+	upper := strings.ToUpper(strings.TrimSpace(s))
+	switch upper {
+	case "INDIRECT_INJECTION", "INDIRECT", "INJECTION", "INDIRECT_INJECTION_VARIANTS":
+		return AttackIndirectInjection
+	case "OBFUSCATION_ENCODING", "OBFUSCATION", "ENCODING":
+		return AttackObfuscation
+	case "SYSTEM_JAILBREAK", "JAILBREAK", "SYSTEM":
+		return AttackJailbreak
+	case "TOOL_ARG_ABUSE", "TOOL_ABUSE", "TOOL":
+		return AttackToolAbuse
+	case "CONTEXT_FLOOD", "FLOOD":
+		return AttackContextFlood
+	default:
+		return AttackCategory(upper)
+	}
+}
+
 // ProbePayload defines an individual mutated adversarial test vector.
 type ProbePayload struct {
 	ID          string         `json:"id" yaml:"id"`
@@ -116,7 +135,8 @@ func ProbeSkill(ctx context.Context, skillPath string, categories []AttackCatego
 	if len(categories) > 0 {
 		catMap := make(map[AttackCategory]bool)
 		for _, c := range categories {
-			catMap[c] = true
+			norm := NormalizeCategory(string(c))
+			catMap[norm] = true
 		}
 		for _, p := range allPayloads {
 			if catMap[p.Category] {

@@ -35,6 +35,11 @@ func RunTelemetry(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 
+	if format != "otlp" && format != "json" {
+		fmt.Fprintf(stderr, "Error: unsupported telemetry format %q (allowed: otlp, json)\n", format)
+		return 1
+	}
+
 	skillPath := posArgs[1]
 
 	art, err := artifact.Load(skillPath, artifact.Options{})
