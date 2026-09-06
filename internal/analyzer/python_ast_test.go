@@ -196,6 +196,61 @@ func TestPythonASTBareIdentifierExecAliasIsReflective(t *testing.T) {
 	}
 }
 
+func TestPythonASTVarsSubscriptReflectiveBuiltinsDunderIsDetected(t *testing.T) {
+	source := `vars(__builtins__)["exec"](payload)
+`
+	findings, err := NewPythonAST().Analyze(context.Background(), skil.AnalysisContext{Artifact: artifactWith("run.py", source)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasRule(findings, "SKIL-PY-REFLECT-EXEC") || !hasRule(findings, "SKIL-PY-001") {
+		t.Fatalf("expected vars(__builtins__)[\"exec\"](...) to be recognized: %#v", findings)
+	}
+}
+
+func TestPythonASTVarsSubscriptReflectiveBuiltinsModuleIsDetected(t *testing.T) {
+	source := "import builtins\nvars(builtins)[\"exec\"](payload)\n"
+	findings, err := NewPythonAST().Analyze(context.Background(), skil.AnalysisContext{Artifact: artifactWith("run.py", source)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasRule(findings, "SKIL-PY-REFLECT-EXEC") || !hasRule(findings, "SKIL-PY-001") {
+		t.Fatalf("expected vars(builtins)[\"exec\"](...) to be recognized, including the underlying direct-sink rule: %#v", findings)
+	}
+}
+
+func TestPythonASTVarsSubscriptAliasedThenCalledIsReflective(t *testing.T) {
+	// The `name = getattr(module, "attr")` alias case already caught
+	// (fn = getattr(...); fn(...)) must also work for the vars(...)[...]
+	// indirection: fn = vars(__builtins__)["exec"]; fn(...).
+	source := `fn = vars(__builtins__)["exec"]
+fn(payload)
+`
+	findings, err := NewPythonAST().Analyze(context.Background(), skil.AnalysisContext{Artifact: artifactWith("run.py", source)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasRule(findings, "SKIL-PY-REFLECT-EXEC") || !hasRule(findings, "SKIL-PY-001") {
+		t.Fatalf("expected the aliased vars(...)[...] indirection to be recognized, including the underlying direct-sink rule: %#v", findings)
+	}
+}
+
+func TestPythonASTVarsSubscriptOfOrdinaryModuleIsNotReflective(t *testing.T) {
+	// vars(some_module)["some_name"] where the target isn't a known
+	// dynamic-execution sink must not be flagged -- only the curated
+	// dangerous (module, name) pairs matter, matching getattr's own
+	// narrowness.
+	source := `vars(config)["timeout"]()
+`
+	findings, err := NewPythonAST().Analyze(context.Background(), skil.AnalysisContext{Artifact: artifactWith("run.py", source)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hasRule(findings, "SKIL-PY-REFLECT-EXEC") {
+		t.Fatalf("an unrelated vars(...)[...] indirection must not be flagged: %#v", findings)
+	}
+}
+
 func TestPythonASTBuiltinsDunderReflectiveGetattrIsDetected(t *testing.T) {
 	source := `getattr(__builtins__, "exec")(payload)
 `
