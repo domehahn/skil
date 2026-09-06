@@ -1,0 +1,15 @@
+schema_version: 1
+id: bench-050-benign-python-callable-alias-reassignment
+tier: development
+title: A callable alias reassigned to an untracked value must not inherit its prior identity
+ground_truth: {malicious: false, category: dynamic_execution}
+references: [{framework: advisory, control: reconstruction-false-positive-control}]
+rationale: >
+  runner is first bound to subprocess.run, then reassigned to an
+  unrelated, untracked value (safe_wrapper) before being called.
+  Runtime-order-aware resolution means the second call must not
+  automatically inherit the first identity -- a scanner that resolves
+  aliases without respecting reassignment order would wrongly flag this
+  as a subprocess.run call it no longer is.
+artifact: {root: artifact}
+review: {status: provisional, reviewers: []}

@@ -594,6 +594,31 @@ type CapabilityObservation struct {
 	Evidence   map[string]any `json:"evidence,omitempty" yaml:"evidence,omitempty"`
 }
 
+// CallableIdentity is the canonical, ecosystem-qualified identity a
+// resolved call target reduces to after alias/reflection resolution —
+// e.g. a Python `import os as api; runner = api.system; runner(cmd)`
+// alias chain resolves to Ecosystem "python", Module "os", Symbol
+// "system", Canonical "python://stdlib/os/system", with Provenance
+// recording the resolution steps (the alias/reflection form actually
+// found in source) that got there. Distinct from a Finding's raw
+// call_target evidence string: this is a structured, comparable identity
+// an analyzer attaches once it has already fully resolved a call, not a
+// new detection mechanism of its own.
+//
+// Deliberately narrow for now (Python only, a curated stdlib/builtins
+// split, never guessing a module is third-party just because it isn't in
+// that curated set), but shaped so the same concept can generalize into
+// an ExecutableIdentity across other ecosystems (JavaScript/TypeScript,
+// PowerShell, shell, MCP tools, agent tools) without a breaking change:
+// Ecosystem names which one applies.
+type CallableIdentity struct {
+	Ecosystem  string   `json:"ecosystem"`
+	Module     string   `json:"module,omitempty"`
+	Symbol     string   `json:"symbol"`
+	Canonical  string   `json:"canonical"`
+	Provenance []string `json:"provenance,omitempty"`
+}
+
 // PersistenceTestEvidence is the explicit two-phase runtime evidence shape.
 // Retrieval alone is not proof of persistent prompt injection: a confirmed
 // behavioral effect requires the canary to survive a real session boundary

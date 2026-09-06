@@ -301,6 +301,25 @@ reflective indirection to `getattr(module, "name")` (`vars(obj)` returns
 resolves the same target `getattr` would) — including through the same
 one-level alias tracking (`fn = vars(__builtins__)["exec"]; fn(...)`).
 
+A variable alias to *any* tracked call's resolved attribute — not only
+the fixed exec-family reflective sinks above — is also resolved:
+`runner = subprocess.run; runner(cmd, shell=True)` is treated exactly as
+`subprocess.run(cmd, shell=True)` would be, including through an import
+alias (`import os as api; execute = api.system; execute(cmd)` resolves to
+`os.system`) and a chained re-alias (`runner2 = runner`). This tracking
+is runtime-order-aware: reassigning the variable to something not itself
+a tracked call invalidates the prior binding, so a later call through
+that name does not inherit a stale identity from an earlier assignment.
+Every finding produced through this resolution carries a
+`callable_identity` (`skil.CallableIdentity`: `ecosystem`, `module`,
+`symbol`, a `canonical` identity string, and `provenance` recording the
+alias assignment(s) that resolved it) rather than only the raw resolved
+string — deliberately narrow for now (Python only, a curated
+stdlib/builtins split that never assumes an unrecognized module is
+third-party just because it isn't in that curated set), but shaped to
+generalize into the same identity concept across other ecosystems without
+a breaking change.
+
 Sensitive-path detection is not limited to a literal string argument: the
 same value-propagation layer statically reconstructs a path built from
 chained `pathlib` `/` joins (`Path.home() / ".ssh" / "id_rsa"`) or

@@ -71,6 +71,47 @@ var pythonCalls = map[string]astRule{
 	"urllib.request.urlopen": pyRule("SKIL-NET-001", "Outbound network operation", "tool-misuse", "Python performs an outbound network request.", "Declare and constrain outbound network access.", "network.outbound", skil.SeverityMedium),
 }
 
+// pythonStdlibModules is a curated, deliberately narrow allowlist of the
+// standard-library modules this analyzer's own rule/resolution tables
+// reference. A module absent from this set is never assumed to be
+// third-party/PyPI — that would be a guess this package has no basis
+// for — it's simply reported as "external" (not proven stdlib), matching
+// this file's established discipline of declining rather than guessing.
+// pythonCleanCallTarget matches a direct, already-resolved dotted call
+// target (or bare builtin name) -- as opposed to a reflective form like
+// `getattr(builtins, "exec")` or `vars(__builtins__)["exec"]`, which is
+// still a legitimate call_target evidence string but isn't itself a
+// clean identity to split on '.'.
+var pythonCleanCallTarget = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*$`)
+
+var pythonStdlibModules = map[string]bool{
+	"os": true, "os.path": true, "sys": true, "subprocess": true, "pty": true,
+	"pickle": true, "marshal": true, "urllib": true, "urllib.request": true,
+	"pathlib": true, "glob": true, "shutil": true,
+}
+
+// pythonCallableIdentity packages an already-resolved call target (the
+// same dotted string resolvePythonTarget/reflective-sink resolution
+// already produces everywhere in this file) into a structured
+// skil.CallableIdentity, rather than leaving callers with only a raw
+// evidence string. It performs no additional resolution of its own.
+func pythonCallableIdentity(target string, provenance []string) skil.CallableIdentity {
+	module, symbol := "", target
+	if idx := strings.LastIndex(target, "."); idx >= 0 {
+		module, symbol = target[:idx], target[idx+1:]
+	}
+	var canonical string
+	switch {
+	case module == "":
+		canonical = "python://builtins/" + symbol
+	case pythonStdlibModules[module]:
+		canonical = "python://stdlib/" + strings.ReplaceAll(module, ".", "/") + "/" + symbol
+	default:
+		canonical = "python://external/" + strings.ReplaceAll(module, ".", "/") + "/" + symbol
+	}
+	return skil.CallableIdentity{Ecosystem: "python", Module: module, Symbol: symbol, Canonical: canonical, Provenance: provenance}
+}
+
 func pyRule(id, title, category, description, remediation, capability string, severity skil.Severity) astRule {
 	switch category {
 	case "dangerous-code":
@@ -106,6 +147,7 @@ func (p *PythonAST) AnalyzeCapabilities(ctx context.Context, ac skil.AnalysisCon
 		}
 		aliases := collectAliases(tree.RootNode(), file.Data)
 		reflectiveVars := collectReflectiveAliases(tree.RootNode(), file.Data, aliases)
+		callableAliases, callableAliasSource := collectCallableAliases(tree.RootNode(), file.Data, aliases)
 		facts := collectPythonValueFacts(tree.RootNode(), file.Data, aliases)
 		observe := func(node *tree_sitter.Node, target, capability, value string, evidence map[string]any) {
 			if capability == "" {
@@ -122,7 +164,15 @@ func (p *PythonAST) AnalyzeCapabilities(ctx context.Context, ac skil.AnalysisCon
 			}
 			observations = append(observations, obs)
 		}
-		emit := func(node *tree_sitter.Node, target string, rule astRule) {
+		// currentProvenance is set immediately before resolving each call's
+		// target and read by emit's automatic callable-identity attachment
+		// below -- a call resolved through a variable alias
+		// (`runner = subprocess.run; runner(cmd)`) records that alias
+		// assignment as Provenance, distinguishing "resolved through this
+		// alias" from a direct `subprocess.run(cmd)` call. Reset for every
+		// node the outer walk visits, valid only within that one visit.
+		var currentProvenance []string
+		emit := func(node *tree_sitter.Node, target string, rule astRule) *skil.Finding {
 			rp := RulePattern{Rule: skil.Rule{ID: rule.id, Title: rule.title, Category: rule.category,
 				Severity: rule.severity, Description: rule.description, Analysis: "ast", AppliesTo: []string{"py"},
 				Remediation: rule.remediation}, Confidence: rule.confidence}
@@ -131,6 +181,12 @@ func (p *PythonAST) AnalyzeCapabilities(ctx context.Context, ac skil.AnalysisCon
 			finding.Location.EndLine = int(end.Row) + 1
 			finding.Evidence["call_target"] = target
 			finding.Evidence["node_type"] = node.Kind()
+			if pythonCleanCallTarget.MatchString(target) {
+				// A direct call: target is already the clean, resolved
+				// dotted path (or bare builtin name) this identity is
+				// built from -- no separate resolution happens here.
+				finding.Evidence["callable_identity"] = pythonCallableIdentity(target, currentProvenance)
+			}
 			if rule.capability != "" {
 				finding.Evidence["capability"] = rule.capability
 			}
@@ -170,6 +226,7 @@ func (p *PythonAST) AnalyzeCapabilities(ctx context.Context, ac skil.AnalysisCon
 				// declaration to real usage.
 				observe(node, target, "environment.read", value, finding.Evidence)
 			}
+			return &out[len(out)-1]
 		}
 		walkNode(tree.RootNode(), func(node *tree_sitter.Node) {
 			if node.Kind() == "subscript" {
@@ -199,30 +256,39 @@ func (p *PythonAST) AnalyzeCapabilities(ctx context.Context, ac skil.AnalysisCon
 			if function == nil {
 				return
 			}
-			if sink, ok := reflectiveGetattrSink(function, file.Data, aliases); ok {
-				emit(node, sink.target, pyRule("SKIL-PY-REFLECT-EXEC", "Reflective Python execution", "dynamic-execution", "Python reflectively resolves and invokes an execution sink.", "Use an explicit, reviewable function call and remove reflective execution.", "commands.execute", skil.SeverityHigh))
-				if underlying, ok := reflectiveUnderlyingRule(sink); ok {
-					emit(node, sink.target, underlying)
+			emitReflective := func(sink reflectiveSink) {
+				identity := reflectiveCallableIdentity(sink)
+				if finding := emit(node, sink.target, pyRule("SKIL-PY-REFLECT-EXEC", "Reflective Python execution", "dynamic-execution", "Python reflectively resolves and invokes an execution sink.", "Use an explicit, reviewable function call and remove reflective execution.", "commands.execute", skil.SeverityHigh)); finding != nil {
+					finding.Evidence["callable_identity"] = identity
 				}
+				if underlying, ok := reflectiveUnderlyingRule(sink); ok {
+					if finding := emit(node, sink.target, underlying); finding != nil {
+						finding.Evidence["callable_identity"] = identity
+					}
+				}
+			}
+			if sink, ok := reflectiveGetattrSink(function, file.Data, aliases); ok {
+				emitReflective(sink)
 				return
 			}
 			if sink, ok := reflectiveVarsSubscriptSink(function, file.Data, aliases); ok {
-				emit(node, sink.target, pyRule("SKIL-PY-REFLECT-EXEC", "Reflective Python execution", "dynamic-execution", "Python reflectively resolves and invokes an execution sink.", "Use an explicit, reviewable function call and remove reflective execution.", "commands.execute", skil.SeverityHigh))
-				if underlying, ok := reflectiveUnderlyingRule(sink); ok {
-					emit(node, sink.target, underlying)
-				}
+				emitReflective(sink)
 				return
 			}
 			if function.Kind() == "identifier" {
 				if sink, ok := reflectiveVars[function.Utf8Text(file.Data)]; ok {
-					emit(node, sink.target, pyRule("SKIL-PY-REFLECT-EXEC", "Reflective Python execution", "dynamic-execution", "Python reflectively resolves and invokes an execution sink.", "Use an explicit, reviewable function call and remove reflective execution.", "commands.execute", skil.SeverityHigh))
-					if underlying, ok := reflectiveUnderlyingRule(sink); ok {
-						emit(node, sink.target, underlying)
-					}
+					emitReflective(sink)
 					return
 				}
 			}
 			target := resolvePythonTarget(function.Utf8Text(file.Data), aliases)
+			currentProvenance = nil
+			if function.Kind() == "identifier" {
+				if resolved, ok := callableAliases[function.Utf8Text(file.Data)]; ok {
+					target = resolved
+					currentProvenance = []string{callableAliasSource[function.Utf8Text(file.Data)]}
+				}
+			}
 			rule, found := pythonCalls[target]
 			if !found && strings.HasPrefix(target, "os.exec") {
 				rule, found = pythonCalls["os.system"]
@@ -720,12 +786,82 @@ type reflectiveSink struct {
 	target, module, name string
 }
 
+// reflectiveCallableIdentity resolves a reflectiveSink to the same
+// underlying skil.CallableIdentity a direct, non-reflective call to that
+// sink would carry (e.g. getattr(builtins, "exec") and vars(__builtins__)
+// ["exec"] both resolve to the identical python://builtins/exec identity
+// a literal exec(...) call gets) -- the reflective form itself
+// (sink.target) is recorded as Provenance, distinguishing "resolved
+// through this indirection" from "called directly".
+func reflectiveCallableIdentity(sink reflectiveSink) skil.CallableIdentity {
+	canonicalTarget := sink.name
+	if sink.module != "" {
+		canonicalTarget = sink.module + "." + sink.name
+	}
+	return pythonCallableIdentity(canonicalTarget, []string{sink.target})
+}
+
 // collectReflectiveAliases finds simple assignments of the form
 // `name = getattr(module, "attr")` where the resolved target is a dangerous
 // execution sink, so a later call through the local variable (`name(...)`)
 // is still recognized as reflective execution even though the getattr call
 // and its invocation are separated. This extends the same alias-resolution
 // layer used for import aliases to value aliases of a reflective sink.
+// collectCallableAliases finds simple assignments of the form
+// `name = module.symbol` (or a chained `name2 = name`) where the resolved
+// target is already a known, tracked call in pythonCalls -- generalizing
+// the narrower collectReflectiveAliases (scoped only to the fixed
+// exec/eval/os.system dynamic-execution sinks) to every tracked call.
+// `runner = subprocess.run; runner(cmd, shell=True)` must be treated
+// exactly as `subprocess.run(cmd, shell=True)` for every existing rule,
+// not only the reflective-execution ones. A single, top-to-bottom,
+// straight-line pass, last-assignment-wins, matching every other fact
+// this file tracks -- not general dataflow. Returns both the resolved
+// target per alias name and the exact assignment source text, so a
+// finding produced through this alias can record it as identity
+// provenance.
+func collectCallableAliases(root *tree_sitter.Node, source []byte, aliases map[string]string) (map[string]string, map[string]string) {
+	callable := map[string]string{}
+	callableSource := map[string]string{}
+	walkNode(root, func(node *tree_sitter.Node) {
+		if node.Kind() != "assignment" {
+			return
+		}
+		left := node.ChildByFieldName("left")
+		right := node.ChildByFieldName("right")
+		if left == nil || right == nil || left.Kind() != "identifier" {
+			return
+		}
+		if right.Kind() != "attribute" && right.Kind() != "identifier" {
+			return
+		}
+		text := right.Utf8Text(source)
+		resolved := resolvePythonTarget(text, aliases)
+		name := left.Utf8Text(source)
+		if _, ok := pythonCalls[resolved]; !ok {
+			// Not itself a tracked call -- the only other case worth
+			// following is a chained re-alias of an already-tracked one
+			// (`runner2 = runner`), which the identifier branch above
+			// already resolved earlier in this same top-to-bottom pass.
+			if existing, ok := callable[text]; ok {
+				callable[name] = existing
+				callableSource[name] = node.Utf8Text(source)
+				return
+			}
+			// Reassigned to something this pass doesn't track as a
+			// callable: any prior binding for this name is no longer
+			// valid -- runtime-order-aware resolution means the second
+			// call must not silently inherit the first identity.
+			delete(callable, name)
+			delete(callableSource, name)
+			return
+		}
+		callable[name] = resolved
+		callableSource[name] = node.Utf8Text(source)
+	})
+	return callable, callableSource
+}
+
 func collectReflectiveAliases(root *tree_sitter.Node, source []byte, aliases map[string]string) map[string]reflectiveSink {
 	reflective := map[string]reflectiveSink{}
 	walkNode(root, func(node *tree_sitter.Node) {
