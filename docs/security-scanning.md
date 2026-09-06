@@ -278,6 +278,25 @@ rule that only reads source text. A Python version with no known code-
 object field layout, or a marshal stream that doesn't parse as a
 well-formed code object, declines rather than guessing.
 
+Python `subprocess.*` shell-invocation analysis resolves `shell=` beyond a
+literal `shell=True` token: a bounded, single-pass, module-scope constant-
+propagation layer (`internal/analyzer/python_ast.go`'s `pythonValueFacts`)
+tracks simple boolean/string literal assignments and dict literals, so
+`dangerous = True; subprocess.run(cmd, shell=dangerous)` and
+`opts = {"shell": True}; subprocess.run(cmd, **opts)` are both recognized —
+last-assignment-wins, matching Python's own runtime semantics, and never
+resolving anything beyond a direct literal (no function calls, no
+conditionals, no cross-file resolution). When the flag can't be resolved at
+all (an unresolved identifier, a function-parameter value, an unpacked
+non-literal `**kwargs`), the call is still reported — ambiguous is never
+silently treated as safe — with `shell_flag_resolution: "unresolved"` in
+evidence, distinguishing a confirmed `shell=True` from an unprovable one.
+Reflective execution detection recognizes `__builtins__` (the dunder
+object) as equivalent to the `builtins` module for
+`getattr(__builtins__, "exec")`-style calls, and a bare alias of a
+dynamic-execution sink with no `getattr` indirection at all
+(`fn = exec; fn(...)`).
+
 `scan-all` discovers concrete `SKILL.md` roots below a local or explicitly
 allowed remote collection and returns one independently digest-bound result per
 skill. `--workers` provides bounded parallelism while preserving discovery

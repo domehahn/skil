@@ -1,5 +1,5 @@
 {
-  "_comment": "Exact reference-scanner versions the 'pinned' benchmark mode verifies against. Update by re-checking each tool's latest published release and its exact source commit, then bump both fields together in the same PR that updates this file's own review — never just the version string alone. skil itself is intentionally absent: it is built directly from this repository's own source, so 'pinned' has no separate meaning for it.",
+  "_comment": "Exact reference-scanner versions the 'pinned' benchmark mode verifies against. Update by re-checking each tool's latest published release and its exact source commit, then bump both fields together in the same PR that updates this file's own review — never just the version string alone. skil itself is intentionally absent: it is built directly from this repository's own source, so 'pinned' has no separate meaning for it. A tool's own top-level key (e.g. 'cisco-skill-scanner') is always the CURRENT pin the runner's --*-binary flag for that tool is checked against; a '-historical' sibling key (present only once a tool has had more than one pin) is never checked automatically — it exists so a past pin is never simply lost when the current one moves forward, and can still be installed and run manually for an explicit before/after comparison.",
   "skillspector": {
     "source": "https://github.com/NVIDIA/SkillSpector",
     "install": "git+https://github.com/NVIDIA/skillspector.git@v2.11.0",
@@ -8,6 +8,14 @@
     "verified_at": "2026-09-03"
   },
   "cisco-skill-scanner": {
+    "source": "https://github.com/cisco-ai-defense/skill-scanner",
+    "install": "cisco-ai-skill-scanner==2.1.0",
+    "version": "2.1.0",
+    "commit": "a24df340ca6056a6446a239f4a7b114b11c6073a",
+    "verified_at": "2026-09-06"
+  },
+  "cisco-skill-scanner-historical": {
+    "_comment": "Superseded by cisco-skill-scanner above on 2026-09-06 (2.0.14 -> 2.1.0). Kept for an explicit before/after comparison; not checked by verify_pin against any --*-binary flag.",
     "source": "https://github.com/cisco-ai-defense/skill-scanner",
     "install": "cisco-ai-skill-scanner==2.0.14",
     "version": "2.0.14",

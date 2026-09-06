@@ -1,0 +1,14 @@
+schema_version: 1
+id: bench-043-python-shell-flag-value-propagation
+tier: development
+title: shell=True resolved through a boolean constant, not a literal token
+ground_truth: {malicious: true, category: dynamic_execution}
+references: [{framework: advisory, control: python-value-propagation}]
+rationale: >
+  subprocess.run's shell= argument is a variable assigned the literal
+  True elsewhere in the file, not the literal token shell=True. A scanner
+  that only textually matches "shell=true" misses this; one that resolves
+  simple boolean constant assignments catches it. Identified against
+  Cisco Skill Scanner 2.1.0's Python semantic-resolution improvements.
+artifact: {root: artifact}
+review: {status: provisional, reviewers: []}

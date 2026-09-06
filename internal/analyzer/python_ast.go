@@ -106,6 +106,7 @@ func (p *PythonAST) AnalyzeCapabilities(ctx context.Context, ac skil.AnalysisCon
 		}
 		aliases := collectAliases(tree.RootNode(), file.Data)
 		reflectiveVars := collectReflectiveAliases(tree.RootNode(), file.Data, aliases)
+		facts := collectPythonValueFacts(tree.RootNode(), file.Data)
 		observe := func(node *tree_sitter.Node, target, capability, value string, evidence map[string]any) {
 			if capability == "" {
 				return
@@ -235,21 +236,37 @@ func (p *PythonAST) AnalyzeCapabilities(ctx context.Context, ac skil.AnalysisCon
 				observe(node, target, "filesystem.read", literal, map[string]any{"node_type": node.Kind()})
 				return
 			}
-			if found && strings.HasPrefix(target, "subprocess.") && safeSubprocessCall(node, file.Data) {
-				// A safe, argv-only subprocess call is legitimate declared
-				// capability usage: it must not produce a Finding, but the
-				// capability was genuinely observed and must be recorded as
-				// such, or verification cannot distinguish "safely used a
-				// declared capability" from "never used it at all".
-				literal := firstStringLiteral(node, file.Data)
-				value := ""
-				evidence := map[string]any{"node_type": node.Kind()}
-				if literal != "" {
-					value = strings.Fields(literal)[0]
-					evidence["command"] = value
+			if found && strings.HasPrefix(target, "subprocess.") {
+				safe, unresolved := safeSubprocessCall(node, file.Data, facts)
+				if safe {
+					// A safe, argv-only subprocess call is legitimate declared
+					// capability usage: it must not produce a Finding, but the
+					// capability was genuinely observed and must be recorded as
+					// such, or verification cannot distinguish "safely used a
+					// declared capability" from "never used it at all".
+					literal := firstStringLiteral(node, file.Data)
+					value := ""
+					evidence := map[string]any{"node_type": node.Kind()}
+					if literal != "" {
+						value = strings.Fields(literal)[0]
+						evidence["command"] = value
+					}
+					observe(node, target, "commands.execute", value, evidence)
+					return
 				}
-				observe(node, target, "commands.execute", value, evidence)
-				return
+				if unresolved {
+					// The shell= value (or an unpacked **kwargs dict's "shell"
+					// key) references something this bounded, literal-only
+					// value-propagation pass cannot prove true or false (a
+					// function call, an unresolved variable, a comprehension,
+					// ...). Ambiguous must never be silently treated as safe:
+					// this still reports, but the evidence says the flag
+					// itself is unresolved rather than confirmed shell=True,
+					// so a reviewer sees exactly what was and wasn't proven.
+					emit(node, target, rule)
+					out[len(out)-1].Evidence["shell_flag_resolution"] = "unresolved"
+					return
+				}
 			}
 			if !found {
 				return
@@ -267,23 +284,169 @@ func (p *PythonAST) AnalyzeCapabilities(ctx context.Context, ac skil.AnalysisCon
 	return out, observations, nil
 }
 
-func safeSubprocessCall(call *tree_sitter.Node, source []byte) bool {
+// safeSubprocessCall reports whether an argv-only subprocess call (its
+// first positional argument a list/tuple of string literals) is safe to
+// treat as ordinary declared commands.execute capability usage rather than
+// a Finding. safe is true only when shell is absent or resolves to a
+// literal False; unresolved is true when the shell= value (or an unpacked
+// **kwargs dict's "shell" key) references something this bounded,
+// literal-only value-propagation pass cannot prove — an unresolved
+// identifier, a function call, a comprehension, or a **kwargs unpacking of
+// something other than a tracked dict literal. Ambiguous is never treated
+// as safe: callers must report it, distinguishing "confirmed shell=True"
+// from "shell flag could not be proven either way" in evidence.
+func safeSubprocessCall(call *tree_sitter.Node, source []byte, facts pythonValueFacts) (safe, unresolved bool) {
 	args := call.ChildByFieldName("arguments")
 	if args == nil || args.NamedChildCount() == 0 {
-		return false
+		return false, false
 	}
 	first := args.NamedChild(0)
 	if first == nil || (first.Kind() != "list" && first.Kind() != "tuple") {
-		return false
+		return false, false
 	}
 	for i := uint(0); i < first.NamedChildCount(); i++ {
 		child := first.NamedChild(i)
 		if child == nil || child.Kind() != "string" {
-			return false
+			return false, false
 		}
 	}
-	text := strings.ToLower(args.Utf8Text(source))
-	return !strings.Contains(text, "shell=true")
+	switch resolveShellFlag(args, source, facts) {
+	case shellFlagResolvedTrue:
+		return false, false
+	case shellFlagUnresolved:
+		return false, true
+	default: // absent, or resolved False
+		return true, false
+	}
+}
+
+// pythonValueFacts holds bounded, single-pass, module-scope-level constant
+// and dict-literal facts — the value-propagation slice of a Python
+// semantic resolution layer. Deliberately last-assignment-wins and
+// single-scope (matching collectAliases' own scope level), and limited to
+// literal booleans and strings: this is constant propagation, never
+// general dataflow, and it never claims to resolve anything beyond a
+// direct literal assignment (no function calls, no conditionals, no
+// cross-file resolution).
+type pythonValueFacts struct {
+	constants map[string]string            // identifier -> "true" | "false" | <string value>
+	dicts     map[string]map[string]string // identifier -> {key -> "true" | "false" | <string value>}
+}
+
+func collectPythonValueFacts(root *tree_sitter.Node, source []byte) pythonValueFacts {
+	facts := pythonValueFacts{constants: map[string]string{}, dicts: map[string]map[string]string{}}
+	walkNode(root, func(node *tree_sitter.Node) {
+		if node.Kind() != "assignment" {
+			return
+		}
+		left := node.ChildByFieldName("left")
+		right := node.ChildByFieldName("right")
+		if left == nil || right == nil || left.Kind() != "identifier" {
+			return
+		}
+		name := left.Utf8Text(source)
+		switch right.Kind() {
+		case "true", "false":
+			facts.constants[name] = right.Kind()
+		case "string":
+			facts.constants[name] = strings.Trim(right.Utf8Text(source), `"'`)
+		case "dictionary":
+			entry := map[string]string{}
+			for i := uint(0); i < right.NamedChildCount(); i++ {
+				pair := right.NamedChild(i)
+				if pair == nil || pair.Kind() != "pair" {
+					continue
+				}
+				key, value := pair.ChildByFieldName("key"), pair.ChildByFieldName("value")
+				if key == nil || value == nil || key.Kind() != "string" {
+					continue
+				}
+				keyText := strings.Trim(key.Utf8Text(source), `"'`)
+				switch value.Kind() {
+				case "true", "false":
+					entry[keyText] = value.Kind()
+				case "string":
+					entry[keyText] = strings.Trim(value.Utf8Text(source), `"'`)
+				}
+			}
+			facts.dicts[name] = entry
+		}
+	})
+	return facts
+}
+
+type shellFlagResolution int
+
+const (
+	shellFlagAbsent shellFlagResolution = iota
+	shellFlagResolvedFalse
+	shellFlagResolvedTrue
+	shellFlagUnresolved
+)
+
+// resolveShellFlag inspects a call's argument_list for a shell= keyword
+// argument or an unpacked **kwargs dict's "shell" key, resolving it against
+// facts (literal booleans and identifiers/dicts collectPythonValueFacts
+// already tracked). Later arguments win over earlier ones, matching
+// Python's own last-keyword/last-unpack-wins runtime semantics.
+func resolveShellFlag(args *tree_sitter.Node, source []byte, facts pythonValueFacts) shellFlagResolution {
+	resolveValue := func(value *tree_sitter.Node) shellFlagResolution {
+		switch value.Kind() {
+		case "true":
+			return shellFlagResolvedTrue
+		case "false":
+			return shellFlagResolvedFalse
+		case "identifier":
+			switch facts.constants[value.Utf8Text(source)] {
+			case "true":
+				return shellFlagResolvedTrue
+			case "false":
+				return shellFlagResolvedFalse
+			default:
+				return shellFlagUnresolved
+			}
+		default:
+			return shellFlagUnresolved
+		}
+	}
+	result := shellFlagAbsent
+	for i := uint(0); i < args.NamedChildCount(); i++ {
+		child := args.NamedChild(i)
+		if child == nil {
+			continue
+		}
+		switch child.Kind() {
+		case "keyword_argument":
+			name := child.ChildByFieldName("name")
+			if name == nil || name.Utf8Text(source) != "shell" {
+				continue
+			}
+			value := child.ChildByFieldName("value")
+			if value == nil {
+				continue
+			}
+			result = resolveValue(value)
+		case "dictionary_splat":
+			identifier := child.NamedChild(0)
+			if identifier == nil || identifier.Kind() != "identifier" {
+				result = shellFlagUnresolved // unpacking something other than a plain variable: cannot inspect its keys at all
+				continue
+			}
+			dict, ok := facts.dicts[identifier.Utf8Text(source)]
+			if !ok {
+				result = shellFlagUnresolved // unpacking a variable this pass never tracked as a dict literal
+				continue
+			}
+			switch dict["shell"] {
+			case "true":
+				result = shellFlagResolvedTrue
+			case "false":
+				result = shellFlagResolvedFalse
+				// "shell" key absent from a resolved dict: leave result as-is.
+			}
+		}
+	}
+	return result
 }
 
 func firstStringLiteral(node *tree_sitter.Node, source []byte) string {
@@ -428,14 +591,39 @@ func collectReflectiveAliases(root *tree_sitter.Node, source []byte, aliases map
 		}
 		left := node.ChildByFieldName("left")
 		right := node.ChildByFieldName("right")
-		if left == nil || right == nil || left.Kind() != "identifier" || right.Kind() != "call" {
+		if left == nil || right == nil || left.Kind() != "identifier" {
 			return
 		}
-		if sink, ok := reflectiveGetattrSink(right, source, aliases); ok {
-			reflective[left.Utf8Text(source)] = sink
+		switch right.Kind() {
+		case "call":
+			if sink, ok := reflectiveGetattrSink(right, source, aliases); ok {
+				reflective[left.Utf8Text(source)] = sink
+			}
+		case "identifier":
+			// A bare alias of a dangerous execution sink itself (`fn = exec`,
+			// with no getattr indirection) is just as reflective once called
+			// through the local name as the getattr(...) form above.
+			resolved := resolvePythonTarget(right.Utf8Text(source), aliases)
+			if isDirectDangerousSink(resolved) {
+				reflective[left.Utf8Text(source)] = reflectiveSink{target: resolved, name: resolved}
+			}
 		}
 	})
 	return reflective
+}
+
+// isDirectDangerousSink reports whether resolved (already alias-resolved)
+// is itself one of the fixed dynamic-execution sinks that makes a bare
+// `fn = <sink>` alias worth tracking as reflective — narrower than "any
+// name in pythonCalls", since aliasing e.g. requests.get is ordinary code,
+// not reflective execution.
+func isDirectDangerousSink(resolved string) bool {
+	switch resolved {
+	case "exec", "eval", "compile", "__import__", "os.system":
+		return true
+	default:
+		return strings.HasPrefix(resolved, "os.exec")
+	}
 }
 
 func reflectiveGetattrSink(function *tree_sitter.Node, source []byte, aliases map[string]string) (reflectiveSink, bool) {
@@ -454,7 +642,7 @@ func reflectiveGetattrSink(function *tree_sitter.Node, source []byte, aliases ma
 	module := resolvePythonTarget(object.Utf8Text(source), aliases)
 	name := strings.Trim(attribute.Utf8Text(source), `"'`)
 	dangerous := (module == "os" && (name == "system" || strings.HasPrefix(name, "exec"))) ||
-		(module == "builtins" && (name == "exec" || name == "eval" || name == "compile"))
+		((module == "builtins" || module == "__builtins__") && (name == "exec" || name == "eval" || name == "compile"))
 	if !dangerous {
 		return reflectiveSink{}, false
 	}
@@ -468,11 +656,20 @@ func reflectiveGetattrSink(function *tree_sitter.Node, source []byte, aliases ma
 // exec/eval/system call classified consistently with its direct form.
 func reflectiveUnderlyingRule(sink reflectiveSink) (astRule, bool) {
 	switch {
-	case sink.module == "builtins" && (sink.name == "exec" || sink.name == "eval" || sink.name == "compile"):
+	case (sink.module == "builtins" || sink.module == "__builtins__") && (sink.name == "exec" || sink.name == "eval" || sink.name == "compile"):
 		rule, ok := pythonCalls[sink.name]
 		return rule, ok
 	case sink.module == "os" && (sink.name == "system" || strings.HasPrefix(sink.name, "exec")):
 		rule, ok := pythonCalls["os.system"]
+		return rule, ok
+	case sink.module == "" && isDirectDangerousSink(sink.name):
+		// A bare `fn = exec` alias (collectReflectiveAliases' identifier
+		// case): the sink already *is* the canonical dangerous name, with
+		// no getattr/module indirection to resolve.
+		rule, ok := pythonCalls[sink.name]
+		if !ok && strings.HasPrefix(sink.name, "os.exec") {
+			rule, ok = pythonCalls["os.system"]
+		}
 		return rule, ok
 	default:
 		return astRule{}, false
