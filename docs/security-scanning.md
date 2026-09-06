@@ -293,9 +293,13 @@ silently treated as safe — with `shell_flag_resolution: "unresolved"` in
 evidence, distinguishing a confirmed `shell=True` from an unprovable one.
 Reflective execution detection recognizes `__builtins__` (the dunder
 object) as equivalent to the `builtins` module for
-`getattr(__builtins__, "exec")`-style calls, and a bare alias of a
+`getattr(__builtins__, "exec")`-style calls, a bare alias of a
 dynamic-execution sink with no `getattr` indirection at all
-(`fn = exec; fn(...)`).
+(`fn = exec; fn(...)`), and `vars(module)["name"]` as an equivalent
+reflective indirection to `getattr(module, "name")` (`vars(obj)` returns
+`obj`'s own `__dict__`, so subscripting it by a literal attribute name
+resolves the same target `getattr` would) — including through the same
+one-level alias tracking (`fn = vars(__builtins__)["exec"]; fn(...)`).
 
 Sensitive-path detection is not limited to a literal string argument: the
 same value-propagation layer statically reconstructs a path built from

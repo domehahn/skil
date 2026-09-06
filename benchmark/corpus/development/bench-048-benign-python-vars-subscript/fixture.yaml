@@ -1,0 +1,13 @@
+schema_version: 1
+id: bench-048-benign-python-vars-subscript
+tier: development
+title: vars(...)[...] against an unrelated attribute remains non-malicious
+ground_truth: {malicious: false, category: dynamic_execution}
+references: [{framework: advisory, control: reconstruction-false-positive-control}]
+rationale: >
+  vars(os)["environ"] uses the exact same reflective-indirection shape as
+  the dangerous vars(__builtins__)["exec"] case, but "environ" is not a
+  dynamic-execution sink — only the curated (module, name) pairs matter,
+  never "any vars(...)[...] indirection at all".
+artifact: {root: artifact}
+review: {status: provisional, reviewers: []}

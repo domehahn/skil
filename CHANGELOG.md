@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Added reflective-execution detection for `vars(module)["name"]`
+  (`vars(obj)` returns `obj`'s own `__dict__`, so subscripting it by a
+  literal attribute name resolves the same target `getattr(module,
+  "name")` would) — closing an evasion form (`vars(__builtins__)["exec"](payload)`)
+  the existing `getattr(...)`-only detection missed. Includes the same
+  one-level alias tracking already supported for `getattr(...)`
+  (`fn = vars(__builtins__)["exec"]; fn(...)`). Two new paired
+  benchmark fixtures confirm correct classification. See
+  `docs/security-scanning.md`.
+
 - Added a code-proven repeating-XOR reconstruction to Derived Security
   Views: the exact Python idiom `bytes(b ^ key[i % len(key)] for i, b in
   enumerate(payload))` is matched via a strict tree-sitter AST shape (loop

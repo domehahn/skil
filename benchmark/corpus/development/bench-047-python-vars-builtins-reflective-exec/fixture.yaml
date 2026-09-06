@@ -1,0 +1,15 @@
+schema_version: 1
+id: bench-047-python-vars-builtins-reflective-exec
+tier: development
+title: Reflective exec resolved via vars(__builtins__)["exec"]
+ground_truth: {malicious: true, category: dynamic_execution}
+references: [{framework: advisory, control: python-reflective-execution}]
+rationale: >
+  exec is invoked indirectly through vars(__builtins__)["exec"](...)
+  rather than a literal exec(...) call or the already-recognized
+  getattr(__builtins__, "exec")(...) form. vars(obj) returns the same
+  __dict__ getattr's second argument would look up, so this is an
+  equivalent reflective-execution evasion a scanner limited to literal
+  exec/eval calls or only the getattr form would miss.
+artifact: {root: artifact}
+review: {status: provisional, reviewers: []}

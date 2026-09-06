@@ -206,6 +206,13 @@ func (p *PythonAST) AnalyzeCapabilities(ctx context.Context, ac skil.AnalysisCon
 				}
 				return
 			}
+			if sink, ok := reflectiveVarsSubscriptSink(function, file.Data, aliases); ok {
+				emit(node, sink.target, pyRule("SKIL-PY-REFLECT-EXEC", "Reflective Python execution", "dynamic-execution", "Python reflectively resolves and invokes an execution sink.", "Use an explicit, reviewable function call and remove reflective execution.", "commands.execute", skil.SeverityHigh))
+				if underlying, ok := reflectiveUnderlyingRule(sink); ok {
+					emit(node, sink.target, underlying)
+				}
+				return
+			}
 			if function.Kind() == "identifier" {
 				if sink, ok := reflectiveVars[function.Utf8Text(file.Data)]; ok {
 					emit(node, sink.target, pyRule("SKIL-PY-REFLECT-EXEC", "Reflective Python execution", "dynamic-execution", "Python reflectively resolves and invokes an execution sink.", "Use an explicit, reviewable function call and remove reflective execution.", "commands.execute", skil.SeverityHigh))
@@ -735,6 +742,10 @@ func collectReflectiveAliases(root *tree_sitter.Node, source []byte, aliases map
 			if sink, ok := reflectiveGetattrSink(right, source, aliases); ok {
 				reflective[left.Utf8Text(source)] = sink
 			}
+		case "subscript":
+			if sink, ok := reflectiveVarsSubscriptSink(right, source, aliases); ok {
+				reflective[left.Utf8Text(source)] = sink
+			}
 		case "identifier":
 			// A bare alias of a dangerous execution sink itself (`fn = exec`,
 			// with no getattr indirection) is just as reflective once called
@@ -777,12 +788,50 @@ func reflectiveGetattrSink(function *tree_sitter.Node, source []byte, aliases ma
 	}
 	module := resolvePythonTarget(object.Utf8Text(source), aliases)
 	name := strings.Trim(attribute.Utf8Text(source), `"'`)
-	dangerous := (module == "os" && (name == "system" || strings.HasPrefix(name, "exec"))) ||
-		((module == "builtins" || module == "__builtins__") && (name == "exec" || name == "eval" || name == "compile"))
-	if !dangerous {
+	if !isDangerousReflectiveTarget(module, name) {
 		return reflectiveSink{}, false
 	}
 	return reflectiveSink{target: "getattr(" + module + ", " + name + ")", module: module, name: name}, true
+}
+
+// isDangerousReflectiveTarget is the single shared "is this specific
+// (module, name) pair a dynamic-execution sink" check reused by every
+// reflective-indirection shape this analyzer recognizes (getattr(...),
+// vars(...)[...], and any future one) — kept in one place so the exact
+// set of dangerous targets can't quietly drift between them.
+func isDangerousReflectiveTarget(module, name string) bool {
+	return (module == "os" && (name == "system" || strings.HasPrefix(name, "exec"))) ||
+		((module == "builtins" || module == "__builtins__") && (name == "exec" || name == "eval" || name == "compile"))
+}
+
+// reflectiveVarsSubscriptSink recognizes `vars(module)["name"]` (or
+// `vars(__builtins__)["exec"]`) as an equivalent reflective indirection to
+// getattr(module, "name") — vars(obj) returns obj's own __dict__, so
+// subscripting it by a literal attribute name resolves the same target
+// getattr would, just through a different builtin.
+func reflectiveVarsSubscriptSink(function *tree_sitter.Node, source []byte, aliases map[string]string) (reflectiveSink, bool) {
+	if function == nil || function.Kind() != "subscript" || function.NamedChildCount() != 2 {
+		return reflectiveSink{}, false
+	}
+	base, key := function.NamedChild(0), function.NamedChild(1)
+	if base == nil || key == nil || base.Kind() != "call" || key.Kind() != "string" {
+		return reflectiveSink{}, false
+	}
+	baseFunc := base.ChildByFieldName("function")
+	baseArgs := base.ChildByFieldName("arguments")
+	if baseFunc == nil || resolvePythonTarget(baseFunc.Utf8Text(source), aliases) != "vars" || baseArgs == nil || baseArgs.NamedChildCount() != 1 {
+		return reflectiveSink{}, false
+	}
+	moduleArg := baseArgs.NamedChild(0)
+	if moduleArg == nil {
+		return reflectiveSink{}, false
+	}
+	module := resolvePythonTarget(moduleArg.Utf8Text(source), aliases)
+	name := strings.Trim(key.Utf8Text(source), `"'`)
+	if !isDangerousReflectiveTarget(module, name) {
+		return reflectiveSink{}, false
+	}
+	return reflectiveSink{target: "vars(" + module + ")[" + name + "]", module: module, name: name}, true
 }
 
 // reflectiveUnderlyingRule maps a resolved reflective getattr(module, name)
