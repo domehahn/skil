@@ -106,7 +106,7 @@ func (p *PythonAST) AnalyzeCapabilities(ctx context.Context, ac skil.AnalysisCon
 		}
 		aliases := collectAliases(tree.RootNode(), file.Data)
 		reflectiveVars := collectReflectiveAliases(tree.RootNode(), file.Data, aliases)
-		facts := collectPythonValueFacts(tree.RootNode(), file.Data)
+		facts := collectPythonValueFacts(tree.RootNode(), file.Data, aliases)
 		observe := func(node *tree_sitter.Node, target, capability, value string, evidence map[string]any) {
 			if capability == "" {
 				return
@@ -223,6 +223,28 @@ func (p *PythonAST) AnalyzeCapabilities(ctx context.Context, ac skil.AnalysisCon
 			if target == "getattr" && dynamicGetattr(node) {
 				rule, found = pyRule("SKIL-PY-004", "Dynamic attribute access", "dangerous-code", "Dynamic attribute selection can bypass allowlists.", "Validate the attribute against an explicit allowlist.", "", skil.SeverityMedium), true
 			}
+			if target == "open" {
+				if args := node.ChildByFieldName("arguments"); args != nil && args.NamedChildCount() > 0 {
+					if constructed, ok := resolveConstructedPath(args.NamedChild(0), file.Data, aliases, facts, 0); ok {
+						if sensitive, matched := sensitiveConstructedPath(constructed); sensitive {
+							finding := makeFinding(RulePattern{Rule: skil.Rule{
+								ID: "SKIL-SEC-001", Title: "Constructed sensitive file access", Category: "data-boundary",
+								Severity: skil.SeverityHigh, Analysis: "ast", AppliesTo: []string{"py"},
+								Description: "Python statically constructs a path to a well-known sensitive credential/config location (via chained pathlib '/' joins or os.path.join), rather than opening a literal string path — invisible to detection that only recognizes a sensitive path as a literal string.",
+								Remediation: "Avoid programmatic access to well-known credential stores; if legitimate, declare the exact capability explicitly.",
+							}, Confidence: .9}, file, int(node.StartPosition().Row)+1, node.Utf8Text(file.Data))
+							finding.Evidence["call_target"] = target
+							finding.Evidence["node_type"] = node.Kind()
+							finding.Evidence["constructed_path"] = constructed
+							finding.Evidence["matched_sensitive_root"] = matched
+							finding.Evidence["capability"] = "secrets.read"
+							out = append(out, finding)
+							observe(node, target, "secrets.read", constructed, map[string]any{"node_type": node.Kind(), "constructed_path": constructed})
+							return
+						}
+					}
+				}
+			}
 			if target == "open" && writeMode(node, file.Data) {
 				rule, found = pyRule("SKIL-FS-001", "Filesystem write", "tool-misuse", "Python opens a file in a write-capable mode.", "Declare and constrain writable paths.", "filesystem.write", skil.SeverityMedium), true
 			}
@@ -331,10 +353,11 @@ func safeSubprocessCall(call *tree_sitter.Node, source []byte, facts pythonValue
 type pythonValueFacts struct {
 	constants map[string]string            // identifier -> "true" | "false" | <string value>
 	dicts     map[string]map[string]string // identifier -> {key -> "true" | "false" | <string value>}
+	paths     map[string]string            // identifier -> reconstructed, normalized home-relative path (e.g. "~/.ssh/id_rsa")
 }
 
-func collectPythonValueFacts(root *tree_sitter.Node, source []byte) pythonValueFacts {
-	facts := pythonValueFacts{constants: map[string]string{}, dicts: map[string]map[string]string{}}
+func collectPythonValueFacts(root *tree_sitter.Node, source []byte, aliases map[string]string) pythonValueFacts {
+	facts := pythonValueFacts{constants: map[string]string{}, dicts: map[string]map[string]string{}, paths: map[string]string{}}
 	walkNode(root, func(node *tree_sitter.Node) {
 		if node.Kind() != "assignment" {
 			return
@@ -370,9 +393,122 @@ func collectPythonValueFacts(root *tree_sitter.Node, source []byte) pythonValueF
 				}
 			}
 			facts.dicts[name] = entry
+		case "binary_operator", "call":
+			// A straight-line, top-to-bottom pass: by the time this
+			// assignment is visited, any earlier variable it references has
+			// already been recorded into facts.paths, so
+			// `ssh = home / ".ssh"; key = ssh / "id_rsa"` resolves key
+			// correctly even though home/ssh are two separate prior
+			// assignments. This is still bounded, single-scope, and
+			// order-dependent (matching every other fact this pass tracks)
+			// — not general dataflow.
+			if resolved, ok := resolveConstructedPath(right, source, aliases, facts, 0); ok {
+				facts.paths[name] = resolved
+			}
 		}
 	})
 	return facts
+}
+
+// resolveConstructedPath attempts a bounded, deterministic reconstruction
+// of a Python path-construction expression into a normalized, forward-
+// slash, home-relative path string (e.g. "~/.ssh/id_rsa"). It recognizes
+// exactly two idioms: chained pathlib '/' joins rooted at Path.home() (or
+// os.path.expanduser("~")), and os.path.join(...) calls whose arguments
+// are themselves resolvable. Anything else — a non-'/' operator, an
+// unresolved identifier, any other call — returns ok=false rather than
+// guessing at a partial reconstruction.
+func resolveConstructedPath(node *tree_sitter.Node, source []byte, aliases map[string]string, facts pythonValueFacts, depth int) (string, bool) {
+	if node == nil || depth > 16 {
+		return "", false
+	}
+	switch node.Kind() {
+	case "string":
+		return strings.Trim(node.Utf8Text(source), `"'`), true
+	case "identifier":
+		name := node.Utf8Text(source)
+		if value, ok := facts.paths[name]; ok {
+			return value, true
+		}
+		if value, ok := facts.constants[name]; ok {
+			return value, true
+		}
+		return "", false
+	case "binary_operator":
+		op := node.ChildByFieldName("operator")
+		if op == nil || op.Utf8Text(source) != "/" {
+			return "", false
+		}
+		left, right := node.ChildByFieldName("left"), node.ChildByFieldName("right")
+		if left == nil || right == nil {
+			return "", false
+		}
+		leftPath, ok := resolveConstructedPath(left, source, aliases, facts, depth+1)
+		if !ok {
+			return "", false
+		}
+		rightPath, ok := resolveConstructedPath(right, source, aliases, facts, depth+1)
+		if !ok {
+			return "", false
+		}
+		return strings.TrimRight(leftPath, "/") + "/" + strings.TrimLeft(rightPath, "/"), true
+	case "call":
+		return resolveConstructedPathCall(node, source, aliases, facts, depth)
+	default:
+		return "", false
+	}
+}
+
+func resolveConstructedPathCall(node *tree_sitter.Node, source []byte, aliases map[string]string, facts pythonValueFacts, depth int) (string, bool) {
+	function := node.ChildByFieldName("function")
+	args := node.ChildByFieldName("arguments")
+	if function == nil {
+		return "", false
+	}
+	target := resolvePythonTarget(function.Utf8Text(source), aliases)
+	switch target {
+	case "Path.home", "pathlib.Path.home":
+		return "~", true
+	case "os.path.expanduser":
+		if args == nil || args.NamedChildCount() != 1 {
+			return "", false
+		}
+		value, ok := resolveConstructedPath(args.NamedChild(0), source, aliases, facts, depth+1)
+		if !ok || value != "~" {
+			// Only the exact home-directory idiom (expanduser("~")) is
+			// recognized; any other expanduser argument is declined, not
+			// guessed at.
+			return "", false
+		}
+		return "~", true
+	case "os.path.join":
+		if args == nil || args.NamedChildCount() == 0 {
+			return "", false
+		}
+		segments := make([]string, 0, args.NamedChildCount())
+		for i := uint(0); i < args.NamedChildCount(); i++ {
+			segment, ok := resolveConstructedPath(args.NamedChild(i), source, aliases, facts, depth+1)
+			if !ok {
+				return "", false
+			}
+			segments = append(segments, strings.Trim(segment, "/"))
+		}
+		return strings.Join(segments, "/"), true
+	default:
+		return "", false
+	}
+}
+
+// sensitiveConstructedPathPattern matches a normalized, home-relative
+// constructed path (see resolveConstructedPath) against a curated set of
+// well-known credential/config locations. Matching only ever depends on
+// the reconstructed path itself, never a variable name.
+var sensitiveConstructedPathPattern = regexp.MustCompile(
+	`^~/(\.ssh(/|$)|\.aws(/|$)|\.config/gcloud(/|$)|\.kube(/|$)|\.docker(/|$)|\.npmrc$|\.pypirc$|\.git-credentials$)`)
+
+func sensitiveConstructedPath(path string) (bool, string) {
+	match := sensitiveConstructedPathPattern.FindString(path)
+	return match != "", strings.TrimSuffix(match, "/")
 }
 
 type shellFlagResolution int

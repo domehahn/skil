@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- Added static reconstruction of constructed sensitive file paths in
+  Python: a path built from chained `pathlib` `/` joins
+  (`Path.home() / ".ssh" / "id_rsa"`) or `os.path.join(...)` calls
+  (`os.path.join(os.path.expanduser("~"), ".aws", "credentials")`) is
+  reconstructed into a normalized, home-relative path and matched against
+  a curated set of well-known credential/config locations (`~/.ssh`,
+  `~/.aws`, `~/.config/gcloud`, `~/.kube`, `~/.docker`, `~/.npmrc`,
+  `~/.pypirc`, `~/.git-credentials`) — never against a variable name.
+  Reconstruction is declined, not guessed at, the moment any segment
+  isn't resolvable. Reuses the existing `SKIL-SEC-001` rule, so it
+  automatically participates in the Evidence Graph's existing
+  credential-read + network-operation `INFERRED` exfiltration
+  correlation with no separate wiring. See `docs/security-scanning.md`.
+
 - Added bounded Python value/constant propagation to `subprocess.*`
   shell-invocation analysis and reflective-execution detection (competitive
   gap identified against Cisco Skill Scanner 2.1.0's Python semantic

