@@ -612,11 +612,11 @@ type CapabilityObservation struct {
 // PowerShell, shell, MCP tools, agent tools) without a breaking change:
 // Ecosystem names which one applies.
 type CallableIdentity struct {
-	Ecosystem  string   `json:"ecosystem"`
-	Module     string   `json:"module,omitempty"`
-	Symbol     string   `json:"symbol"`
-	Canonical  string   `json:"canonical"`
-	Provenance []string `json:"provenance,omitempty"`
+	Ecosystem  string   `json:"ecosystem" yaml:"ecosystem"`
+	Module     string   `json:"module,omitempty" yaml:"module,omitempty"`
+	Symbol     string   `json:"symbol" yaml:"symbol"`
+	Canonical  string   `json:"canonical" yaml:"canonical"`
+	Provenance []string `json:"provenance,omitempty" yaml:"provenance,omitempty"`
 }
 
 // PersistenceTestEvidence is the explicit two-phase runtime evidence shape.

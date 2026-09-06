@@ -100,6 +100,17 @@ func pythonCallableIdentity(target string, provenance []string) skil.CallableIde
 	if idx := strings.LastIndex(target, "."); idx >= 0 {
 		module, symbol = target[:idx], target[idx+1:]
 	}
+	if module == "builtins" || module == "__builtins__" {
+		// Both the imported-module form (builtins.exec) and the reflective
+		// dunder-object form (getattr(__builtins__, "exec"),
+		// vars(__builtins__)["exec"]) name the exact same builtin
+		// namespace resolvePythonTarget already treats a bare `exec(...)`
+		// call as belonging to -- normalize both to the same "no module"
+		// canonical form a direct call gets, rather than the unrelated
+		// "external" bucket a module absent from the curated stdlib set
+		// would otherwise fall into.
+		module = ""
+	}
 	var canonical string
 	switch {
 	case module == "":

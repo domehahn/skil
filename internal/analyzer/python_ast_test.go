@@ -127,6 +127,42 @@ func TestPythonASTCallableAliasReassignmentToTrackedTargetResolves(t *testing.T)
 	t.Fatalf("expected the reassigned-to-a-tracked-target alias to resolve: %#v", findings)
 }
 
+func TestPythonASTReflectiveBuiltinsIdentityMatchesDirectCall(t *testing.T) {
+	// getattr(__builtins__, "exec"), vars(module)["exec"] against either
+	// the `builtins` module alias or the `__builtins__` dunder object, and
+	// a direct exec(...) call must all resolve to the exact same
+	// python://builtins/exec canonical identity, with no `module` set --
+	// __builtins__/builtins name the same namespace resolvePythonTarget
+	// already treats a bare exec(...) call as belonging to, not a
+	// separate "external" module.
+	cases := []string{
+		`vars(__builtins__)["exec"](payload)` + "\n",
+		"import builtins\nvars(builtins)[\"exec\"](payload)\n",
+		"getattr(__builtins__, \"exec\")(payload)\n",
+		"import builtins\ngetattr(builtins, \"exec\")(payload)\n",
+	}
+	for _, source := range cases {
+		findings, err := NewPythonAST().Analyze(context.Background(), skil.AnalysisContext{Artifact: artifactWith("t.py", source)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		found := false
+		for _, finding := range findings {
+			id, ok := finding.Evidence["callable_identity"].(skil.CallableIdentity)
+			if !ok {
+				continue
+			}
+			if id.Canonical != "python://builtins/exec" || id.Module != "" {
+				t.Fatalf("%s: expected python://builtins/exec with no module, got %#v", source, id)
+			}
+			found = true
+		}
+		if !found {
+			t.Fatalf("%s: expected a callable identity on the reflective finding", source)
+		}
+	}
+}
+
 func TestPythonASTThirdPartyModuleIsNeverAssumedStdlib(t *testing.T) {
 	source := "import requests\nrequests.get(url)\n"
 	findings, err := NewPythonAST().Analyze(context.Background(), skil.AnalysisContext{Artifact: artifactWith("t.py", source)})
