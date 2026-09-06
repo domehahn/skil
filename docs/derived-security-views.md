@@ -34,7 +34,18 @@ views up to the configured depth:
   before a line ending is removed the same way POSIX shell and Python treat
   it, so a command fragmented across several lines reconstructs to the single
   logical line an existing rule already matches, at that rule's own
-  unmodified severity.
+  unmodified severity;
+- code-proven repeating-XOR reconstruction: the exact Python idiom
+  `bytes(b ^ key[i % len(key)] for i, b in enumerate(payload))`, matched
+  via a strict tree-sitter AST shape (loop variable names must agree
+  between the generator body and its for-clause), only fires when both
+  `key` and `payload` themselves resolve to a static bytes-literal
+  assignment elsewhere in the same file — a runtime-computed key or
+  payload (a function parameter, a call result, ...) is never resolved,
+  and the decoded result must still pass the same printable() gate every
+  other decode transform in this package uses. No brute-force key search,
+  no speculative XOR against candidate keys: the algorithm and both
+  inputs must already be provable from the code exactly as written.
 
 This is not general evaluation or model-based deobfuscation. SKIL does not
 execute reconstructed content and does not make a network request to derive a

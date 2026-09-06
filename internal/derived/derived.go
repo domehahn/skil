@@ -92,6 +92,7 @@ var transformations = []transformer{
 	{kind: "escaped-string", mayApply: func(data []byte) bool { return doubleQuote.Match(data) && strings.Contains(string(data), `\`) }, apply: decodeEscapedStrings},
 	{kind: "simple-string-concatenation", mayApply: func(data []byte) bool { return doubleConcat.Match(data) }, apply: joinStringConcatenation},
 	{kind: "shell-line-continuation-joining", mayApply: func(data []byte) bool { return shellContinuationRun.Match(data) }, apply: joinShellLineContinuations},
+	{kind: "python-repeating-xor", mayApply: mayContainPythonXORReconstruction, apply: decodePythonRepeatingXOR},
 }
 
 // Build derives views breadth-first in a fixed transformation order. Original

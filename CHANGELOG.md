@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- Added a code-proven repeating-XOR reconstruction to Derived Security
+  Views: the exact Python idiom `bytes(b ^ key[i % len(key)] for i, b in
+  enumerate(payload))` is matched via a strict tree-sitter AST shape (loop
+  variable names must agree between the generator body and its
+  for-clause), and only reconstructed when both `key` and `payload`
+  themselves resolve to a static bytes-literal assignment elsewhere in the
+  same file — a runtime-computed key or payload is never resolved, and the
+  decoded result must still pass the existing printable() gate. No
+  brute-force key search, no speculative XOR against candidate keys.
+  Verified end-to-end with real Python source: a repeating-XOR-encoded
+  `rm -rf /` passed to `os.system(...)` is caught by the existing,
+  unmodified `SKIL-PY-002` rule with full derived-view transformation
+  provenance surviving into the finding. See
+  `docs/derived-security-views.md`.
+
 - Added static reconstruction of constructed sensitive file paths in
   Python: a path built from chained `pathlib` `/` joins
   (`Path.home() / ".ssh" / "id_rsa"`) or `os.path.join(...)` calls

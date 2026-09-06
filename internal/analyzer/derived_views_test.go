@@ -110,6 +110,40 @@ func TestShellLineContinuationReconstructsFullSeverityFinding(t *testing.T) {
 	t.Fatalf("fragmented dangerous command was not caught by the existing SKIL-SH-003 rule: %#v", result.Findings)
 }
 
+// TestRegistryReconstructsRepeatingXORDecodedDangerousCommand is the real,
+// non-synthetic proof for the "code-proven Derived Security Views" repeating-
+// XOR reconstruction: a real Python file whose os.system() argument is a
+// bytes(b ^ key[i % len(key)] for i, b in enumerate(payload)) expression with
+// a statically-proven key and payload is scanned through the real registry,
+// and the existing (unmodified) SKIL-PY-002 rule must still fire against the
+// reconstructed "rm -rf /" command, with full derived-view transformation
+// provenance surviving into the finding's evidence.
+func TestRegistryReconstructsRepeatingXORDecodedDangerousCommand(t *testing.T) {
+	source := "import os\n" +
+		"key = b\"\\x2a\"\n" +
+		"payload = b\"\\x58\\x47\\x0a\\x07\\x58\\x4c\\x0a\\x05\"\n" +
+		"os.system(bytes(b ^ key[i % len(key)] for i, b in enumerate(payload)))\n"
+	artifact := skil.Artifact{Name: "xor", Digest: "root", Files: []skil.File{{Path: "evil.py", Data: []byte(source)}}}
+	result, err := DefaultRegistry(nil).Scan(context.Background(), skil.AnalysisContext{Artifact: artifact})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, finding := range result.Findings {
+		if finding.RuleID != "SKIL-PY-002" || finding.Evidence["derived_view_id"] == nil {
+			continue
+		}
+		if finding.Severity != skil.SeverityHigh {
+			t.Fatalf("reconstructed command must be caught at its rule's own full severity: %#v", finding)
+		}
+		steps, ok := finding.Evidence["derived_transformations"].([]skil.TransformationStep)
+		if !ok || len(steps) == 0 || steps[0].Kind != "python-repeating-xor" {
+			t.Fatalf("expected python-repeating-xor provenance: %#v", finding.Evidence)
+		}
+		return
+	}
+	t.Fatalf("repeating-XOR-decoded dangerous command was not caught by the existing SKIL-PY-002 rule: %#v", result.Findings)
+}
+
 func TestDerivedViewBudgetExhaustionIsExplicit(t *testing.T) {
 	budget := skil.AnalysisBudget{
 		MaxRawBytes: 1 << 20, MaxExpandedBytes: 1 << 20, MaxFindings: 10_000,
