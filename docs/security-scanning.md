@@ -297,6 +297,22 @@ object) as equivalent to the `builtins` module for
 dynamic-execution sink with no `getattr` indirection at all
 (`fn = exec; fn(...)`).
 
+Sensitive-path detection is not limited to a literal string argument: the
+same value-propagation layer statically reconstructs a path built from
+chained `pathlib` `/` joins (`Path.home() / ".ssh" / "id_rsa"`) or
+`os.path.join(...)` calls (`os.path.join(os.path.expanduser("~"), ".aws",
+"credentials")`) into a normalized, home-relative path, matched against a
+curated set of well-known credential/config locations (`~/.ssh`, `~/.aws`,
+`~/.config/gcloud`, `~/.kube`, `~/.docker`, `~/.npmrc`, `~/.pypirc`,
+`~/.git-credentials`) — never against a variable name. Reconstruction is
+declined, not guessed at, the moment any segment isn't itself resolvable
+(a function parameter, a non-literal argument); an unrecognized or
+non-sensitive constructed path produces no finding. A constructed-path
+finding reuses the existing `SKIL-SEC-001` rule, so it automatically
+participates in the Evidence Graph's existing credential-read +
+network-operation `INFERRED` exfiltration correlation with no separate
+wiring.
+
 `scan-all` discovers concrete `SKILL.md` roots below a local or explicitly
 allowed remote collection and returns one independently digest-bound result per
 skill. `--workers` provides bounded parallelism while preserving discovery

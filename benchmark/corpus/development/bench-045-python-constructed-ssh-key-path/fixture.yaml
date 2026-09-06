@@ -1,0 +1,14 @@
+schema_version: 1
+id: bench-045-python-constructed-ssh-key-path
+tier: development
+title: SSH private key path constructed via chained pathlib joins
+ground_truth: {malicious: true, category: data_exfiltration}
+references: [{framework: advisory, control: python-constructed-path-resolution}]
+rationale: >
+  The SSH private key path is never written as a literal string; it is
+  built from Path.home() / ".ssh" / "id_rsa". A scanner that only matches
+  literal sensitive-path strings misses this; one that statically
+  reconstructs the chained expression catches it. Identified against
+  Cisco Skill Scanner 2.1.0's constructed sensitive path handling.
+artifact: {root: artifact}
+review: {status: provisional, reviewers: []}
