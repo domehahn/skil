@@ -58,6 +58,170 @@ func TestPythonASTSafeSubprocessCallIsObservedWithoutFinding(t *testing.T) {
 	}
 }
 
+func TestPythonASTBooleanConstantPropagatesToShellTrue(t *testing.T) {
+	// The exact case Cisco 2.1.0 handles and skil's own prior textual
+	// "shell=true" substring check missed entirely: a boolean assigned to a
+	// named variable, then passed as shell=<var>.
+	source := "import subprocess\ndangerous = True\nsubprocess.run([\"id\"], shell=dangerous)\n"
+	findings, err := NewPythonAST().Analyze(context.Background(), skil.AnalysisContext{Artifact: artifactWith("run.py", source)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, finding := range findings {
+		if finding.RuleID == "SKIL-PY-002" {
+			if finding.Evidence["shell_flag_resolution"] != nil {
+				t.Fatalf("a confirmed shell=True must not be marked unresolved: %#v", finding.Evidence)
+			}
+			return
+		}
+	}
+	t.Fatalf("expected SKIL-PY-002 once shell=True is resolved through the constant: %#v", findings)
+}
+
+func TestPythonASTBooleanConstantPropagatesToShellFalseStaysSafe(t *testing.T) {
+	source := "import subprocess\nsafe = False\nsubprocess.run([\"id\"], shell=safe)\n"
+	findings, observations, err := NewPythonAST().AnalyzeCapabilities(context.Background(), skil.AnalysisContext{Artifact: artifactWith("run.py", source)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, finding := range findings {
+		if finding.RuleID == "SKIL-PY-002" {
+			t.Fatalf("shell=False resolved through a constant must not produce a finding: %#v", findings)
+		}
+	}
+	found := false
+	for _, obs := range observations {
+		if obs.Capability == "commands.execute" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected the safe call to still be observed: %#v", observations)
+	}
+}
+
+func TestPythonASTLastAssignmentWinsForShellConstant(t *testing.T) {
+	// Matches Python's own runtime semantics: the last assignment before use
+	// is the value that actually applies.
+	source := "import subprocess\nflag = True\nflag = False\nsubprocess.run([\"id\"], shell=flag)\n"
+	findings, err := NewPythonAST().Analyze(context.Background(), skil.AnalysisContext{Artifact: artifactWith("run.py", source)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, finding := range findings {
+		if finding.RuleID == "SKIL-PY-002" {
+			t.Fatalf("last-assignment-wins must resolve to the final False: %#v", findings)
+		}
+	}
+}
+
+func TestPythonASTUnresolvedShellIdentifierIsReportedAsUnresolvedNotSafe(t *testing.T) {
+	// An identifier this bounded pass never tracked (a function parameter,
+	// a value returned from a call, ...) must not be silently treated as
+	// safe: ambiguous is reported, distinctly labeled, never SAFE.
+	source := "import subprocess\ndef run(flag):\n    subprocess.run([\"id\"], shell=flag)\n"
+	findings, err := NewPythonAST().Analyze(context.Background(), skil.AnalysisContext{Artifact: artifactWith("run.py", source)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, finding := range findings {
+		if finding.RuleID == "SKIL-PY-002" {
+			if finding.Evidence["shell_flag_resolution"] != "unresolved" {
+				t.Fatalf("expected the ambiguous shell flag to be explicitly marked unresolved: %#v", finding.Evidence)
+			}
+			return
+		}
+	}
+	t.Fatalf("expected an unresolved-shell-flag finding rather than silent safety: %#v", findings)
+}
+
+func TestPythonASTKwargsDictShellTrueIsDetected(t *testing.T) {
+	source := `import subprocess
+opts = {"shell": True}
+subprocess.run(["id"], **opts)
+`
+	findings, err := NewPythonAST().Analyze(context.Background(), skil.AnalysisContext{Artifact: artifactWith("run.py", source)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, finding := range findings {
+		if finding.RuleID == "SKIL-PY-002" {
+			return
+		}
+	}
+	t.Fatalf("expected shell=True unpacked from a **kwargs dict literal to be detected: %#v", findings)
+}
+
+func TestPythonASTKwargsDictShellFalseStaysSafe(t *testing.T) {
+	source := `import subprocess
+opts = {"shell": False, "timeout": 5}
+subprocess.run(["id"], **opts)
+`
+	findings, err := NewPythonAST().Analyze(context.Background(), skil.AnalysisContext{Artifact: artifactWith("run.py", source)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, finding := range findings {
+		if finding.RuleID == "SKIL-PY-002" {
+			t.Fatalf("**kwargs shell=False must not produce a finding: %#v", findings)
+		}
+	}
+}
+
+func TestPythonASTUnresolvedKwargsSplatIsReportedAsUnresolved(t *testing.T) {
+	source := "import subprocess\ndef run(opts):\n    subprocess.run([\"id\"], **opts)\n"
+	findings, err := NewPythonAST().Analyze(context.Background(), skil.AnalysisContext{Artifact: artifactWith("run.py", source)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, finding := range findings {
+		if finding.RuleID == "SKIL-PY-002" {
+			if finding.Evidence["shell_flag_resolution"] != "unresolved" {
+				t.Fatalf("an unresolvable **kwargs unpack must be marked unresolved, not silently safe: %#v", finding.Evidence)
+			}
+			return
+		}
+	}
+	t.Fatalf("expected an unresolved-shell-flag finding for an untracked **kwargs unpack: %#v", findings)
+}
+
+func TestPythonASTBareIdentifierExecAliasIsReflective(t *testing.T) {
+	source := "fn = exec\nfn(payload)\n"
+	findings, err := NewPythonAST().Analyze(context.Background(), skil.AnalysisContext{Artifact: artifactWith("run.py", source)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasRule(findings, "SKIL-PY-REFLECT-EXEC") || !hasRule(findings, "SKIL-PY-001") {
+		t.Fatalf("expected a bare `fn = exec` alias to be caught as reflective execution: %#v", findings)
+	}
+}
+
+func TestPythonASTBuiltinsDunderReflectiveGetattrIsDetected(t *testing.T) {
+	source := `getattr(__builtins__, "exec")(payload)
+`
+	findings, err := NewPythonAST().Analyze(context.Background(), skil.AnalysisContext{Artifact: artifactWith("run.py", source)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasRule(findings, "SKIL-PY-REFLECT-EXEC") {
+		t.Fatalf("expected getattr(__builtins__, \"exec\") to be recognized (not just the 'builtins' module alias): %#v", findings)
+	}
+}
+
+func TestPythonASTAliasingAnOrdinaryCallIsNotReflective(t *testing.T) {
+	// Aliasing a non-dangerous tracked call (requests.get) must not be
+	// mistaken for reflective execution -- isDirectDangerousSink is
+	// narrower than "any name in pythonCalls".
+	source := "import requests\nfetch = requests.get\nfetch(url)\n"
+	findings, err := NewPythonAST().Analyze(context.Background(), skil.AnalysisContext{Artifact: artifactWith("run.py", source)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hasRule(findings, "SKIL-PY-REFLECT-EXEC") {
+		t.Fatalf("aliasing an ordinary tracked call must not fire SKIL-PY-REFLECT-EXEC: %#v", findings)
+	}
+}
+
 func TestPythonASTReadOnlyFileOpenIsObservedWithoutFinding(t *testing.T) {
 	// Reading a file in the default (read) mode is not itself dangerous and
 	// must not produce a Finding, but it is legitimate declared

@@ -155,7 +155,7 @@ go build -o /tmp/skil ./cmd/skil
 # Install the exact pinned reference-scanner versions (Apache-2.0, from
 # their own repositories) — see benchmark/pinned-versions.json
 uv tool install git+https://github.com/NVIDIA/skillspector.git@v2.11.0
-pip install cisco-ai-skill-scanner==2.0.14
+pip install cisco-ai-skill-scanner==2.1.0
 
 pip install pyyaml
 python3 benchmark/runner/run_benchmark.py \
@@ -199,6 +199,10 @@ tag's commit SHA against the upstream repository directly — don't just
 bump the version string), which keeps the CI install step, the local
 install instructions above, and the runner's own verification all reading
 from one source of truth rather than three that can silently disagree.
+Move the pin being replaced to a `-historical` sibling key (see the file's
+own `_comment`) rather than deleting it, so a past baseline stays available
+for an explicit before/after comparison instead of being lost the moment a
+new release lands.
 
 ### Measurement evidence
 

@@ -1,0 +1,14 @@
+schema_version: 1
+id: bench-044-benign-python-kwargs-shell-false
+tier: development
+title: shell=False unpacked from a **kwargs dict literal remains non-malicious
+ground_truth: {malicious: false, category: dynamic_execution}
+references: [{framework: advisory, control: reconstruction-false-positive-control}]
+rationale: >
+  An argv-only subprocess call whose options are passed via **kwargs from
+  a dict literal that explicitly sets shell: False must not be flagged
+  merely because the shell flag isn't a literal keyword argument at the
+  call site — resolving the unpacked dict correctly is what proves this
+  safe, not textual absence of "shell=true".
+artifact: {root: artifact}
+review: {status: provisional, reviewers: []}

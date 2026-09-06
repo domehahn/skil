@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- Added bounded Python value/constant propagation to `subprocess.*`
+  shell-invocation analysis and reflective-execution detection (competitive
+  gap identified against Cisco Skill Scanner 2.1.0's Python semantic
+  resolution): `shell=` now resolves through a simple boolean/string
+  constant (`dangerous = True; subprocess.run(cmd, shell=dangerous)`) and
+  through an unpacked `**kwargs` dict literal (`opts = {"shell": True};
+  subprocess.run(cmd, **opts)`), last-assignment-wins, single-scope,
+  literal-only — never resolving beyond a direct assignment. An
+  unresolvable shell flag is still reported, marked
+  `shell_flag_resolution: "unresolved"` in evidence, rather than silently
+  treated as safe. Reflective execution detection now also recognizes
+  `__builtins__` (previously only the `builtins` module alias) and a bare
+  `fn = exec; fn(...)` alias with no `getattr` indirection. See
+  `docs/security-scanning.md`.
+
 - Added SKIL Behavioral Live Evaluation, Adversarial Red-Teaming, Host-Mediated Runtime Proxy, and OpenTelemetry Audit Platform (`v0.6.0`):
   - **Behavioral Live Evaluation Harness (`internal/evalharness`, `skil eval run`)**:
     Runs synthetic test suites in isolated mock environments to compute `Pass@1`, `Pass@5`, Tool Call Accuracy, Error Recovery Rate, and Failure Escalation Safety.
