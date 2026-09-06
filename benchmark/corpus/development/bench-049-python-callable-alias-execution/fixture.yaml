@@ -1,0 +1,16 @@
+schema_version: 1
+id: bench-049-python-callable-alias-execution
+tier: development
+title: os.system invoked through a variable alias to its resolved attribute
+ground_truth: {malicious: true, category: dynamic_execution}
+references: [{framework: advisory, control: python-callable-identity-resolution}]
+rationale: >
+  execute = system_api.system; execute(command) never calls os.system
+  literally -- the call site is just a bare identifier. A scanner that
+  only matches literal call targets misses this; one that resolves
+  variable aliases to their underlying attribute (through an import
+  alias too: system_api is itself an alias for os) catches it. This is
+  the primary illustrative example from the Cisco 2.1.0 competitive
+  delta's Python semantic-resolution request.
+artifact: {root: artifact}
+review: {status: provisional, reviewers: []}

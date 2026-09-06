@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+- Added `skil.CallableIdentity` (`ecosystem`, `module`, `symbol`, a
+  canonical identity string, and `provenance`) and general Python
+  variable-alias resolution for *any* tracked call, not only the fixed
+  exec-family reflective sinks: `runner = subprocess.run; runner(cmd,
+  shell=True)` is now treated exactly as `subprocess.run(cmd,
+  shell=True)`, including through an import alias
+  (`execute = api.system` where `api` is itself `import os as api`) and a
+  chained re-alias (`runner2 = runner`). Resolution is runtime-order-aware:
+  reassigning the variable to something not itself a tracked call
+  invalidates the prior binding, so a later call does not inherit a stale
+  identity from an earlier assignment. Deliberately narrow for now
+  (Python only, a curated stdlib/builtins split that never assumes an
+  unrecognized module is third-party), but shaped to generalize into the
+  same identity concept across other ecosystems without a breaking
+  change. Two new paired benchmark fixtures confirm a real, verified
+  verdict change (CLEAR → BLOCK) for the previously-undetected alias
+  case, and that reassignment-invalidation doesn't introduce a new false
+  positive. See `docs/security-scanning.md`.
+
 - Added reflective-execution detection for `vars(module)["name"]`
   (`vars(obj)` returns `obj`'s own `__dict__`, so subscripting it by a
   literal attribute name resolves the same target `getattr(module,

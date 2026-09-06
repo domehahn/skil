@@ -58,6 +58,130 @@ func TestPythonASTSafeSubprocessCallIsObservedWithoutFinding(t *testing.T) {
 	}
 }
 
+func TestPythonASTCallableAliasResolvesToUnderlyingIdentity(t *testing.T) {
+	// The mega-prompt's own primary example: a variable alias to a tracked
+	// call's attribute (not just the narrower exec-family reflective
+	// sinks) must be treated exactly like a direct call to that target.
+	source := "import os as system_api\nexecute = system_api.system\nexecute(command)\n"
+	findings, err := NewPythonAST().Analyze(context.Background(), skil.AnalysisContext{Artifact: artifactWith("t.py", source)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, finding := range findings {
+		if finding.RuleID != "SKIL-PY-002" {
+			continue
+		}
+		identity, ok := finding.Evidence["callable_identity"].(skil.CallableIdentity)
+		if !ok || identity.Module != "os" || identity.Symbol != "system" || identity.Canonical != "python://stdlib/os/system" {
+			t.Fatalf("expected the alias to resolve to os.system's canonical identity: %#v", finding.Evidence)
+		}
+		if len(identity.Provenance) == 0 {
+			t.Fatalf("expected the alias assignment to be recorded as provenance: %#v", identity)
+		}
+		return
+	}
+	t.Fatalf("expected the aliased call to be resolved and flagged: %#v", findings)
+}
+
+func TestPythonASTCallableAliasChainResolves(t *testing.T) {
+	source := "import subprocess\nrunner = subprocess.run\nrunner2 = runner\nrunner2(cmd)\n"
+	findings, err := NewPythonAST().Analyze(context.Background(), skil.AnalysisContext{Artifact: artifactWith("t.py", source)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasRule(findings, "SKIL-PY-002") {
+		t.Fatalf("expected a chained alias (runner2 = runner) to resolve: %#v", findings)
+	}
+}
+
+func TestPythonASTCallableAliasReassignmentDoesNotInheritStaleIdentity(t *testing.T) {
+	// Runtime-order-aware resolution: reassigning the alias to something
+	// this pass doesn't track must invalidate the prior binding -- the
+	// second call must not automatically inherit the first identity.
+	source := "import subprocess\nrunner = subprocess.run\nrunner = safe_wrapper\nrunner(cmd)\n"
+	findings, err := NewPythonAST().Analyze(context.Background(), skil.AnalysisContext{Artifact: artifactWith("t.py", source)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hasRule(findings, "SKIL-PY-002") {
+		t.Fatalf("a reassigned-away alias must not resolve to the prior binding: %#v", findings)
+	}
+}
+
+func TestPythonASTCallableAliasReassignmentToTrackedTargetResolves(t *testing.T) {
+	source := "import subprocess\nrunner = safe_wrapper\nrunner = subprocess.run\nrunner(cmd)\n"
+	findings, err := NewPythonAST().Analyze(context.Background(), skil.AnalysisContext{Artifact: artifactWith("t.py", source)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, finding := range findings {
+		if finding.RuleID != "SKIL-PY-002" {
+			continue
+		}
+		identity, ok := finding.Evidence["callable_identity"].(skil.CallableIdentity)
+		if !ok || identity.Canonical != "python://stdlib/subprocess/run" {
+			t.Fatalf("expected the later assignment to win: %#v", finding.Evidence)
+		}
+		return
+	}
+	t.Fatalf("expected the reassigned-to-a-tracked-target alias to resolve: %#v", findings)
+}
+
+func TestPythonASTReflectiveBuiltinsIdentityMatchesDirectCall(t *testing.T) {
+	// getattr(__builtins__, "exec"), vars(module)["exec"] against either
+	// the `builtins` module alias or the `__builtins__` dunder object, and
+	// a direct exec(...) call must all resolve to the exact same
+	// python://builtins/exec canonical identity, with no `module` set --
+	// __builtins__/builtins name the same namespace resolvePythonTarget
+	// already treats a bare exec(...) call as belonging to, not a
+	// separate "external" module.
+	cases := []string{
+		`vars(__builtins__)["exec"](payload)` + "\n",
+		"import builtins\nvars(builtins)[\"exec\"](payload)\n",
+		"getattr(__builtins__, \"exec\")(payload)\n",
+		"import builtins\ngetattr(builtins, \"exec\")(payload)\n",
+	}
+	for _, source := range cases {
+		findings, err := NewPythonAST().Analyze(context.Background(), skil.AnalysisContext{Artifact: artifactWith("t.py", source)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		found := false
+		for _, finding := range findings {
+			id, ok := finding.Evidence["callable_identity"].(skil.CallableIdentity)
+			if !ok {
+				continue
+			}
+			if id.Canonical != "python://builtins/exec" || id.Module != "" {
+				t.Fatalf("%s: expected python://builtins/exec with no module, got %#v", source, id)
+			}
+			found = true
+		}
+		if !found {
+			t.Fatalf("%s: expected a callable identity on the reflective finding", source)
+		}
+	}
+}
+
+func TestPythonASTThirdPartyModuleIsNeverAssumedStdlib(t *testing.T) {
+	source := "import requests\nrequests.get(url)\n"
+	findings, err := NewPythonAST().Analyze(context.Background(), skil.AnalysisContext{Artifact: artifactWith("t.py", source)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, finding := range findings {
+		if finding.RuleID != "SKIL-NET-001" {
+			continue
+		}
+		identity, ok := finding.Evidence["callable_identity"].(skil.CallableIdentity)
+		if !ok || identity.Canonical != "python://external/requests/get" {
+			t.Fatalf("a module absent from the curated stdlib allowlist must never be assumed stdlib: %#v", finding.Evidence)
+		}
+		return
+	}
+	t.Fatalf("expected a callable identity on the requests.get finding: %#v", findings)
+}
+
 func TestPythonASTBooleanConstantPropagatesToShellTrue(t *testing.T) {
 	// The exact case Cisco 2.1.0 handles and skil's own prior textual
 	// "shell=true" substring check missed entirely: a boolean assigned to a
