@@ -214,8 +214,8 @@ func TestPythonASTVarsSubscriptReflectiveBuiltinsModuleIsDetected(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !hasRule(findings, "SKIL-PY-REFLECT-EXEC") {
-		t.Fatalf("expected vars(builtins)[\"exec\"](...) to be recognized: %#v", findings)
+	if !hasRule(findings, "SKIL-PY-REFLECT-EXEC") || !hasRule(findings, "SKIL-PY-001") {
+		t.Fatalf("expected vars(builtins)[\"exec\"](...) to be recognized, including the underlying direct-sink rule: %#v", findings)
 	}
 }
 
@@ -230,8 +230,8 @@ fn(payload)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !hasRule(findings, "SKIL-PY-REFLECT-EXEC") {
-		t.Fatalf("expected the aliased vars(...)[...] indirection to be recognized: %#v", findings)
+	if !hasRule(findings, "SKIL-PY-REFLECT-EXEC") || !hasRule(findings, "SKIL-PY-001") {
+		t.Fatalf("expected the aliased vars(...)[...] indirection to be recognized, including the underlying direct-sink rule: %#v", findings)
 	}
 }
 

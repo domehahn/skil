@@ -791,7 +791,7 @@ func reflectiveGetattrSink(function *tree_sitter.Node, source []byte, aliases ma
 	if !isDangerousReflectiveTarget(module, name) {
 		return reflectiveSink{}, false
 	}
-	return reflectiveSink{target: "getattr(" + module + ", " + name + ")", module: module, name: name}, true
+	return reflectiveSink{target: "getattr(" + module + ", \"" + name + "\")", module: module, name: name}, true
 }
 
 // isDangerousReflectiveTarget is the single shared "is this specific
@@ -831,7 +831,7 @@ func reflectiveVarsSubscriptSink(function *tree_sitter.Node, source []byte, alia
 	if !isDangerousReflectiveTarget(module, name) {
 		return reflectiveSink{}, false
 	}
-	return reflectiveSink{target: "vars(" + module + ")[" + name + "]", module: module, name: name}, true
+	return reflectiveSink{target: "vars(" + module + ")[\"" + name + "\"]", module: module, name: name}, true
 }
 
 // reflectiveUnderlyingRule maps a resolved reflective getattr(module, name)
