@@ -14,3 +14,4 @@ In static security analysis of agent skills, source code or instructions may be 
 
 ## Status
 Accepted.
+

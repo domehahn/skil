@@ -8,8 +8,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-go@f111f37a5736e9b38b4121e45192139817e0a925 # v5.3.0
         with:
           go-version: "1.24.x"
           cache: true
@@ -19,7 +19,7 @@ jobs:
       - run: gofmt -l cmd internal pkg tests | tee /tmp/gofmt && test ! -s /tmp/gofmt
       - run: go vet ./...
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@2226d7cb06a077fd73b56eccda6123f2352e1b16 # v6.5.0
         with:
           version: v1.64.5
           args: --timeout=5m
@@ -73,16 +73,16 @@ jobs:
   vulnerabilities:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: golang/govulncheck-action@v1
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: golang/govulncheck-action@b89802e53e2c996fb1a6a9b4009cf2d5b62b1b36 # v1.0.4
         with:
           go-version-file: go.mod
           go-package: ./...
   osv-provider:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-go@f111f37a5736e9b38b4121e45192139817e0a925 # v5.3.0
         with:
           go-version-file: go.mod
           cache: true
@@ -119,8 +119,8 @@ jobs:
   linux-isolation:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-go@f111f37a5736e9b38b4121e45192139817e0a925 # v5.3.0
         with:
           go-version-file: go.mod
           cache: true
@@ -138,8 +138,8 @@ jobs:
   windows-isolation:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-go@f111f37a5736e9b38b4121e45192139817e0a925 # v5.3.0
         with:
           go-version-file: go.mod
           cache: true
@@ -150,8 +150,8 @@ jobs:
   macos-isolation:
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-go@f111f37a5736e9b38b4121e45192139817e0a925 # v5.3.0
         with:
           go-version-file: go.mod
           cache: true

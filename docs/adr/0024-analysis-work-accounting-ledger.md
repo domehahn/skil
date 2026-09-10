@@ -17,3 +17,4 @@ When scanning large or complex skill repositories, analyzers perform unit operat
 
 ## Status
 Accepted.
+

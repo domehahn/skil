@@ -260,6 +260,8 @@ func (a *App) Run(ctx context.Context, args []string) int {
 		code = a.zk(ctx, args[1:])
 	case "completeness":
 		code = RunCompleteness(args[1:], a.Out, a.Err)
+	case "receipt":
+		code = RunReceipt(args[1:], a.Out, a.Err)
 	default:
 		fmt.Fprintf(a.Err, "unknown command %q\n", args[0])
 		a.help()
