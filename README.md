@@ -58,8 +58,9 @@ skil lint ./my-skill --profile publish
 skil lint-all .agents/skills --workers 8 --profile portable --format json
 skil validate ./my-skill
 skil scan ./my-skill --static-only
-skil scan ./my-skill --osv
-skil scan ./my-skill --full
+skil completeness ./my-skill --format terminal
+skil trust ./my-skill
+skil card ./my-skill --full
 skil scan ./my-skill --compact
 skil scan ./my-skill --yara-rules rules/malware.yar
 skil scan ./my-skill --yara-rules-dir rules/custom

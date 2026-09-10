@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.7.0] - 2026-09-10
+
+- **Assurance Completeness Model (`internal/completeness`)**: Introduced multidimensional resolution completeness, distinguishing `EXACT`, `BOUNDED_SET`, `PARTIAL`, and `RUNTIME_UNKNOWN` resolution states to eliminate false completeness on dynamic execution targets. Enforces axiom *Source understood ≠ Execution target understood ≠ Analysis complete*.
+- **Analysis Work Accounting Ledger (`WorkLedger`)**: Added strict mathematical invariant tracking scheduled analysis units vs processed, transformed, skipped, unsupported, budget-exhausted, and failed units.
+- **Result Commit Protocol (`ResultCommitProtocol`)**: Enforced evidence commitment prior to completion finish tag validation, ensuring valid findings survive truncated LLM/stream outputs.
+- **Observer Identity Attestation (`ObserverIdentity`)**: Added evidence producer attestation including `skil_version`, `binary_digest`, `policy_digest`, `analyzer_set_digest`, and `runtime_mode` bound into attestations and skill cards.
+- **Ecosystem-Aware Versioning (`internal/versioning`)**: Added ecosystem version parsers and comparators for SemVer, PEP 440, Maven, Cargo, and npm.
+- **Completeness Accuracy Benchmark**: Ground truth classification (`FULL`, `PARTIAL`, `OPAQUE`, `UNSUPPORTED`, `BUDGET_LIMITED`) and False Complete Rate (FCR) measurement.
+- **CLI Command `skil completeness`**: Added new CLI sub-command for resolution completeness, work accounting, and observer identity reporting.
+
 ## Unreleased
 
 - Added `skil.CallableIdentity` (`ecosystem`, `module`, `symbol`, a

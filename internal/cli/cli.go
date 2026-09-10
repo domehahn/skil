@@ -258,6 +258,8 @@ func (a *App) Run(ctx context.Context, args []string) int {
 		code = a.revoke(args[1:])
 	case "zk":
 		code = a.zk(ctx, args[1:])
+	case "completeness":
+		code = RunCompleteness(args[1:], a.Out, a.Err)
 	default:
 		fmt.Fprintf(a.Err, "unknown command %q\n", args[0])
 		a.help()
@@ -341,6 +343,7 @@ Usage:
   skil registry compare <candidate> <existing> [--catalog file]
   skil trust <skill> [--format terminal|json|sarif] [--catalog file] [--output file]
   skil card <skill> [--format yaml|markdown|json] [--output file]
+  skil completeness <skill> [--format terminal|json|yaml] [--output file]
   skil optimize context <skill> [--format terminal|json]
   skil graph capabilities|attack-path <skill-paths...> [--format terminal|json]
   skil compare <base-skill> <target-skill> [--format terminal|json]
