@@ -213,7 +213,7 @@ func contradictory(clauses []clause, ecosystem string) bool {
 		parts := strings.SplitN(strings.SplitN(v, "-", 2)[0], ".", 3)
 		if len(parts) == 3 {
 			var a, b, p int
-			fmt.Sscanf(strings.Join(parts, " "), "%d %d %d", &a, &b, &p)
+			_, _ = fmt.Sscanf(strings.Join(parts, " "), "%d %d %d", &a, &b, &p)
 			probe[fmt.Sprintf("%d.%d.%d", a, b, p+1)] = true
 			if p > 0 {
 				probe[fmt.Sprintf("%d.%d.%d", a, b, p-1)] = true
@@ -231,12 +231,4 @@ func contradictory(clauses []clause, ecosystem string) bool {
 		}
 	}
 	return true
-}
-
-func joinClauses(cs []clause) string {
-	parts := make([]string, len(cs))
-	for i, c := range cs {
-		parts[i] = c.op + c.version
-	}
-	return strings.Join(parts, ",")
 }

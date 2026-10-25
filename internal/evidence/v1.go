@@ -142,8 +142,6 @@ func NewSecurityEvidenceV1(subjectDigest, artifactType, name, version string, sc
 	compRatio := scanRes.Completeness.Completeness
 	if scanRes.Completeness.Total > 0 && scanRes.Completeness.Applicable > 0 && scanRes.Completeness.Completeness == 1.0 {
 		compClass = "FULL"
-	} else {
-		compClass = "PARTIAL"
 	}
 
 	caps := []string{}

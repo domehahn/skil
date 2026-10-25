@@ -26,7 +26,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -337,11 +336,6 @@ type mcpServerEntry struct {
 	AuthMode string   `json:"authMode"`
 }
 
-func scanMCPConfig(loc location) ([]Component, error) {
-	components, _, _, err := scanMCPConfigCovered(loc)
-	return components, err
-}
-
 func scanMCPConfigCovered(loc location) ([]Component, DiscoveryCoverageState, []string, error) {
 	info, err := os.Lstat(loc.Path)
 	if err != nil {
@@ -392,14 +386,6 @@ func parseMCPConfigDataCovered(data []byte, path string, tool string, format con
 		finalizeEndpoint(&res[i])
 	}
 	return res, nil
-}
-
-func parseStandardMCPConfig(loc location, data []byte) ([]Component, error) {
-	components, limitations := parseStandardMCPConfigCovered(loc, data)
-	if len(limitations) > 0 {
-		return components, fmt.Errorf("%s", strings.Join(limitations, "; "))
-	}
-	return components, nil
 }
 
 func parseStandardMCPConfigCovered(loc location, data []byte) ([]Component, []string) {
