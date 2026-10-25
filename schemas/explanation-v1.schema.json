@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://skil.dev/schemas/explanation-v1.schema.json",
+  "title": "SKIL explanation v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "artifact", "status", "verdict", "authoritative", "summary", "issues", "coverage", "next_actions"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "artifact": {
+      "type": "object",
+      "required": ["name", "content_manifest_sha256"],
+      "properties": {
+        "name": {"type": "string"},
+        "content_manifest_sha256": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": true
+    },
+    "status": {"enum": ["PASS", "WARN", "FAIL", "ERROR"]},
+    "verdict": {"enum": ["CLEAR", "REVIEW", "BLOCK"]},
+    "authoritative": {"type": "boolean"},
+    "summary": {"type": "string"},
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["kind", "title", "explanation"],
+        "properties": {
+          "kind": {"type": "string"},
+          "severity": {"enum": ["INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL"]},
+          "rule_id": {"type": "string"},
+          "title": {"type": "string"},
+          "location": {"type": "object"},
+          "explanation": {"type": "string"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "coverage": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "state"],
+        "properties": {"name": {"type": "string"}, "state": {"type": "string"}},
+        "additionalProperties": false
+      }
+    },
+    "next_actions": {"type": "array", "items": {"type": "string"}}
+  }
+}

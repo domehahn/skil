@@ -183,8 +183,8 @@ func (p *AnthropicProvider) AnalyzeUntrustedDetailed(ctx context.Context, reques
 			text += block.Text
 		}
 	}
-	var result semanticResult
-	if text == "" || json.Unmarshal([]byte(text), &result) != nil {
+	result, decodeErr := decodeStructured(text)
+	if decodeErr != nil {
 		return degradedResult("semantic provider returned invalid structured output"), nil
 	}
 	if len(result.Findings) > 100 {

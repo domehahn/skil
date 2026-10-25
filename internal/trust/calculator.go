@@ -195,6 +195,25 @@ func EvaluateTrust(inputs TrustInputs, weights TrustWeights) TrustAssessment {
 	// 7. Runtime Stability Score
 	runtimeScore := 100.0
 
+	// 8. Completeness Score
+	completenessScore := 100.0
+	if inputs.CompletenessRatio > 0 {
+		completenessScore = inputs.CompletenessRatio * 100.0
+	} else if inputs.CompletenessClass == "PARTIAL" {
+		completenessScore = 70.0
+	} else if inputs.CompletenessClass == "OPAQUE" || inputs.CompletenessClass == "UNSUPPORTED" {
+		completenessScore = 40.0
+	}
+
+	if completenessScore < 100.0 {
+		pts := 100.0 - completenessScore
+		deductions = append(deductions, TrustDeduction{
+			Category:       "completeness",
+			PointsDeducted: pts,
+			Reason:         fmt.Sprintf("Incomplete analysis resolution (%s, %.1f%% completed)", inputs.CompletenessClass, completenessScore),
+		})
+	}
+
 	// Weighted Total Calculation
 	totalScore := (secScore * weights.SecurityWeight) +
 		(qualScore * weights.QualityWeight) +
@@ -202,7 +221,8 @@ func EvaluateTrust(inputs TrustInputs, weights TrustWeights) TrustAssessment {
 		(provScore * weights.ProvenanceWeight) +
 		(permScore * weights.PermissionWeight) +
 		(dupScore * weights.DuplicateWeight) +
-		(runtimeScore * weights.RuntimeStabilityWeight)
+		(runtimeScore * weights.RuntimeStabilityWeight) +
+		(completenessScore * weights.CompletenessWeight)
 
 	totalScore = math.Round(totalScore*10.0) / 10.0
 
@@ -248,6 +268,7 @@ func EvaluateTrust(inputs TrustInputs, weights TrustWeights) TrustAssessment {
 				PermissionRiskScore:   math.Round(permScore*10.0) / 10.0,
 				DuplicateRiskScore:    math.Round(dupScore*10.0) / 10.0,
 				RuntimeStabilityScore: math.Round(runtimeScore*10.0) / 10.0,
+				CompletenessScore:     math.Round(completenessScore*10.0) / 10.0,
 			},
 			Deductions: deductions,
 		},

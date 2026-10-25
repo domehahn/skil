@@ -72,3 +72,11 @@ execution, network access, or model calls. The registry analyzes original bytes
 first and then reuses eligible deterministic analyzers over derived views.
 Derived evidence is additive; ambiguity or resource exhaustion degrades
 coverage and therefore closure state.
+
+## Continuous agentic assurance boundary
+
+`internal/assurance` now also owns authorization continuity and hierarchical
+principal contexts. `internal/eval` owns effect-based LoC/runtime observations;
+`internal/completeness` owns detailed work and hierarchical budget accounting;
+and `internal/evidence` owns lossless projections and versioned attestation
+bindings. See [Continuous Agentic Assurance](continuous-agentic-assurance.md).

@@ -17,6 +17,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/domehahn/skil/internal/provider/resilience"
 	"github.com/domehahn/skil/pkg/skil"
 )
 
@@ -164,7 +165,7 @@ func (p *Provider) queryRemote(ctx context.Context, ecosystem, name, version str
 		}
 		request.Header.Set("Content-Type", "application/json")
 		request.Header.Set("User-Agent", "skil/"+skil.Version)
-		httpResponse, err := p.client.Do(request)
+		httpResponse, err := resilience.Do(ctx, p.client, request, resilience.DefaultPolicy())
 		if err != nil {
 			return nil, fmt.Errorf("OSV request: %w", err)
 		}
@@ -398,7 +399,7 @@ func (p *Provider) queryBatchChunk(ctx context.Context, queries []skil.Vulnerabi
 	}
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("User-Agent", "skil/"+skil.Version)
-	httpResponse, err := p.client.Do(request)
+	httpResponse, err := resilience.Do(ctx, p.client, request, resilience.DefaultPolicy())
 	if err != nil {
 		return fmt.Errorf("OSV batch request: %w", err)
 	}

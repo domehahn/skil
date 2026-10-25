@@ -247,17 +247,4 @@ func sameNode(a, b skil.ClosureNode) bool {
 	return string(left) == string(right)
 }
 
-func severityRank(severity skil.Severity) int {
-	switch severity {
-	case skil.SeverityCritical:
-		return 4
-	case skil.SeverityHigh:
-		return 3
-	case skil.SeverityMedium:
-		return 2
-	case skil.SeverityLow:
-		return 1
-	default:
-		return 0
-	}
-}
+func severityRank(severity skil.Severity) int { return skil.SeverityRank(severity) }

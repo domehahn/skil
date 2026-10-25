@@ -116,11 +116,64 @@ func TestKnownLocationsPerOS(t *testing.T) {
 		}
 		for _, want := range []string{
 			"claude-code", "claude-desktop", "cursor", "vscode", "windsurf",
-			"gemini-cli", "amazon-q", "kiro", "opencode", "codex-cli",
+			"gemini-cli", "amazon-q", "kiro", "opencode", "codex-cli", "github-copilot-cli",
 		} {
 			if !tools[want] {
 				t.Fatalf("%s: expected a location for tool %q, got %#v", goos, want, locations)
 			}
+		}
+	}
+}
+
+func TestCopilotTransportsCoverageAndMalformedSiblingIsolation(t *testing.T) {
+	home := t.TempDir()
+	writeFile(t, filepath.Join(home, ".copilot", "mcp-config.json"), `{
+  "mcpServers": {
+    "local": {"type":"local","command":"npx","args":["server"]},
+    "remote": {"type":"http","url":"https://mcp.example.test/api"},
+    "events": {"type":"sse","url":"https://mcp.example.test/events"},
+    "broken": {"type":"local","args":"not-an-array"}
+  }
+}`)
+	components, coverage, errs := ScanWithCoverage(KnownLocations(home, "linux"))
+	if len(errs) != 0 {
+		t.Fatalf("unexpected hard discovery errors: %v", errs)
+	}
+	byName := map[string]Component{}
+	for _, component := range components {
+		if component.Tool == "github-copilot-cli" {
+			byName[component.Name] = component
+		}
+	}
+	if len(byName) != 3 || byName["local"].Transport != "STDIO" || byName["remote"].Transport != "HTTP" || byName["events"].Transport != "SSE" {
+		t.Fatalf("unexpected normalized Copilot components: %#v", byName)
+	}
+	for _, component := range byName {
+		if component.IdentityDigest == "" {
+			t.Fatalf("missing endpoint identity: %#v", component)
+		}
+	}
+	foundPartial := false
+	for _, item := range coverage {
+		if item.Tool == "github-copilot-cli" {
+			foundPartial = item.State == DiscoveryPartial && item.Discovered == 3
+		}
+	}
+	if !foundPartial {
+		t.Fatalf("malformed sibling did not produce partial coverage: %#v", coverage)
+	}
+}
+
+func TestUnsupportedTransportIsNotEquivalentToAbsent(t *testing.T) {
+	home := t.TempDir()
+	writeFile(t, filepath.Join(home, ".copilot", "mcp-config.json"), `{"mcpServers":{"future":{"type":"quantum","url":"q://server"}}}`)
+	components, coverage, _ := ScanWithCoverage(KnownLocations(home, "linux"))
+	if len(components) != 1 || components[0].Transport != "UNKNOWN" {
+		t.Fatalf("unsupported entry disappeared: %#v", components)
+	}
+	for _, item := range coverage {
+		if item.Tool == "github-copilot-cli" && item.State != DiscoveryPartial {
+			t.Fatalf("unsupported dialect reported as %s", item.State)
 		}
 	}
 }

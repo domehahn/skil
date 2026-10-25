@@ -15,6 +15,12 @@ name the exact node or edge that changed rather than reporting only a generic
 payload mismatch. An incomplete closure remains attested as incomplete; signing
 does not promote it to trusted.
 
+Attestation v2 (`schemas/attestation-v2.schema.json`) adds explicit observer,
+plan/work/budget, completeness, authorization, behavioral/runtime/LoC, and
+model/provider bindings. Its constructor rejects missing required evidence and
+any bound-input change invalidates the attestation digest. Model fingerprinting
+is optional and never inferred merely to fill a field.
+
 `skil key generate` creates a PKCS#8 Ed25519 private key without overwriting an
 existing file and prints the public key plus its fingerprint. `skil attest
 --signing-key` signs the canonical attestation envelope. A policy accepts that

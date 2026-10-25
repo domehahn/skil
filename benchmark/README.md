@@ -254,3 +254,10 @@ could still evaluate, and a `tier` matching which directory it lives in.
 New fixtures not tied to a specific bug diagnosis should generally start
 directly in `evaluation/` (still `provisional` until reviewed) rather than
 `development/`, so the holdout set actually grows.
+
+### Release delta analysis
+
+`runner/release_delta.py` compares old upstream, new upstream, and SKIL results
+over the same original case identities. Mismatched corpora make the comparison
+incomplete. Newly detected upstream cases are reported separately from SKIL
+gaps; no third-party fixture is copied into the SKIL corpus.

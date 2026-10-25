@@ -23,6 +23,8 @@
 package discover
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -57,8 +59,42 @@ type Component struct {
 	Path string `json:"path"`
 	// Command/Args are an MCP server's declared launch command — never
 	// executed by discovery itself. Empty for Kind == KindSkill.
-	Command string   `json:"command,omitempty"`
-	Args    []string `json:"args,omitempty"`
+	Command        string   `json:"command,omitempty"`
+	Args           []string `json:"args,omitempty"`
+	Transport      string   `json:"transport,omitempty"`
+	URL            string   `json:"url,omitempty"`
+	TLSIdentity    string   `json:"tls_identity,omitempty"`
+	AuthMode       string   `json:"auth_mode,omitempty"`
+	SchemaDigest   string   `json:"schema_digest,omitempty"`
+	IdentityDigest string   `json:"identity_digest,omitempty"`
+}
+
+type DiscoveryCoverageState string
+
+const (
+	DiscoveryComplete    DiscoveryCoverageState = "COMPLETE"
+	DiscoveryPartial     DiscoveryCoverageState = "PARTIAL"
+	DiscoveryUnsupported DiscoveryCoverageState = "UNSUPPORTED"
+	DiscoveryFailed      DiscoveryCoverageState = "FAILED"
+	DiscoveryNotPresent  DiscoveryCoverageState = "NOT_PRESENT"
+)
+
+type DiscoveryCoverage struct {
+	Tool        string                 `json:"tool"`
+	Path        string                 `json:"path"`
+	State       DiscoveryCoverageState `json:"state"`
+	Discovered  int                    `json:"discovered"`
+	Limitations []string               `json:"limitations,omitempty"`
+}
+
+// AgentConfigAdapter makes vendor dialect ownership explicit. Adapters only
+// locate and normalize configuration; they never execute declared commands.
+type AgentConfigAdapter interface {
+	ID() string
+	Locations(home, goos string) []location
+	Detect(path string, data []byte) bool
+	ParseMCP(path string, data []byte) ([]Component, []string)
+	Normalize(Component) Component
 }
 
 type locationKind string
@@ -140,6 +176,7 @@ func KnownLocations(home, goos string) []location {
 		{Tool: "opencode", Kind: mcpConfig, Path: join(".config", "opencode", "opencode.json"), Format: formatOpenCode},
 		{Tool: "opencode", Kind: mcpConfig, Path: join(".opencode.json"), Format: formatOpenCode},
 		{Tool: "codex-cli", Kind: mcpConfig, Path: join(".codex", "config.toml"), Format: formatCodexTOML},
+		{Tool: "github-copilot-cli", Kind: mcpConfig, Path: join(".copilot", "mcp-config.json")},
 	}
 	switch goos {
 	case "darwin":
@@ -172,23 +209,43 @@ func KnownLocations(home, goos string) []location {
 // alongside any components found at other locations, so one malformed
 // file never hides everything else.
 func Scan(locations []location) ([]Component, []error) {
+	components, _, errs := ScanWithCoverage(locations)
+	return components, errs
+}
+
+// ScanWithCoverage preserves the difference between a missing configuration,
+// a complete parse, and a present but malformed/unsupported dialect.
+func ScanWithCoverage(locations []location) ([]Component, []DiscoveryCoverage, []error) {
 	var components []Component
+	var coverage []DiscoveryCoverage
 	var errs []error
 	for _, loc := range locations {
+		entry := DiscoveryCoverage{Tool: loc.Tool, Path: loc.Path, State: DiscoveryNotPresent}
 		switch loc.Kind {
 		case skillTree:
 			found, err := scanSkillTree(loc)
 			if err != nil {
 				errs = append(errs, err)
+				entry.State, entry.Limitations = DiscoveryFailed, []string{err.Error()}
+				coverage = append(coverage, entry)
 				continue
 			}
+			if _, err := os.Lstat(loc.Path); err == nil {
+				entry.State = DiscoveryComplete
+			}
+			entry.Discovered = len(found)
+			coverage = append(coverage, entry)
 			components = append(components, found...)
 		case mcpConfig:
-			found, err := scanMCPConfig(loc)
+			found, state, limitations, err := scanMCPConfigCovered(loc)
 			if err != nil {
 				errs = append(errs, err)
+				entry.State, entry.Limitations = DiscoveryFailed, []string{err.Error()}
+				coverage = append(coverage, entry)
 				continue
 			}
+			entry.State, entry.Limitations, entry.Discovered = state, limitations, len(found)
+			coverage = append(coverage, entry)
 			components = append(components, found...)
 		}
 	}
@@ -201,7 +258,7 @@ func Scan(locations []location) ([]Component, []error) {
 		}
 		return components[i].Path < components[j].Path
 	})
-	return components, errs
+	return components, coverage, errs
 }
 
 func scanSkillTree(loc location) ([]Component, error) {
@@ -272,55 +329,75 @@ func skillNameFromFrontmatter(root string) string {
 // discovery only ever reports command/args, never anything requiring
 // deeper interpretation.
 type mcpServerEntry struct {
-	Command string   `json:"command"`
-	Args    []string `json:"args"`
+	Command  string   `json:"command"`
+	Args     []string `json:"args"`
+	Type     string   `json:"type"`
+	URL      string   `json:"url"`
+	AuthMode string   `json:"authMode"`
 }
 
-func scanMCPConfig(loc location) ([]Component, error) {
+func scanMCPConfigCovered(loc location) ([]Component, DiscoveryCoverageState, []string, error) {
 	info, err := os.Lstat(loc.Path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, nil
+			return nil, DiscoveryNotPresent, nil, nil
 		}
-		return nil, err
+		return nil, DiscoveryFailed, nil, err
 	}
 	if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
-		return nil, nil
+		return nil, DiscoveryUnsupported, []string{"configuration is not a regular non-symlink file"}, nil
 	}
 	if info.Size() > maxConfigBytes {
-		return nil, nil
+		return nil, DiscoveryUnsupported, []string{"configuration exceeds discovery byte limit"}, nil
 	}
 	data, err := os.ReadFile(loc.Path)
 	if err != nil {
-		return nil, err
+		return nil, DiscoveryFailed, nil, err
 	}
-	return parseMCPConfigData(data, loc.Path, loc.Tool, loc.Format), nil
+	components, limitations := parseMCPConfigDataCovered(data, loc.Path, loc.Tool, loc.Format)
+	state := DiscoveryComplete
+	if len(limitations) > 0 {
+		state = DiscoveryPartial
+	}
+	return components, state, limitations, nil
 }
 
 func parseMCPConfigData(data []byte, path string, tool string, format configFormat) []Component {
-	loc := location{Path: path, Tool: tool, Format: format}
-	var res []Component
-	switch format {
-	case formatOpenCode:
-		res, _ = parseOpenCodeConfig(loc, data)
-	case formatCodexTOML:
-		res, _ = parseCodexConfig(loc, data)
-	default:
-		res, _ = parseStandardMCPConfig(loc, data)
-	}
+	res, _ := parseMCPConfigDataCovered(data, path, tool, format)
 	return res
 }
 
-func parseStandardMCPConfig(loc location, data []byte) ([]Component, error) {
+func parseMCPConfigDataCovered(data []byte, path string, tool string, format configFormat) ([]Component, []string) {
+	loc := location{Path: path, Tool: tool, Format: format}
+	var res []Component
+	var err error
+	switch format {
+	case formatOpenCode:
+		res, err = parseOpenCodeConfig(loc, data)
+	case formatCodexTOML:
+		res, err = parseCodexConfig(loc, data)
+	default:
+		return parseStandardMCPConfigCovered(loc, data)
+	}
+	if err != nil {
+		return res, []string{err.Error()}
+	}
+	for i := range res {
+		finalizeEndpoint(&res[i])
+	}
+	return res, nil
+}
+
+func parseStandardMCPConfigCovered(loc location, data []byte) ([]Component, []string) {
 	var document struct {
-		MCPServers map[string]mcpServerEntry `json:"mcpServers"`
-		Servers    map[string]mcpServerEntry `json:"servers"`
+		MCPServers map[string]json.RawMessage `json:"mcpServers"`
+		Servers    map[string]json.RawMessage `json:"servers"`
 	}
 	if err := json.Unmarshal(data, &document); err != nil {
 		// A config file that exists but isn't valid JSON (or isn't
 		// shaped like an MCP config at all) is reported as a diagnostic,
 		// not a hard failure — the file may simply not be an MCP config.
-		return nil, nil
+		return nil, []string{"malformed JSON: " + err.Error()}
 	}
 	servers := document.MCPServers
 	if len(servers) == 0 {
@@ -332,14 +409,63 @@ func parseStandardMCPConfig(loc location, data []byte) ([]Component, error) {
 	}
 	sort.Strings(names)
 	components := make([]Component, 0, len(names))
+	var limitations []string
 	for _, name := range names {
-		entry := servers[name]
-		components = append(components, Component{
+		var entry mcpServerEntry
+		if err := json.Unmarshal(servers[name], &entry); err != nil {
+			limitations = append(limitations, "entry "+name+": "+err.Error())
+			continue
+		}
+		transport := normalizeTransport(entry.Type, entry.Command, entry.URL)
+		if transport == "UNKNOWN" {
+			limitations = append(limitations, "entry "+name+": unknown transport "+entry.Type)
+		}
+		component := Component{
 			Kind: KindMCPServer, Tool: loc.Tool, Name: name, Path: loc.Path,
-			Command: entry.Command, Args: entry.Args,
-		})
+			Command: entry.Command, Args: entry.Args, Transport: transport, URL: entry.URL, AuthMode: entry.AuthMode,
+		}
+		finalizeEndpoint(&component)
+		components = append(components, component)
 	}
-	return components, nil
+	return components, limitations
+}
+
+func normalizeTransport(kind, command, endpoint string) string {
+	switch strings.ToLower(strings.TrimSpace(kind)) {
+	case "", "local", "stdio":
+		if command != "" {
+			return "STDIO"
+		}
+		if endpoint != "" {
+			return "HTTP"
+		}
+		return "UNKNOWN"
+	case "http":
+		return "HTTP"
+	case "sse":
+		return "SSE"
+	case "streamable_http", "streamable-http":
+		return "STREAMABLE_HTTP"
+	default:
+		return "UNKNOWN"
+	}
+}
+
+func finalizeEndpoint(c *Component) {
+	if c.Kind != KindMCPServer {
+		return
+	}
+	if c.Transport == "" {
+		c.Transport = normalizeTransport("", c.Command, c.URL)
+	}
+	payload := struct {
+		Tool, Path, Name, Transport, Command     string
+		Args                                     []string
+		URL, TLSIdentity, AuthMode, SchemaDigest string
+	}{c.Tool, c.Path, c.Name, c.Transport, c.Command, c.Args, c.URL, c.TLSIdentity, c.AuthMode, c.SchemaDigest}
+	b, _ := json.Marshal(payload)
+	sum := sha256.Sum256(b)
+	c.IdentityDigest = "sha256:" + hex.EncodeToString(sum[:])
 }
 
 // openCodeServerEntry matches OpenCode's genuinely different shape: no
@@ -355,7 +481,7 @@ func parseOpenCodeConfig(loc location, data []byte) ([]Component, error) {
 		MCP map[string]openCodeServerEntry `json:"mcp"`
 	}
 	if err := json.Unmarshal(data, &document); err != nil {
-		return nil, nil
+		return nil, err
 	}
 	names := make([]string, 0, len(document.MCP))
 	for name := range document.MCP {
@@ -371,6 +497,9 @@ func parseOpenCodeConfig(loc location, data []byte) ([]Component, error) {
 			component.Args = entry.Command[1:]
 		}
 		components = append(components, component)
+	}
+	for i := range components {
+		finalizeEndpoint(&components[i])
 	}
 	return components, nil
 }
@@ -388,7 +517,7 @@ func parseCodexConfig(loc location, data []byte) ([]Component, error) {
 		MCPServers map[string]codexServerEntry `toml:"mcp_servers"`
 	}
 	if err := toml.Unmarshal(data, &document); err != nil {
-		return nil, nil
+		return nil, err
 	}
 	names := make([]string, 0, len(document.MCPServers))
 	for name := range document.MCPServers {
@@ -402,6 +531,9 @@ func parseCodexConfig(loc location, data []byte) ([]Component, error) {
 			Kind: KindMCPServer, Tool: loc.Tool, Name: name, Path: loc.Path,
 			Command: entry.Command, Args: entry.Args,
 		})
+	}
+	for i := range components {
+		finalizeEndpoint(&components[i])
 	}
 	return components, nil
 }

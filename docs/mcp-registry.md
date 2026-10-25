@@ -1,5 +1,9 @@
 # MCP Registry posture scanning
 
+Local agent discovery normalizes MCP transport and endpoint identity and
+reports per-location discovery completeness. Unsupported dialects and malformed
+entries cannot be treated as an empty, clean topology.
+
 `skil mcp registry scan` performs deterministic, non-executing checks on an MCP
 publisher `server.json`, an MCP Registry v0.1 server response, or a v0.1 list
 response. It does not download packages or connect to declared MCP remotes.

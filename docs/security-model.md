@@ -1,5 +1,10 @@
 # Security and trust model
 
+Authorization continuity, child-principal isolation, work accounting, and the
+runtime-observation verification boundary are specified in
+[Continuous Agentic Assurance](continuous-agentic-assurance.md). These extend
+the same rule used here: attacker-controlled uncertainty cannot increase trust.
+
 Trust boundaries exist between the user, skill, scanner, semantic model, agent
 runtime, tool, MCP server, registry, CI environment, and organization. Skill
 bytes, filenames, archives, manifests, tool descriptions, dependency metadata,

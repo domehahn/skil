@@ -42,6 +42,13 @@ func TestPublicSourcesUseIndependentProductIdentity(t *testing.T) {
 			}
 			return nil
 		}
+		// This evidence-backed radar is explicitly required to name the
+		// compared upstream projects. Product code and general documentation
+		// remain subject to the independent-branding invariant.
+		if filepath.ToSlash(path) == filepath.ToSlash(root)+"/docs/research/competitive-feature-radar.md" ||
+			filepath.ToSlash(path) == filepath.ToSlash(root)+"/docs/research/competitive-gap-closure-2026-10.md" {
+			return nil
+		}
 		switch strings.ToLower(filepath.Ext(path)) {
 		case ".go", ".md", ".json", ".yaml", ".yml":
 		default:

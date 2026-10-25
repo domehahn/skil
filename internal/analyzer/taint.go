@@ -43,18 +43,22 @@ type flowAssignment struct {
 	targets []string
 	value   string
 	line    int
+	scope   string
 }
 
 type flowCall struct {
 	text, callee string
 	arguments    []string
+	keywordArgs  map[string]string
 	line         int
+	scope        string
 }
 
 type flowSummary struct {
-	sources map[string]string
-	sinks   map[string]map[int][]int
-	defined map[string]bool
+	sources    map[string]string
+	sinks      map[string]map[int][]int
+	paramNames map[string]map[int]string
+	defined    map[string]bool
 }
 
 type fileFlow struct {
@@ -68,15 +72,24 @@ func (t *Taint) Metadata() skil.AnalyzerMetadata {
 	return skil.AnalyzerMetadata{ID: "builtin.taint", Version: "2.0.0",
 		Domain: "code", Subdomain: "taint",
 		Categories: []string{"data-flow"}, AnalysisTypes: []string{"taint"},
-		SupportedTypes: []string{"py", "js", "jsx", "ts", "tsx"}}
+		SupportedTypes: []string{"py", "pyw", "js", "jsx", "ts", "tsx"}}
 }
 
 func (t *Taint) Analyze(ctx context.Context, ac skil.AnalysisContext) ([]skil.Finding, error) {
-	summary := flowSummary{sources: map[string]string{}, sinks: map[string]map[int][]int{}, defined: map[string]bool{}}
+	summary := flowSummary{
+		sources:    map[string]string{},
+		sinks:      map[string]map[int][]int{},
+		paramNames: map[string]map[int]string{},
+		defined:    map[string]bool{},
+	}
 	definitionCounts := map[string]int{}
 	var files []fileFlow
 	for _, file := range ac.Artifact.Files {
-		language := taintLanguage(extension(file.Path))
+		ext := extension(file.Path)
+		if ext == "" && hasPythonShebang(file.Data) {
+			ext = "py"
+		}
+		language := taintLanguage(ext)
 		if language == nil {
 			continue
 		}
@@ -85,7 +98,7 @@ func (t *Taint) Analyze(ctx context.Context, ac skil.AnalysisContext) ([]skil.Fi
 			return nil, fmt.Errorf("%s: %w", file.Path, err)
 		}
 		assignments, calls, localSummary := collectFlowNodes(tree.RootNode(), file.Data)
-		if extension(file.Path) == "py" {
+		if ext == "py" || ext == "pyw" {
 			// Reuse the same Python import-alias resolution the AST analyzer
 			// uses (collectAliases in python_ast.go) so `import x as y; y.f()`
 			// is recognized as `x.f()` for taint source/sink matching too,
@@ -112,6 +125,14 @@ func (t *Taint) Analyze(ctx context.Context, ac skil.AnalysisContext) ([]skil.Fi
 				summary.sinks[name][sink] = append(summary.sinks[name][sink], parameters...)
 			}
 		}
+		for name, params := range localSummary.paramNames {
+			if summary.paramNames[name] == nil {
+				summary.paramNames[name] = map[int]string{}
+			}
+			for idx, pName := range params {
+				summary.paramNames[name][idx] = pName
+			}
+		}
 		for name := range localSummary.defined {
 			definitionCounts[name]++
 		}
@@ -121,6 +142,7 @@ func (t *Taint) Analyze(ctx context.Context, ac skil.AnalysisContext) ([]skil.Fi
 		if count > 1 {
 			delete(summary.sources, name)
 			delete(summary.sinks, name)
+			delete(summary.paramNames, name)
 		}
 	}
 	var out []skil.Finding
@@ -181,7 +203,7 @@ var untrustedOutputOrigin = regexp.MustCompile(`(?i)input\s*\(|stdin|request\.(?
 
 func taintLanguage(ext string) unsafe.Pointer {
 	switch ext {
-	case "py":
+	case "py", "pyw":
 		return tree_sitter_python.Language()
 	case "js", "jsx":
 		return tree_sitter_javascript.Language()
@@ -194,10 +216,27 @@ func taintLanguage(ext string) unsafe.Pointer {
 	}
 }
 
+func enclosingFunctionScope(node *tree_sitter.Node, source []byte) string {
+	for cur := node.Parent(); cur != nil; cur = cur.Parent() {
+		switch cur.Kind() {
+		case "function_definition", "function_declaration", "method_definition":
+			if nameNode := cur.ChildByFieldName("name"); nameNode != nil {
+				return nameNode.Utf8Text(source)
+			}
+		}
+	}
+	return ""
+}
+
 func collectFlowNodes(root *tree_sitter.Node, source []byte) ([]flowAssignment, []flowCall, flowSummary) {
 	var assignments []flowAssignment
 	var calls []flowCall
-	summary := flowSummary{sources: map[string]string{}, sinks: map[string]map[int][]int{}, defined: map[string]bool{}}
+	summary := flowSummary{
+		sources:    map[string]string{},
+		sinks:      map[string]map[int][]int{},
+		paramNames: map[string]map[int]string{},
+		defined:    map[string]bool{},
+	}
 	walkNode(root, func(node *tree_sitter.Node) {
 		switch node.Kind() {
 		case "assignment", "assignment_expression", "variable_declarator":
@@ -212,7 +251,9 @@ func collectFlowNodes(root *tree_sitter.Node, source []byte) ([]flowAssignment, 
 			if left != nil && right != nil {
 				assignments = append(assignments, flowAssignment{
 					targets: identifier.FindAllString(left.Utf8Text(source), -1),
-					value:   right.Utf8Text(source), line: int(node.StartPosition().Row) + 1,
+					value:   right.Utf8Text(source),
+					line:    int(node.StartPosition().Row) + 1,
+					scope:   enclosingFunctionScope(node, source),
 				})
 			}
 		case "call", "call_expression":
@@ -224,12 +265,15 @@ func collectFlowNodes(root *tree_sitter.Node, source []byte) ([]flowAssignment, 
 			}
 			name := nameNode.Utf8Text(source)
 			summary.defined[name] = true
-			origin, sinks := summarizeFunction(node, source)
+			origin, sinks, paramByIndex := summarizeFunction(node, source)
 			if origin != "" {
 				summary.sources[name] = origin
 			}
 			if len(sinks) > 0 {
 				summary.sinks[name] = sinks
+			}
+			if len(paramByIndex) > 0 {
+				summary.paramNames[name] = paramByIndex
 			}
 		}
 	})
@@ -237,7 +281,12 @@ func collectFlowNodes(root *tree_sitter.Node, source []byte) ([]flowAssignment, 
 }
 
 func describeFlowCall(node *tree_sitter.Node, source []byte) flowCall {
-	call := flowCall{text: node.Utf8Text(source), line: int(node.StartPosition().Row) + 1}
+	call := flowCall{
+		text:        node.Utf8Text(source),
+		line:        int(node.StartPosition().Row) + 1,
+		scope:       enclosingFunctionScope(node, source),
+		keywordArgs: map[string]string{},
+	}
 	function := node.ChildByFieldName("function")
 	if function == nil {
 		function = node.ChildByFieldName("callee")
@@ -250,28 +299,86 @@ func describeFlowCall(node *tree_sitter.Node, source []byte) flowCall {
 	}
 	if arguments := node.ChildByFieldName("arguments"); arguments != nil {
 		for index := uint(0); index < arguments.NamedChildCount(); index++ {
-			call.arguments = append(call.arguments, arguments.NamedChild(index).Utf8Text(source))
+			argNode := arguments.NamedChild(index)
+			argText := argNode.Utf8Text(source)
+			call.arguments = append(call.arguments, argText)
+			if argNode.Kind() == "keyword_argument" {
+				nameNode := argNode.ChildByFieldName("name")
+				valNode := argNode.ChildByFieldName("value")
+				if nameNode != nil && valNode != nil {
+					call.keywordArgs[nameNode.Utf8Text(source)] = valNode.Utf8Text(source)
+				}
+			}
 		}
 	}
 	return call
 }
 
-func summarizeFunction(node *tree_sitter.Node, source []byte) (string, map[int][]int) {
+func summarizeFunction(node *tree_sitter.Node, source []byte) (string, map[int][]int, map[int]string) {
 	parameters := map[string]int{}
+	paramByIndex := map[int]string{}
 	if parameterNode := node.ChildByFieldName("parameters"); parameterNode != nil {
 		for index := uint(0); index < parameterNode.NamedChildCount(); index++ {
 			if name := simpleParameterName(parameterNode.NamedChild(index), source); name != "" {
 				parameters[name] = int(index)
+				paramByIndex[int(index)] = name
 			}
 		}
+	}
+	localTainted := map[string]string{}
+	paramAliases := map[string]int{}
+	for name, pos := range parameters {
+		paramAliases[name] = pos
 	}
 	origin := ""
 	sinkParameters := map[int]map[int]bool{}
 	walkNode(node, func(child *tree_sitter.Node) {
 		switch child.Kind() {
+		case "assignment", "assignment_expression", "variable_declarator":
+			left := child.ChildByFieldName("left")
+			if left == nil {
+				left = child.ChildByFieldName("name")
+			}
+			right := child.ChildByFieldName("right")
+			if right == nil {
+				right = child.ChildByFieldName("value")
+			}
+			if left != nil && right != nil {
+				rhsText := right.Utf8Text(source)
+				targets := identifier.FindAllString(left.Utf8Text(source), -1)
+				if !sanitizers.MatchString(rhsText) && !normalizedPathExpression(rhsText) {
+					rhsOrigin := taintSources.FindString(rhsText)
+					if rhsOrigin == "" {
+						for _, id := range identifier.FindAllString(rhsText, -1) {
+							if localTainted[id] != "" {
+								rhsOrigin = localTainted[id]
+								break
+							}
+						}
+					}
+					for _, t := range targets {
+						if rhsOrigin != "" {
+							localTainted[t] = rhsOrigin
+						}
+						for _, id := range identifier.FindAllString(rhsText, -1) {
+							if pos, ok := paramAliases[id]; ok {
+								paramAliases[t] = pos
+							}
+						}
+					}
+				}
+			}
 		case "return_statement":
-			if candidate := taintSources.FindString(child.Utf8Text(source)); candidate != "" {
+			retText := child.Utf8Text(source)
+			if candidate := taintSources.FindString(retText); candidate != "" {
 				origin = candidate
+			} else if origin == "" {
+				for _, id := range identifier.FindAllString(retText, -1) {
+					if localTainted[id] != "" {
+						origin = localTainted[id]
+						break
+					}
+				}
 			}
 		case "call", "call_expression":
 			call := describeFlowCall(child, source)
@@ -281,7 +388,7 @@ func summarizeFunction(node *tree_sitter.Node, source []byte) (string, map[int][
 				}
 				for _, argument := range call.arguments {
 					for _, name := range identifier.FindAllString(argument, -1) {
-						position, exists := parameters[name]
+						position, exists := paramAliases[name]
 						if !exists {
 							continue
 						}
@@ -301,7 +408,7 @@ func summarizeFunction(node *tree_sitter.Node, source []byte) (string, map[int][
 		}
 		sort.Ints(sinks[sink])
 	}
-	return origin, sinks
+	return origin, sinks, paramByIndex
 }
 
 func simpleParameterName(node *tree_sitter.Node, source []byte) string {
@@ -323,8 +430,33 @@ func simpleParameterName(node *tree_sitter.Node, source []byte) string {
 	return ""
 }
 
+func scopedVarKey(scope, name string) string {
+	return scope + "::" + name
+}
+
+func lookupScopedTaint(tainted map[string]string, definedInScope map[string]bool, scope, name string) string {
+	key := scopedVarKey(scope, name)
+	if v := tainted[key]; v != "" {
+		return v
+	}
+	// If name is locally assigned in this function scope and not tainted, it shadows module scope.
+	if scope != "" && definedInScope[key] {
+		return ""
+	}
+	if scope != "" {
+		return tainted[scopedVarKey("", name)]
+	}
+	return ""
+}
+
 func analyzeFlow(file skil.File, assignments []flowAssignment, calls []flowCall, summary flowSummary) []skil.Finding {
 	tainted := map[string]string{}
+	definedInScope := map[string]bool{}
+	for _, assignment := range assignments {
+		for _, target := range assignment.targets {
+			definedInScope[scopedVarKey(assignment.scope, target)] = true
+		}
+	}
 	// Iterate to a fixed point so ordering, aliases, and short assignment
 	// chains do not hide a flow. The bound prevents hostile inputs from
 	// creating unbounded analysis work.
@@ -348,8 +480,8 @@ func analyzeFlow(file skil.File, assignments []flowAssignment, calls []flowCall,
 			}
 			if origin == "" {
 				for _, dependency := range identifier.FindAllString(assignment.value, -1) {
-					if tainted[dependency] != "" {
-						origin = tainted[dependency]
+					if depOrigin := lookupScopedTaint(tainted, definedInScope, assignment.scope, dependency); depOrigin != "" {
+						origin = depOrigin
 						break
 					}
 				}
@@ -364,11 +496,12 @@ func analyzeFlow(file skil.File, assignments []flowAssignment, calls []flowCall,
 				continue
 			}
 			for _, target := range assignment.targets {
-				if tainted[target] == "" {
-					tainted[target] = origin
+				key := scopedVarKey(assignment.scope, target)
+				if tainted[key] == "" {
+					tainted[key] = origin
 					changed = true
-					if summarySource {
-						tainted[target] = "function-summary:" + origin
+					if summarySource && !strings.HasPrefix(origin, "function-summary:") {
+						tainted[key] = "function-summary:" + origin
 					}
 				}
 			}
@@ -393,6 +526,12 @@ func analyzeFlow(file skil.File, assignments []flowAssignment, calls []flowCall,
 					}
 					var selected []string
 					for _, position := range positions {
+						if paramName := summary.paramNames[function][position]; paramName != "" {
+							if kwVal, ok := call.keywordArgs[paramName]; ok {
+								selected = append(selected, kwVal)
+								continue
+							}
+						}
 						if position >= 0 && position < len(call.arguments) {
 							selected = append(selected, call.arguments[position])
 						}
@@ -410,8 +549,8 @@ func analyzeFlow(file skil.File, assignments []flowAssignment, calls []flowCall,
 			}
 			variable, source := "", ""
 			for _, candidate := range identifier.FindAllString(searchText, -1) {
-				if tainted[candidate] != "" {
-					variable, source = candidate, tainted[candidate]
+				if candSource := lookupScopedTaint(tainted, definedInScope, call.scope, candidate); candSource != "" {
+					variable, source = candidate, candSource
 					break
 				}
 			}

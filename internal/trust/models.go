@@ -37,6 +37,7 @@ type TrustBreakdown struct {
 	PermissionRiskScore   float64 `json:"permission_risk_score" yaml:"permission_risk_score"`
 	DuplicateRiskScore    float64 `json:"duplicate_risk_score" yaml:"duplicate_risk_score"`
 	RuntimeStabilityScore float64 `json:"runtime_stability_score" yaml:"runtime_stability_score"`
+	CompletenessScore     float64 `json:"completeness_score" yaml:"completeness_score"`
 }
 
 // TrustScore represents the aggregate explainable trust score (0-100).
@@ -67,30 +68,34 @@ type TrustWeights struct {
 	PermissionWeight       float64 `json:"permission_weight" yaml:"permission_weight"`
 	DuplicateWeight        float64 `json:"duplicate_weight" yaml:"duplicate_weight"`
 	RuntimeStabilityWeight float64 `json:"runtime_stability_weight" yaml:"runtime_stability_weight"`
+	CompletenessWeight     float64 `json:"completeness_weight" yaml:"completeness_weight"`
 }
 
 // DefaultTrustWeights returns standard platform weight distribution totaling 1.0.
 func DefaultTrustWeights() TrustWeights {
 	return TrustWeights{
-		SecurityWeight:         0.30,
+		SecurityWeight:         0.25,
 		QualityWeight:          0.15,
-		EvaluationWeight:       0.20,
+		EvaluationWeight:       0.15,
 		ProvenanceWeight:       0.15,
 		PermissionWeight:       0.10,
 		DuplicateWeight:        0.05,
 		RuntimeStabilityWeight: 0.05,
+		CompletenessWeight:     0.10,
 	}
 }
 
 // TrustInputs aggregates all multi-domain analysis evidence for trust calculation.
 type TrustInputs struct {
-	Artifact        *skil.Artifact
-	Findings        []skil.Finding
-	QualityFindings []skil.Finding
-	DuplicateResult *registry.DuplicateAnalysisResult
-	SkillLift       float64 // e.g. 0.214 for +21.4%
-	PassAtK         float64 // e.g. 0.95 for 95% pass rate
-	IsSigned        bool
-	HasProvenance   bool
-	IsRevoked       bool
+	Artifact          *skil.Artifact
+	Findings          []skil.Finding
+	QualityFindings   []skil.Finding
+	DuplicateResult   *registry.DuplicateAnalysisResult
+	SkillLift         float64 // e.g. 0.214 for +21.4%
+	PassAtK           float64 // e.g. 0.95 for 95% pass rate
+	IsSigned          bool
+	HasProvenance     bool
+	IsRevoked         bool
+	CompletenessRatio float64 // 0.0 to 1.0
+	CompletenessClass string  // FULL, PARTIAL, OPAQUE, etc.
 }

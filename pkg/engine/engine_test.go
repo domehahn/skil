@@ -7,28 +7,52 @@ import (
 	"github.com/domehahn/skil/pkg/skil"
 )
 
-type external struct{}
-
-func (external) Metadata() skil.AnalyzerMetadata {
-	return skil.AnalyzerMetadata{ID: "example.external", Version: "1.0.0", AnalysisTypes: []string{"external"}}
-}
-func (external) Analyze(context.Context, skil.AnalysisContext) ([]skil.Finding, error) {
-	return nil, nil
-}
-
-func TestExternalAnalyzerRegistration(t *testing.T) {
-	registry := New(nil)
-	if err := registry.Register(external{}); err != nil {
-		t.Fatal(err)
+func TestCacheKeyChangesWithArtifactAndConfiguration(t *testing.T) {
+	input := skil.AnalysisContext{Artifact: skil.Artifact{Digest: "a"}, DomainFilter: []string{"z", "a"}}
+	metadata := []skil.AnalyzerMetadata{{ID: "test", Version: "1"}}
+	first := CacheKey(input, metadata)
+	if first == "" {
+		t.Fatal("expected cache key")
 	}
-	if err := registry.Register(external{}); err == nil {
-		t.Fatal("expected duplicate rejection")
+	input.Artifact.Digest = "b"
+	if first == CacheKey(input, metadata) {
+		t.Fatal("artifact digest did not change cache key")
 	}
-	result, err := registry.Scan(context.Background(), skil.AnalysisContext{Artifact: skil.Artifact{Name: "x"}})
+	input.Artifact.Digest = "a"
+	input.DomainFilter = []string{"a", "z"}
+	if first != CacheKey(input, metadata) {
+		t.Fatal("domain ordering changed cache key")
+	}
+}
+
+func TestMemoryCacheReusesOnlyCompleteResults(t *testing.T) {
+	cache := NewMemoryCache()
+	complete := skil.ScanResult{Artifact: skil.Artifact{Digest: "a"}, Status: skil.StatusPass, Coverage: map[string]skil.CoverageState{"static": skil.CoverageCompleted}}
+	cache.Store("complete", complete)
+	if _, ok := cache.Load("complete"); !ok {
+		t.Fatal("complete result was not cached")
+	}
+	incomplete := complete
+	incomplete.Coverage = map[string]skil.CoverageState{"static": skil.CoverageDegraded}
+	cache.Store("incomplete", incomplete)
+	if _, ok := cache.Load("incomplete"); ok {
+		t.Fatal("degraded result was cached")
+	}
+}
+
+func TestRegistryUsesOptInCache(t *testing.T) {
+	cache := NewMemoryCache()
+	registry := NewWithCache(nil, cache)
+	input := skil.AnalysisContext{Artifact: skil.Artifact{Name: "test", Digest: "cache-artifact", Files: []skil.File{{Path: "SKILL.md", Data: []byte("A safe review skill.")}}}}
+	first, err := registry.Scan(context.Background(), input)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.Coverage["external"] != skil.CoverageCompleted {
-		t.Fatalf("%#v", result.Coverage)
+	second, err := registry.Scan(context.Background(), input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.Artifact.Digest != second.Artifact.Digest || len(second.Inspection) == 0 {
+		t.Fatalf("unexpected cached result: %#v", second)
 	}
 }

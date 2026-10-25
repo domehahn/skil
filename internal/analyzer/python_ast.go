@@ -33,7 +33,7 @@ func (p *PythonAST) Metadata() skil.AnalyzerMetadata {
 		ID: "builtin.python-ast", Version: "1.0.0",
 		Domain: "code", Subdomain: "ast",
 		Categories:    []string{"dynamic-execution", "data-boundary"},
-		AnalysisTypes: []string{"ast"}, SupportedTypes: []string{"py"},
+		AnalysisTypes: []string{"ast"}, SupportedTypes: []string{"py", "pyw"},
 	}
 }
 
@@ -149,7 +149,7 @@ func (p *PythonAST) AnalyzeCapabilities(ctx context.Context, ac skil.AnalysisCon
 	var out []skil.Finding
 	var observations []skil.CapabilityObservation
 	for _, file := range ac.Artifact.Files {
-		if extension(file.Path) != "py" {
+		if !isPythonSourceFile(file) {
 			continue
 		}
 		tree, err := parsePython(ctx, file.Data)

@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://skil.dev/schemas/skrun-receipt-v1.schema.json",
+  "title": "skrun Execution Receipt Schema v1",
+  "description": "Cryptographic runtime execution receipt produced by skrun for verification in skil.",
+  "type": "object",
+  "required": [
+    "receipt_version",
+    "execution_id",
+    "runtime_backend",
+    "subject_digest",
+    "policy_digest",
+    "status",
+    "isolation",
+    "resource_usage",
+    "issued_at",
+    "signatures"
+  ],
+  "properties": {
+    "receipt_version": {
+      "type": "string",
+      "enum": ["1.0"]
+    },
+    "execution_id": {
+      "type": "string"
+    },
+    "runtime_backend": {
+      "type": "string"
+    },
+    "subject_digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "policy_digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["SUCCESS", "CONTAINED_DENIAL", "RUNTIME_ERROR", "BUDGET_EXCEEDED"]
+    },
+    "denied_actions": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "isolation": {
+      "type": "object",
+      "required": ["native_isolation_active", "sandbox_mode"],
+      "properties": {
+        "native_isolation_active": { "type": "boolean" },
+        "sandbox_mode": { "type": "string" },
+        "seccomp_profile": { "type": "string" },
+        "network_sandboxed": { "type": "boolean" }
+      }
+    },
+    "resource_usage": {
+      "type": "object",
+      "required": ["duration_ms", "max_memory_bytes", "cpu_time_ms"],
+      "properties": {
+        "duration_ms": { "type": "integer", "minimum": 0 },
+        "max_memory_bytes": { "type": "integer", "minimum": 0 },
+        "cpu_time_ms": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "issued_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "signatures": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["key_id", "sig"],
+        "properties": {
+          "key_id": { "type": "string" },
+          "sig": { "type": "string" }
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}
+

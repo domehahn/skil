@@ -60,7 +60,7 @@ func (c *Code) Analyze(_ context.Context, ac skil.AnalysisContext) ([]skil.Findi
 	allowed := map[string]bool{"py": true, "sh": true, "bash": true, "js": true, "jsx": true, "ts": true, "tsx": true}
 	for _, file := range ac.Artifact.Files {
 		ext := extension(file.Path)
-		if ext == "py" {
+		if isPythonSourceFile(file) {
 			continue
 		}
 		if !allowed[ext] && !(ext == "" && strings.HasPrefix(string(file.Data), "#!")) {

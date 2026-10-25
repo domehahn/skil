@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://skil.dev/schemas/security-evidence-v1.schema.json",
+  "title": "SKIL Security Evidence Schema v1",
+  "description": "Versioned public security evidence schema produced by SKIL for admission decisions in skgate.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "provider",
+    "provider_version",
+    "subject",
+    "scan",
+    "verification",
+    "assurance",
+    "capabilities",
+    "risk",
+    "complete",
+    "issued_at",
+    "evidence_digest"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "enum": ["1.0"]
+    },
+    "provider": {
+      "type": "string",
+      "const": "skil"
+    },
+    "provider_version": {
+      "type": "string"
+    },
+    "subject": {
+      "type": "object",
+      "required": ["digest", "artifact_type"],
+      "properties": {
+        "digest": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "artifact_type": {
+          "type": "string",
+          "enum": ["compiled-skill", "package", "directory", "mcp-server"]
+        },
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      }
+    },
+    "scan": {
+      "type": "object",
+      "required": ["status", "verdict", "critical_count", "high_count", "medium_count", "low_count"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["PASS", "WARN", "FAIL"]
+        },
+        "verdict": {
+          "type": "string",
+          "enum": ["CLEAR", "REVIEW", "BLOCK"]
+        },
+        "critical_count": { "type": "integer", "minimum": 0 },
+        "high_count": { "type": "integer", "minimum": 0 },
+        "medium_count": { "type": "integer", "minimum": 0 },
+        "low_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "required": ["declared_vs_observed_match", "mismatches"],
+      "properties": {
+        "declared_vs_observed_match": { "type": "boolean" },
+        "mismatches": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "assurance": {
+      "type": "object",
+      "required": ["closure_state", "completeness_classification", "completion_ratio"],
+      "properties": {
+        "closure_state": {
+          "type": "string",
+          "enum": ["SAFE", "UNSAFE", "UNKNOWN"]
+        },
+        "completeness_classification": {
+          "type": "string",
+          "enum": ["FULL", "PARTIAL", "OPAQUE", "UNSUPPORTED", "BUDGET_LIMITED"]
+        },
+        "completion_ratio": { "type": "number", "minimum": 0.0, "maximum": 1.0 }
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "risk": {
+      "type": "object",
+      "required": ["trust_score", "trust_level"],
+      "properties": {
+        "trust_score": { "type": "number", "minimum": 0.0, "maximum": 100.0 },
+        "trust_level": {
+          "type": "string",
+          "enum": ["UNTRUSTED", "RESTRICTED", "REVIEWED", "TRUSTED", "VERIFIED", "REVOKED"]
+        }
+      }
+    },
+    "complete": {
+      "type": "boolean"
+    },
+    "issued_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "evidence_digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    }
+  },
+  "additionalProperties": false
+}
+

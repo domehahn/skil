@@ -1,5 +1,36 @@
 # Changelog
 
+## Unreleased — Continuous Agentic Assurance
+
+- Added digest-bound authorization constraints, lifecycle continuity states, child `AssuranceContext` delta closure, and bounded evidence-backed delegation escalation detection.
+- Added per-unit work accounting, hierarchical child budgets, explicit result receive/validate/commit/complete states, and truthful runtime-derived observer identity.
+- Added original effect-oracle loss-of-control evaluation and runtime evidence promotion that requires observer/runtime identity for `VERIFIED`.
+- Added mutable component constraints/drift, resolution-bearing cross-ecosystem executable identity, GitHub Copilot MCP discovery, canonical endpoint identity, and per-location discovery completeness.
+- Added lossless security projections, syntax ownership, typed fact promotion gates, rule-pack integrity validation, Attestation v2, and same-corpus competitive release-delta analysis.
+- Hardened Security Evidence v1 so missing closure, verification, inspection, or trust evidence cannot manufacture `SAFE`, `VERIFIED`, `FULL`, or a 100 trust score.
+
+## [1.0.0-rc1] - 2026-09-10
+
+- **Production Authority & Boundary Frozen (`docs/architecture-boundary.md`)**: Frozen SKIL's canonical role as the Security, Trust, Verification, and Assurance Plane (`ANALYZE`, `VERIFY`, `ASSURE`, `ATTEST`), establishing explicit boundaries with `skgate` (Admission Plane) and `skrun` (Execution Plane).
+- **Security Evidence Schema v1 (`schemas/security-evidence-v1.schema.json`, `internal/evidence`)**: Implemented versioned Security Evidence v1 schema featuring canonical JSON serialization, deterministic SHA256 evidence digests, exact subject digest binding, and Ed25519 DSSE signatures.
+- **`skil` $\rightarrow$ `skgate` Cryptographic Evidence Interop (`internal/interop`)**: Implemented mock-free cryptographic evidence evaluation proving `skgate` validates `skil`'s signed evidence and subject digests to render admission decisions.
+- **`skrun` Receipt Verification Engine (`schemas/skrun-receipt-v1.schema.json`, `internal/receipt`, `skil receipt verify`)**: Added execution receipt verification engine and `skil receipt verify` CLI command to verify `skrun` runtime execution receipts against artifact digests, policy digests, denied actions, and native isolation guarantees.
+- **V1 Readiness & Stability Guarantees (`V1_READINESS.md`)**: Published normative stability commitments for CLI flags, exit codes, finding schemas, SARIF exports, rule IDs, and severity classifications.
+- **Formal Threat Model (`THREAT_MODEL.md`)**: Published formal threat model covering parser differentials, prompt injection, alias confusion, sandbox escape, evidence tampering, and schema drift.
+- **Generalized `ExecutableIdentity` (`internal/identity`)**: Extended `CallableIdentity` into a cross-ecosystem `ExecutableIdentity` supporting Python, JS/TS, Shell, MCP tools, agent tools, and native executables.
+- **Benchmark Quality Release Gate (`internal/eval`)**: Enforced precision (90%), recall (95%), false positive ceilings, and rule coverage requirements as a blocking release gate.
+- **GitHub Actions Hardening**: Pinned all GitHub Action dependencies across `.github/workflows/*.yml` to full 40-character SHA commit hashes.
+
+## [0.7.0] - 2026-09-10
+
+- **Assurance Completeness Model (`internal/completeness`)**: Introduced multidimensional resolution completeness, distinguishing `EXACT`, `BOUNDED_SET`, `PARTIAL`, and `RUNTIME_UNKNOWN` resolution states to eliminate false completeness on dynamic execution targets. Enforces axiom *Source understood ≠ Execution target understood ≠ Analysis complete*.
+- **Analysis Work Accounting Ledger (`WorkLedger`)**: Added strict mathematical invariant tracking scheduled analysis units vs processed, transformed, skipped, unsupported, budget-exhausted, and failed units.
+- **Result Commit Protocol (`ResultCommitProtocol`)**: Enforced evidence commitment prior to completion finish tag validation, ensuring valid findings survive truncated LLM/stream outputs.
+- **Observer Identity Attestation (`ObserverIdentity`)**: Added evidence producer attestation including `skil_version`, `binary_digest`, `policy_digest`, `analyzer_set_digest`, and `runtime_mode` bound into attestations and skill cards.
+- **Ecosystem-Aware Versioning (`internal/versioning`)**: Added ecosystem version parsers and comparators for SemVer, PEP 440, Maven, Cargo, and npm.
+- **Completeness Accuracy Benchmark**: Ground truth classification (`FULL`, `PARTIAL`, `OPAQUE`, `UNSUPPORTED`, `BUDGET_LIMITED`) and False Complete Rate (FCR) measurement.
+- **CLI Command `skil completeness`**: Added new CLI sub-command for resolution completeness, work accounting, and observer identity reporting.
+
 ## Unreleased
 
 - Added `skil.CallableIdentity` (`ecosystem`, `module`, `symbol`, a

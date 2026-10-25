@@ -305,7 +305,13 @@ type ScanResult struct {
 	// co-occurrence correlation). See EvidenceState for what its three
 	// confidence tiers mean.
 	EvidenceGraph *EvidenceGraphSummary `json:"evidence_graph,omitempty"`
-	GeneratedAt   time.Time             `json:"generated_at"`
+	// Assurance is the conservative, evidence-backed closure over required
+	// analysis work. It is additive to the legacy status/verdict fields.
+	Assurance *AssuranceReport `json:"assurance,omitempty"`
+	// ProofPersisted is set only after the final evidence/attestation has been
+	// successfully materialized. In-memory analysis cannot claim COMPLETE.
+	ProofPersisted bool      `json:"proof_persisted,omitempty"`
+	GeneratedAt    time.Time `json:"generated_at"`
 }
 
 // EvidenceState is the confidence tier of one EvidenceGraph node or edge.
@@ -689,6 +695,11 @@ type SemanticDiagnostics struct {
 type SemanticAnalysis struct {
 	Findings    []Finding           `json:"findings"`
 	Diagnostics SemanticDiagnostics `json:"diagnostics"`
+	// Invocation is populated by a provider only from what it actually
+	// observed on the wire (effective endpoint, reported model, transmitted
+	// request, received response). It is nil when no response was observed, in
+	// which case the pass can never prove COMPLETE verification.
+	Invocation *EffectiveInvocationEvidence `json:"invocation,omitempty"`
 }
 
 // DiagnosticSemanticProvider is an additive provider extension. Review-mode

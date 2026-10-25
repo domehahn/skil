@@ -49,6 +49,10 @@ func (a *Asset) Rules() []skil.Rule {
 			Severity: skil.SeverityCritical, Analysis: "asset",
 			Description: "A file's actual content (a native executable, script interpreter, or archive) does not match what its extension implies, a classic smuggling/polyglot technique.",
 			Remediation: "Verify the file's true type and remove or rename any disguised executable content."},
+		{ID: "SKIL-ASSET-BINARY-INSTRUCTION", Title: "Embedded instruction or execution payload in binary container", Category: "asset-security",
+			Severity: skil.SeverityHigh, Analysis: "binary-projection",
+			Description: "A binary or polyglot container embeds readable prompt-injection or shell-execution instructions.",
+			Remediation: "Inspect and strip embedded instruction payloads from binary assets."},
 	}
 }
 
@@ -103,6 +107,11 @@ func (a *Asset) Analyze(_ context.Context, ac skil.AnalysisContext) ([]skil.Find
 					file, 1, kind+" content disguised as ."+ext)
 				finding.Evidence["actual_type"] = kind
 				out = append(out, finding)
+			}
+		}
+		for _, proj := range ProjectBinaryInstructions(file) {
+			if proj.Finding != nil {
+				out = append(out, *proj.Finding)
 			}
 		}
 	}

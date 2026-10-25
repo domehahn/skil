@@ -8,18 +8,20 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version: "1.24.x"
           cache: true
       - name: Install YARA
-        run: sudo apt-get update && sudo apt-get install -y yara
+        run: sudo apt-get update && sudo apt-get install -y yara python3-yaml
       - run: go mod verify
+      - name: Check documentation links
+        run: make check-docs
       - run: gofmt -l cmd internal pkg tests | tee /tmp/gofmt && test ! -s /tmp/gofmt
       - run: go vet ./...
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@55c2c1448f86e01eaae002a5a3a9624417608d84 # v6
         with:
           version: v1.64.5
           args: --timeout=5m
@@ -31,9 +33,7 @@ jobs:
       - name: Crosswalk generation check
         run: python3 compat/external-scanner/generate_crosswalk.py --check docs/external-control-crosswalk.md
       - name: Benchmark pin-verification and measurement-evidence tests
-        run: |
-          pip install --user pyyaml
-          python3 -m unittest discover -s benchmark/runner -p 'test_*.py'
+        run: python3 -m unittest discover -s benchmark/runner -p 'test_*.py'
       - run: go build -trimpath -o bin/skil ./cmd/skil
       - run: go run ./cmd/skil validate tests/fixtures/clean-skill
       - run: go run ./cmd/skil scan tests/fixtures/clean-skill --format sarif --output skil.sarif
@@ -73,16 +73,16 @@ jobs:
   vulnerabilities:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: golang/govulncheck-action@v1
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: golang/govulncheck-action@032d45514ae346b1db93c04b0c90b841c370344f # v1
         with:
           go-version-file: go.mod
           go-package: ./...
   osv-provider:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: go.mod
           cache: true
@@ -119,8 +119,8 @@ jobs:
   linux-isolation:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: go.mod
           cache: true
@@ -138,8 +138,8 @@ jobs:
   windows-isolation:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: go.mod
           cache: true
@@ -150,8 +150,8 @@ jobs:
   macos-isolation:
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: go.mod
           cache: true

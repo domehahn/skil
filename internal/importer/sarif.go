@@ -98,25 +98,14 @@ func sarifSeverity(level string, properties map[string]any) skil.Severity {
 		return skil.SeverityMedium
 	case "note":
 		return skil.SeverityLow
-	default:
+	case "none", "":
 		return skil.SeverityInfo
+	default:
+		return skil.SeverityUnknown
 	}
 }
 
-func severityRank(value skil.Severity) int {
-	switch value {
-	case skil.SeverityCritical:
-		return 4
-	case skil.SeverityHigh:
-		return 3
-	case skil.SeverityMedium:
-		return 2
-	case skil.SeverityLow:
-		return 1
-	default:
-		return 0
-	}
-}
+func severityRank(value skil.Severity) int { return skil.SeverityRank(value) }
 
 func sarifSubjectDigest(properties map[string]any) string {
 	if value, ok := properties["skil_subject_digest"].(string); ok {

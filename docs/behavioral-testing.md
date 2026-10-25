@@ -1,5 +1,9 @@
 # Behavioral testing
 
+Loss-of-control evaluation uses deterministic effect oracles and keeps model
+self-report below `VERIFIED`. Missing runtime observations make the scenario
+set incomplete; see [Continuous Agentic Assurance](continuous-agentic-assurance.md).
+
 Containment Assurance evaluates whether an agent remains inside its explicitly
 authorized capability, target, execution, and trust boundaries while pursuing
 a task.

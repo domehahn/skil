@@ -63,3 +63,7 @@ The implementation and regression suite preserve these monotonic properties:
    state are treated as executable or privileged assurance surfaces.
 9. `SAFE` is not an alias for `UNKNOWN`; missing evidence cannot increase
    assurance.
+10. Parent verification never transfers automatically to a child principal.
+11. Missing, weakened, or conflicting authorization constraints reduce assurance.
+12. Runtime claims become `VERIFIED` only through identified external observers.
+13. A malformed configuration sibling, completion envelope, or summary cannot erase valid security evidence.
