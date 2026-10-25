@@ -174,4 +174,3 @@ func TestValidateCandidateTestRejectsUnsafeAndEscapingTests(t *testing.T) {
 		})
 	}
 }
-

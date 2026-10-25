@@ -451,4 +451,3 @@ func TestAuthorizationRejectsEmbeddedSecretsAndDistinguishesTransportFromEnforce
 		t.Fatal("expected VerifyOperationReceipt(..., requireExecutedAndEnforced=true) to reject transport-only OutcomeAttempted receipt")
 	}
 }
-

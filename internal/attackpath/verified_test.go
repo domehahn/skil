@@ -212,4 +212,3 @@ func TestAllTenControlledAttackScenariosAndSyntheticSafetyGuards(t *testing.T) {
 		t.Fatal("expected host non-isolated execution environment to be rejected")
 	}
 }
-
