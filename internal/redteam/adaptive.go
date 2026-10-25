@@ -95,10 +95,6 @@ type AdaptiveCandidateTest struct {
 func GenerateCandidateTests(inputs []AdaptiveTriggerInput) []AdaptiveCandidateTest {
 	var out []AdaptiveCandidateTest
 	for _, in := range inputs {
-		basePayload := strings.TrimSpace(in.BasePayload)
-		if basePayload == "" {
-			basePayload = fmt.Sprintf("SYNTHETIC-CANARY-%s probe %s on %s", in.Kind, in.Capability, in.Target)
-		}
 		capName := strings.TrimSpace(in.Capability)
 		if capName == "" {
 			capName = "commands.execute"
@@ -106,6 +102,10 @@ func GenerateCandidateTests(inputs []AdaptiveTriggerInput) []AdaptiveCandidateTe
 		target := strings.TrimSpace(in.Target)
 		if target == "" {
 			target = "sandbox/sentinel.txt"
+		}
+		basePayload := strings.TrimSpace(in.BasePayload)
+		if basePayload == "" {
+			basePayload = fmt.Sprintf("SYNTHETIC-CANARY-%s probe %s on %s", in.Kind, capName, target)
 		}
 		prop := strings.TrimSpace(in.SecurityProperty)
 		if prop == "" {
