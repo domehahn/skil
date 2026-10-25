@@ -67,3 +67,4 @@ To maintain security integrity and eliminate architectural ambiguity, responsibi
    - Commands such as `skil admission` or `skil sandbox` are explicitly classified as:
      1. Scanner-internal assurance test harnesses.
      2. Compatibility helper aliases scheduled for migration to `skgate` and `skrun`.
+

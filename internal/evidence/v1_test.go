@@ -82,3 +82,10 @@ func TestSecurityEvidenceV1_DigestTamperDetection(t *testing.T) {
 		t.Errorf("Expected verification error for untrusted key, got success")
 	}
 }
+
+func TestSecurityEvidenceV1DoesNotInventCompletenessTrustOrVerification(t *testing.T) {
+	ev := NewSecurityEvidenceV1("sha256:11223344556677889900aabbccddeeff11223344556677889900aabbccddeeff", "skill", "x", "1", skil.ScanResult{Status: skil.StatusPass, Verdict: skil.VerdictClear}, nil)
+	if ev.Complete || ev.Assurance.ClosureState != "UNKNOWN" || ev.Verification.DeclaredVsObservedMatch || ev.Risk.TrustLevel != "UNVERIFIED" {
+		t.Fatalf("missing evidence increased assurance: %#v", ev)
+	}
+}

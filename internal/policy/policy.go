@@ -647,9 +647,7 @@ func parseAge(value string) (time.Duration, error) {
 	return 0, fmt.Errorf("invalid age %q: %w", value, err)
 }
 
-func severityRank(s skil.Severity) int {
-	return map[skil.Severity]int{skil.SeverityInfo: 0, skil.SeverityLow: 1, skil.SeverityMedium: 2, skil.SeverityHigh: 3, skil.SeverityCritical: 4}[s]
-}
+func severityRank(s skil.Severity) int { return skil.SeverityRank(s) }
 func contains(items []string, value string) bool {
 	for _, item := range items {
 		if item == value {

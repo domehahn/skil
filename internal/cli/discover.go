@@ -25,6 +25,7 @@ func (a *App) discover(args []string) int {
 	}
 
 	var components []discover.Component
+	var coverage []discover.DiscoveryCoverage
 	var scanErrs []error
 	homeDir := *home
 
@@ -61,7 +62,7 @@ func (a *App) discover(args []string) int {
 			homeDir = resolved
 		}
 		locations := discover.KnownLocations(homeDir, runtime.GOOS)
-		components, scanErrs = discover.Scan(locations)
+		components, coverage, scanErrs = discover.ScanWithCoverage(locations)
 	}
 
 	if components == nil {
@@ -69,7 +70,7 @@ func (a *App) discover(args []string) int {
 	}
 	result := discoverResult{
 		SchemaVersion: "1.0.0", Home: homeDir, Workspace: *workspace, Components: components,
-		Errors: errorStrings(scanErrs),
+		Coverage: coverage, Errors: errorStrings(scanErrs),
 	}
 
 	writer, closeFn, err := outputWriter(a.Out, *output)
@@ -89,11 +90,12 @@ func (a *App) discover(args []string) int {
 }
 
 type discoverResult struct {
-	SchemaVersion string               `json:"schema_version"`
-	Home          string               `json:"home,omitempty"`
-	Workspace     string               `json:"workspace,omitempty"`
-	Components    []discover.Component `json:"components"`
-	Errors        []string             `json:"errors,omitempty"`
+	SchemaVersion string                       `json:"schema_version"`
+	Home          string                       `json:"home,omitempty"`
+	Workspace     string                       `json:"workspace,omitempty"`
+	Components    []discover.Component         `json:"components"`
+	Coverage      []discover.DiscoveryCoverage `json:"discovery_coverage,omitempty"`
+	Errors        []string                     `json:"errors,omitempty"`
 }
 
 func errorStrings(errs []error) []string {
@@ -146,6 +148,17 @@ func writeDiscoverTerminal(writer io.Writer, result discoverResult) error {
 			if _, err := fmt.Fprintf(writer, "  - %s\n", message); err != nil {
 				return err
 			}
+		}
+	}
+	var incomplete int
+	for _, item := range result.Coverage {
+		if item.State == discover.DiscoveryPartial || item.State == discover.DiscoveryUnsupported || item.State == discover.DiscoveryFailed {
+			incomplete++
+		}
+	}
+	if incomplete > 0 {
+		if _, err := fmt.Fprintf(writer, "\nDiscovery incomplete at %d present location(s); inspect JSON discovery_coverage for limitations.\n", incomplete); err != nil {
+			return err
 		}
 	}
 	return nil

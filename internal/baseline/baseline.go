@@ -20,6 +20,10 @@ type Entry struct {
 	ApprovedBy  string     `json:"approved_by" yaml:"approved_by"`
 	ApprovedAt  time.Time  `json:"approved_at" yaml:"approved_at"`
 	ExpiresAt   *time.Time `json:"expires_at,omitempty" yaml:"expires_at,omitempty"`
+	// Occurrence is the subject-bound, source-bound identity of this exact
+	// finding occurrence (version 3). Fingerprint alone can be shared by
+	// distinct occurrences and must not be used to suppress them all.
+	Occurrence string `json:"occurrence,omitempty" yaml:"occurrence,omitempty"`
 }
 
 // Rule is an explicitly reviewed, drift-tolerant suppression selector. Every
@@ -41,6 +45,9 @@ type File struct {
 	SubjectDigest  string  `json:"subject_digest,omitempty" yaml:"subject_digest,omitempty"`
 	Entries        []Entry `json:"entries" yaml:"entries"`
 	Rules          []Rule  `json:"rules,omitempty" yaml:"rules,omitempty"`
+	// Integrity seals a version 3 baseline (sha256 over its canonical
+	// content). Stripping or editing it is detected on Load.
+	Integrity string `json:"integrity,omitempty" yaml:"integrity,omitempty"`
 }
 
 func Create(findings []skil.Finding, approvedBy, reason string) File {
@@ -71,19 +78,30 @@ func Load(path string) (File, error) {
 	if err = dec.Decode(&file); err != nil {
 		return File{}, err
 	}
-	if file.Version != 1 && file.Version != 2 {
+	if file.Version < 1 || file.Version > 3 {
 		return File{}, fmt.Errorf("unsupported baseline version %d", file.Version)
 	}
 	if len(file.Entries)+len(file.Rules) > 10_000 {
 		return File{}, errors.New("baseline entry limit exceeded")
 	}
-	if file.Version == 2 && len(file.Entries) > 0 &&
+	if file.Version >= 2 && len(file.Entries) > 0 &&
 		(file.ScannerVersion == "" || file.SubjectDigest == "") {
 		return File{}, errors.New("version 2 exact baseline entries require scanner_version and subject_digest")
 	}
 	for index, entry := range file.Entries {
 		if strings.TrimSpace(entry.Fingerprint) == "" || strings.TrimSpace(entry.Reason) == "" {
 			return File{}, fmt.Errorf("baseline entry %d requires fingerprint and reason", index)
+		}
+		if file.Version == 3 && strings.TrimSpace(entry.Occurrence) == "" {
+			return File{}, fmt.Errorf("baseline entry %d requires an occurrence identity", index)
+		}
+	}
+	if file.Version == 3 {
+		if file.Integrity == "" {
+			return File{}, errors.New("version 3 baseline requires an integrity seal")
+		}
+		if file.Integrity != file.integrity() {
+			return File{}, errors.New("baseline integrity check failed: content was modified")
 		}
 	}
 	for index, rule := range file.Rules {
@@ -108,17 +126,28 @@ func Apply(findings []skil.Finding, file File, now time.Time) []skil.Finding {
 
 func ApplyForArtifact(findings []skil.Finding, file File, now time.Time, subjectDigest string) []skil.Finding {
 	approved := map[string]Entry{}
+	byOccurrence := map[string]Entry{}
 	exactAllowed := file.Version < 2 ||
 		file.ScannerVersion == skil.Version && file.SubjectDigest != "" && file.SubjectDigest == subjectDigest
 	if exactAllowed {
 		for _, entry := range file.Entries {
 			if entry.ExpiresAt == nil || entry.ExpiresAt.After(now) {
-				approved[entry.Fingerprint] = entry
+				if file.Version == 3 {
+					byOccurrence[entry.Occurrence] = entry
+				} else {
+					approved[entry.Fingerprint] = entry
+				}
 			}
 		}
 	}
 	for i := range findings {
-		if entry, ok := approved[findings[i].Fingerprint]; ok {
+		if file.Version == 3 {
+			if entry, ok := byOccurrence[occurrenceOf(findings[i], subjectDigest)]; ok {
+				findings[i].Suppressed = true
+				findings[i].SuppressionReason = entry.Reason
+				continue
+			}
+		} else if entry, ok := approved[findings[i].Fingerprint]; ok {
 			findings[i].Suppressed = true
 			findings[i].SuppressionReason = entry.Reason
 			continue

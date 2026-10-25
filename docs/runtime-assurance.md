@@ -1,5 +1,10 @@
 # Runtime assurance
 
+Runtime observations carry observer/runtime identities and an evidence digest.
+Only externally observed effects can verify a constraint violation; absence is
+not proof. Execution continues to use the isolated adapter and host-mediated
+gateway described below.
+
 Static assurance says what exact graph was reviewed. Runtime assurance ensures
 that execution remains inside that reviewed boundary.
 

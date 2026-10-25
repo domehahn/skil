@@ -16,6 +16,8 @@ jobs:
       - name: Install YARA
         run: sudo apt-get update && sudo apt-get install -y yara
       - run: go mod verify
+      - name: Check documentation links
+        run: make check-docs
       - run: gofmt -l cmd internal pkg tests | tee /tmp/gofmt && test ! -s /tmp/gofmt
       - run: go vet ./...
       - name: Run golangci-lint

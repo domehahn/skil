@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased — Continuous Agentic Assurance
+
+- Added digest-bound authorization constraints, lifecycle continuity states, child `AssuranceContext` delta closure, and bounded evidence-backed delegation escalation detection.
+- Added per-unit work accounting, hierarchical child budgets, explicit result receive/validate/commit/complete states, and truthful runtime-derived observer identity.
+- Added original effect-oracle loss-of-control evaluation and runtime evidence promotion that requires observer/runtime identity for `VERIFIED`.
+- Added mutable component constraints/drift, resolution-bearing cross-ecosystem executable identity, GitHub Copilot MCP discovery, canonical endpoint identity, and per-location discovery completeness.
+- Added lossless security projections, syntax ownership, typed fact promotion gates, rule-pack integrity validation, Attestation v2, and same-corpus competitive release-delta analysis.
+- Hardened Security Evidence v1 so missing closure, verification, inspection, or trust evidence cannot manufacture `SAFE`, `VERIFIED`, `FULL`, or a 100 trust score.
+
 ## [1.0.0-rc1] - 2026-09-10
 
 - **Production Authority & Boundary Frozen (`docs/architecture-boundary.md`)**: Frozen SKIL's canonical role as the Security, Trust, Verification, and Assurance Plane (`ANALYZE`, `VERIFY`, `ASSURE`, `ATTEST`), establishing explicit boundaries with `skgate` (Admission Plane) and `skrun` (Execution Plane).

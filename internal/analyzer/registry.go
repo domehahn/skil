@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/domehahn/skil/internal/assurance"
 	"github.com/domehahn/skil/internal/derived"
 	"github.com/domehahn/skil/pkg/skil"
 )
@@ -157,6 +158,7 @@ func (r *Registry) Scan(ctx context.Context, ac skil.AnalysisContext) (skil.Scan
 			Component: "analysis-budget", Level: "warning",
 			Message: fmt.Sprintf("analysis not started because the artifact exceeds: %s", strings.Join(preflight.Exceeded, ", ")),
 		})
+		result.Assurance = assurance.AssessScan(result)
 		return result, nil
 	}
 	if len(ac.Artifact.LoadDiagnostics) > 0 {
@@ -263,6 +265,7 @@ func (r *Registry) Scan(ctx context.Context, ac skil.AnalysisContext) (skil.Scan
 				}
 			}
 			result.Completeness = summarizeInspection(result.Inspection)
+			result.Assurance = assurance.AssessScan(result)
 			return result, fmt.Errorf("%s analyzer: %w", meta.ID, err)
 		}
 		for _, finding := range findings {
@@ -303,6 +306,7 @@ func (r *Registry) Scan(ctx context.Context, ac skil.AnalysisContext) (skil.Scan
 	result.EvidenceGraph = buildEvidenceGraph(ctx, r.registeredSemanticProvider(), ac, result.Findings, result.Observations)
 	dependencies, err := dependencyIdentities(ac.Artifact, result.Observations)
 	if err != nil {
+		result.Assurance = assurance.AssessScan(result)
 		return result, fmt.Errorf("build dependency identities: %w", err)
 	}
 	result.Dependencies = dependencies
@@ -337,6 +341,7 @@ func (r *Registry) Scan(ctx context.Context, ac skil.AnalysisContext) (skil.Scan
 			Message: fmt.Sprintf("scan exceeded its analysis budget in: %s", strings.Join(result.Budget.Exceeded, ", ")),
 		})
 	}
+	result.Assurance = assurance.AssessScan(result)
 	return result, nil
 }
 
@@ -749,7 +754,7 @@ func missingCapabilityDeclaration(findings []skil.Finding) (skil.Finding, bool) 
 
 func capabilityForRule(ruleID string) string {
 	switch ruleID {
-	case "SKIL-NET-001", "SKIL-INTENT-EXTERNAL-TRANSFER", "SKIL-TAINT-NETWORK", "SKIL-TAINT-PRIVILEGED-CONTEXT":
+	case "SKIL-NET-001", "SKIL-INTENT-EXTERNAL-TRANSFER", "SKIL-TAINT-NETWORK", "SKIL-TAINT-PRIVILEGED-CONTEXT", "SKIL-EXFIL-ENV-DUMP":
 		return "network.outbound"
 	case "SKIL-FS-001", "SKIL-TAINT-FILESYSTEM-WRITE":
 		return "filesystem.write"
@@ -759,7 +764,8 @@ func capabilityForRule(ruleID string) string {
 		"SKIL-JS-001", "SKIL-INTENT-COMMAND", "SKIL-TAINT-EXECUTION", "SKIL-TAINT-OUTPUT-EXECUTION",
 		"SKIL-AGENT-HOOK-001", "SKIL-AGENT-HOOK-002", "SKIL-AGENT-HOOK-003", "SKIL-AGENT-PERM-001", "SKIL-AGENT-PERM-002",
 		"SKIL-INTENT-DIVERGENCE", "SKIL-JAILBREAK-001", "SKIL-JAILBREAK-002", "SKIL-JAILBREAK-003",
-		"SKIL-DEP-SOURCE-OVERRIDE", "SKIL-DEP-SOURCE-INSECURE", "SKIL-DEP-SOURCE-REDIRECT", "SKIL-RAG-003":
+		"SKIL-DEP-SOURCE-OVERRIDE", "SKIL-DEP-SOURCE-INSECURE", "SKIL-DEP-SOURCE-REDIRECT", "SKIL-RAG-003",
+		"SKIL-EXEC-ENCODED-CHAIN":
 		return "commands.execute"
 	case "SKIL-RAG-001", "SKIL-RAG-002", "SKIL-MEMORY-PERSISTENCE-001", "SKIL-RAG-INGESTION-001":
 		return "persistence"
@@ -776,6 +782,9 @@ func capabilityForRule(ruleID string) string {
 
 func analyzerApplies(meta skil.AnalyzerMetadata, file skil.File) bool {
 	ext := strings.ToLower(extension(file.Path))
+	if ext == "" && hasPythonShebang(file.Data) {
+		ext = "py"
+	}
 	base := strings.ToLower(file.Path)
 	if slash := strings.LastIndex(base, "/"); slash >= 0 {
 		base = base[slash+1:]
@@ -846,7 +855,7 @@ func nativeRuleKnown(rules []string, id string) bool {
 }
 
 func Verdict(maximum skil.Severity, score int, coverage map[string]skil.CoverageState) skil.Verdict {
-	if maximum == skil.SeverityCritical || maximum == skil.SeverityHigh || score >= 40 {
+	if skil.SeverityRank(maximum) >= skil.SeverityRank(skil.SeverityHigh) || score >= 40 {
 		return skil.VerdictBlock
 	}
 	if maximum == skil.SeverityMedium || score >= 10 || hasDegradedCoverage(coverage) ||
@@ -868,11 +877,7 @@ func hasDegradedCoverage(coverage map[string]skil.CoverageState) bool {
 func Risk(findings []skil.Finding, coverage map[string]skil.CoverageState) (skil.Severity, int, skil.Status) {
 	weights := map[skil.Severity]int{
 		skil.SeverityInfo: 0, skil.SeverityLow: 3, skil.SeverityMedium: 8,
-		skil.SeverityHigh: 18, skil.SeverityCritical: 30,
-	}
-	ranks := map[skil.Severity]int{
-		skil.SeverityInfo: 0, skil.SeverityLow: 1, skil.SeverityMedium: 2,
-		skil.SeverityHigh: 3, skil.SeverityCritical: 4,
+		skil.SeverityHigh: 18, skil.SeverityUnknown: 18, skil.SeverityCritical: 30,
 	}
 	max := skil.SeverityInfo
 	score := 0.0
@@ -884,7 +889,7 @@ func Risk(findings []skil.Finding, coverage map[string]skil.CoverageState) (skil
 		if f.Category == "contract-conformance" {
 			score += 10
 		}
-		if ranks[f.Severity] > ranks[max] {
+		if skil.SeverityRank(f.Severity) > skil.SeverityRank(max) {
 			max = f.Severity
 		}
 	}
@@ -897,7 +902,7 @@ func Risk(findings []skil.Finding, coverage map[string]skil.CoverageState) (skil
 	status := skil.StatusPass
 	if max == skil.SeverityMedium {
 		status = skil.StatusWarn
-	} else if ranks[max] >= ranks[skil.SeverityHigh] {
+	} else if skil.SeverityRank(max) >= skil.SeverityRank(skil.SeverityHigh) {
 		status = skil.StatusFail
 	}
 	return max, int(score + 0.5), status

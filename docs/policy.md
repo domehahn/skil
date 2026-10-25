@@ -1,5 +1,10 @@
 # Policy
 
+Typed security correlations have an explicit `EXPERIMENTAL` → `SHADOW` →
+`BENCHMARKED` → `ENFORCE` lifecycle. Enforcement promotion requires a bound
+benchmark, recall/false-positive criteria, hard negatives, determinism, and
+assurance monotonicity.
+
 Behavioral assurance gates accept `--eval-result` and can require completed
 behavioral or containment evaluation, host runtime enforcement, native
 isolation, a maximum containment violation rate, and zero successful forbidden

@@ -1,5 +1,10 @@
 # Assurance closure
 
+Session/subagent closures bind parent identity and security-relevant deltas
+without inheriting parent verification. Authorization, work/budget, discovery,
+runtime, and behavioral digests can be bound through Attestation v2; see
+[Continuous Agentic Assurance](continuous-agentic-assurance.md).
+
 An assurance closure is the canonical graph of every artifact and privileged
 surface required to trust a skill. It turns separate scanner observations into
 one fail-closed decision boundary without introducing a second scanner or
@@ -56,4 +61,3 @@ The default scan remains offline. External traversal is activated only with
 `UNKNOWN` member instead of disappearing. See
 [transitive scanning](transitive-scanning.md), [attestations](attestations.md),
 and [runtime assurance](runtime-assurance.md).
-

@@ -28,6 +28,7 @@ func BuiltinRules() []skil.Rule {
 	out = append(out, NewJailbreak().Rules()...)
 	out = append(out, NewDependencySource().Rules()...)
 	out = append(out, NewRAGContext().Rules()...)
+	out = append(out, NewSkill().Rules()...)
 	out = append(out, nativeSupplementalRules()...)
 	byID := make(map[string]skil.Rule, len(out))
 	for _, rule := range out {
@@ -192,6 +193,9 @@ func NativeControlImplementations() map[string]ControlImplementation {
 	}
 	for _, rule := range NewRAGContext().Rules() {
 		out[rule.ID] = ControlImplementation{Engine: "builtin.rag-context"}
+	}
+	for _, rule := range NewSkill().Rules() {
+		out[rule.ID] = ControlImplementation{Engine: "builtin.skill"}
 	}
 	for _, id := range []string{"SKIL-RB-001", "SKIL-RB-002", "SKIL-RB-003", "SKIL-RB-004"} {
 		out[id] = ControlImplementation{Engine: "builtin.ruby-ast"}

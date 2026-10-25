@@ -42,6 +42,13 @@ members prevent the root from being trusted. `SAFE`, `UNSAFE`, and `UNKNOWN`
 are distinct: absence of a known finding is never promoted to safety when work
 is incomplete. See [Assurance closure](docs/assurance-closure.md).
 
+Continuous Agentic Assurance additionally binds authorization continuity,
+subagent/session deltas, work and hierarchical budget accounting, effect-based
+runtime verification, discovery completeness, and behavioral evidence. A child
+agent never inherits `VERIFIED`, and an unobserved runtime event is never proof
+of safety. See [Continuous Agentic Assurance](docs/continuous-agentic-assurance.md)
+and the [competitive feature radar](docs/research/competitive-feature-radar.md).
+
 ## Quick start
 
 Go 1.24 or newer and a C toolchain (for the official Tree-sitter bindings) are
@@ -71,6 +78,8 @@ skil scan ./my-skill --semantic --semantic-provider anthropic \
 skil scan ./my-skill --semantic --semantic-provider bedrock \
   --semantic-model anthropic.claude-3-7-sonnet --semantic-region eu-central-1
 skil scan ./my-skill --format sarif --output skil.sarif
+skil explain skil-scan.json
+skil continuous check ./my-skill --policy .skil/policy.yaml --state .skil/assurance-state.json
 skil scan-all .agents/skills --workers 8 --format json --output skil-collection.json
 skil scan https://github.com/acme/skill.git --allow-remote
 skil mcp registry scan server.json --format json
@@ -223,6 +232,7 @@ A non-root multi-stage container image can be built with `make docker-build`;
 | [Air-gapped operation](docs/airgap.md) | `--airgap`: hard-fail before any work starts on any misconfigured network-capable flag |
 | [Runtime assurance](docs/runtime-assurance.md) | Reviewed root/closure pins and per-operation enforcement |
 | [Verification](docs/verification.md) | Declared-vs-observed capability checks |
+| [Explainability](docs/explainability.md) | Operator-oriented explanations of scan results |
 | [Policy](docs/policy.md) | Explainable install-time decisions |
 | [Attestations](docs/attestations.md) | Digest-bound evidence and signatures |
 | [Supply chain](docs/supply-chain.md) | SBOM, provenance, and dependency checks |

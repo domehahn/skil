@@ -8,10 +8,10 @@ import (
 
 func TestBuildExecutableIdentity_CrossEcosystem(t *testing.T) {
 	tests := []struct {
-		eco            ExecutableEcosystem
-		module         string
-		symbol         string
-		subcommand     string
+		eco           ExecutableEcosystem
+		module        string
+		symbol        string
+		subcommand    string
 		expectedCanon string
 	}{
 		{EcosystemPython, "os", "system", "", "python://os/system"},

@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	ReceiptVersionV1 = "1.0"
+	ReceiptVersionV1     = "1.0"
 	PayloadTypeReceiptV1 = "application/vnd.skrun.receipt.v1+json"
 )
 

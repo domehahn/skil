@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sort"
 	"time"
 
@@ -43,6 +45,45 @@ func Create(scan skil.ScanResult) skil.Attestation {
 		Timestamp: time.Now().UTC(), Evidence: []skil.Evidence{e},
 		ReferenceClosure: refSummary, Closure: scan.Closure, Dependencies: scan.Dependencies,
 	}
+}
+
+// Persist writes an attestation atomically and returns an error for every
+// materialization failure. Callers must not turn an in-memory success into a
+// complete assurance result unless this function succeeds.
+func Persist(path string, attestation skil.Attestation) error {
+	if path == "" {
+		return fmt.Errorf("attestation path is required")
+	}
+	payload, err := json.MarshalIndent(attestation, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal attestation: %w", err)
+	}
+	dir := filepath.Dir(path)
+	tmp, err := os.CreateTemp(dir, ".skil-attestation-*")
+	if err != nil {
+		return fmt.Errorf("create attestation staging file: %w", err)
+	}
+	tmpName := tmp.Name()
+	defer os.Remove(tmpName)
+	if err := tmp.Chmod(0o600); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("protect attestation staging file: %w", err)
+	}
+	if _, err := tmp.Write(payload); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("write attestation: %w", err)
+	}
+	if err := tmp.Sync(); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("sync attestation: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("close attestation: %w", err)
+	}
+	if err := os.Rename(tmpName, path); err != nil {
+		return fmt.Errorf("commit attestation: %w", err)
+	}
+	return nil
 }
 
 func InspectionDigest(items []skil.InspectionWorkItem) string {

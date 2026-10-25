@@ -57,8 +57,8 @@ func (e *SKGateAdmissionEvaluator) EvaluateAdmission(targetSubjectDigest string,
 
 	if signedEv == nil {
 		return AdmissionResult{
-			Decision: DecisionDeny,
-			Reason:   "signed evidence envelope is missing",
+			Decision:  DecisionDeny,
+			Reason:    "signed evidence envelope is missing",
 			Timestamp: now,
 		}
 	}
@@ -66,8 +66,8 @@ func (e *SKGateAdmissionEvaluator) EvaluateAdmission(targetSubjectDigest string,
 	ev, err := evidence.VerifySignedEvidence(signedEv, e.TrustedKeys)
 	if err != nil {
 		return AdmissionResult{
-			Decision: DecisionDeny,
-			Reason:   fmt.Sprintf("cryptographic signature verification failed: %v", err),
+			Decision:  DecisionDeny,
+			Reason:    fmt.Sprintf("cryptographic signature verification failed: %v", err),
 			Timestamp: now,
 		}
 	}
@@ -208,8 +208,10 @@ func GenerateSignedTestEvidence(privKey ed25519.PrivateKey, subjectDigest string
 		Status:  skil.StatusPass,
 		Verdict: skil.VerdictClear,
 		Completeness: skil.InspectionSummary{
+			Total: 1, Applicable: 1, Completed: 1,
 			Completeness: 1.0,
 		},
+		Closure: &skil.AssuranceClosure{RootDigest: subjectDigest, Digest: "sha256:test-closure", Complete: true, Verified: true, State: skil.AssuranceSafe},
 	}
 	if verdict == "BLOCK" {
 		scanRes.Status = skil.StatusFail

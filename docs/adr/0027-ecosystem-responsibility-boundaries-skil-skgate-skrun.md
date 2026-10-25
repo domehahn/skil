@@ -14,3 +14,4 @@ As the AI agent skill ecosystem matures, authority overlap between scanning (`sk
 
 ## Status
 Accepted.
+

@@ -114,8 +114,8 @@ func (p *BedrockProvider) AnalyzeUntrustedDetailed(ctx context.Context, request 
 			text += block.Text
 		}
 	}
-	var result semanticResult
-	if text == "" || json.Unmarshal([]byte(text), &result) != nil {
+	result, decodeErr := decodeStructured(text)
+	if decodeErr != nil {
 		return degradedResult("bedrock returned invalid structured output"), nil
 	}
 	if len(result.Findings) > 100 {

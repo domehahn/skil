@@ -91,6 +91,7 @@ type chatMessage struct {
 	Content string `json:"content"`
 }
 type chatResponse struct {
+	Model   string `json:"model"`
 	Choices []struct {
 		Message struct {
 			Content string `json:"content"`
@@ -171,14 +172,23 @@ func (p *Provider) AnalyzeUntrustedDetailed(ctx context.Context, request skil.Se
 	if reason := decoded.Choices[0].FinishReason; reason == "length" {
 		return degradedResult("semantic provider truncated its response (finish_reason=length); output token limit reached before completion"), nil
 	}
-	var result semanticResult
-	if err := json.Unmarshal([]byte(decoded.Choices[0].Message.Content), &result); err != nil {
+	result, err := decodeStructured(decoded.Choices[0].Message.Content)
+	if err != nil {
 		return degradedResult(fmt.Sprintf("semantic provider returned invalid structured output: %v", err)), nil
 	}
 	if len(result.Findings) > 100 {
 		return degradedResult("semantic provider returned too many findings"), nil
 	}
-	return normalizeFindingsDetailed(result.Findings, request, p.ID(), p.validationMode)
+	analysis, err := normalizeFindingsDetailed(result.Findings, request, p.ID(), p.validationMode)
+	inv := observedInvocation(observation{
+		Provider: "openai-compatible", AuthorizedEndpoint: p.endpoint, RequestedModel: p.model,
+		ReportedModel: decoded.Model, Credentialed: p.apiKey != "", Redirected: response.Request == nil || response.Request.URL == nil,
+		Effective: effectiveURL(response), RequestBody: body, ResponseContent: []byte(decoded.Choices[0].Message.Content),
+		Capabilities: []string{"no-tools", "structured-output"}, RequestedCapabilities: []string{"no-tools", "structured-output"},
+		ToolChoice: payload.ToolChoice,
+	})
+	analysis.Invocation = &inv
+	return analysis, err
 }
 
 // PromptVersion identifies the semantic prompt and output-validation contract.

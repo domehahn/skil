@@ -22,6 +22,7 @@ func WorkspaceLocations() []WorkspaceLocation {
 		{Tool: "claude-code", Kind: skillTree, RelPath: ".claude/skills"},
 		{Tool: "claude-code", Kind: mcpConfig, RelPath: ".claude/mcp.json", Format: formatStandard},
 		{Tool: "claude-code", Kind: mcpConfig, RelPath: ".claude/settings.json", Format: formatStandard},
+		{Tool: "claude-code", Kind: mcpConfig, RelPath: ".claude/settings.local.json", Format: formatStandard},
 		{Tool: "cursor", Kind: skillTree, RelPath: ".cursor/skills"},
 		{Tool: "cursor", Kind: mcpConfig, RelPath: ".cursor/mcp.json", Format: formatStandard},
 		{Tool: "cursor", Kind: mcpConfig, RelPath: ".cursor/settings.json", Format: formatStandard},
@@ -30,10 +31,17 @@ func WorkspaceLocations() []WorkspaceLocation {
 		{Tool: "codex", Kind: skillTree, RelPath: ".codex/skills"},
 		{Tool: "codex", Kind: mcpConfig, RelPath: ".codex/config.toml", Format: formatCodexTOML},
 		{Tool: "opencode", Kind: mcpConfig, RelPath: ".opencode/mcp.json", Format: formatOpenCode},
+		{Tool: "opencode", Kind: mcpConfig, RelPath: "opencode.json", Format: formatOpenCode},
 		{Tool: "kiro", Kind: mcpConfig, RelPath: ".kiro/mcp.json", Format: formatStandard},
+		{Tool: "kiro", Kind: mcpConfig, RelPath: ".kiro/settings/mcp.json", Format: formatStandard},
 		{Tool: "gemini", Kind: skillTree, RelPath: ".gemini/skills"},
 		{Tool: "gemini", Kind: mcpConfig, RelPath: ".gemini/mcp.json", Format: formatStandard},
 		{Tool: "gemini", Kind: mcpConfig, RelPath: ".gemini/settings.json", Format: formatStandard},
+		{Tool: "windsurf", Kind: skillTree, RelPath: ".windsurf/skills"},
+		{Tool: "windsurf", Kind: mcpConfig, RelPath: ".windsurf/mcp.json", Format: formatStandard},
+		{Tool: "continue", Kind: mcpConfig, RelPath: ".continue/config.json", Format: formatStandard},
+		{Tool: "github-copilot", Kind: skillTree, RelPath: ".github/skills"},
+		{Tool: "github-copilot", Kind: mcpConfig, RelPath: ".github/copilot/mcp.json", Format: formatStandard},
 	}
 }
 

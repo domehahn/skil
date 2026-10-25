@@ -1,10 +1,10 @@
-.PHONY: build docker-build docker-smoke test test-linux-isolation test-linux-assurance test-windows-compile lint fmt vet
+.PHONY: build docker-build docker-smoke test test-linux-isolation test-linux-assurance test-windows-compile lint fmt vet check-docs
 
 GOCACHE ?= /tmp/skil-go-cache
 GOWORK ?= off
 
 build:
-	GOWORK=$(GOWORK) GOCACHE=$(GOCACHE) go build -trimpath -o bin/skil ./cmd/skil
+	GOWORK=$(GOWORK) GOCACHE=$(GOCACHE) go build -buildvcs=false -trimpath -o bin/skil ./cmd/skil
 
 docker-build:
 	docker build -t skil:local .
@@ -39,6 +39,9 @@ lint: vet
 
 vet:
 	GOWORK=$(GOWORK) GOCACHE=$(GOCACHE) go vet ./...
+
+check-docs:
+	python3 scripts/check-doc-links.py
 
 fmt:
 	gofmt -w cmd internal pkg tests

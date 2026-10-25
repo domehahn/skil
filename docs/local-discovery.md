@@ -42,13 +42,13 @@ from resemblance to another tool's convention:
 | Kiro | `~/.kiro/settings/mcp.json` | `mcpServers` | Declared MCP servers |
 | OpenCode | `~/.config/opencode/opencode.json` or `~/.opencode.json` | `mcp`, one command array per entry (not a separate command/args pair) | Declared MCP servers |
 | Codex CLI | `~/.codex/config.toml` (TOML, not JSON) | `[mcp_servers.<name>]` tables | Declared MCP servers |
+| GitHub Copilot CLI | `~/.copilot/mcp-config.json` | `mcpServers`; `local`, `http`, or `sse` | Canonical MCP endpoints |
 
-A location that doesn't exist on a given machine is silently skipped, not
-an error — most machines will only have a few of the covered tools
-installed. A config file that exists but isn't valid JSON, or isn't shaped
-like an MCP config, is likewise treated as absent rather than a hard
-failure, so one malformed file never hides everything else discovery
-found. A symlinked config file or skill-tree root is never followed.
+A location that doesn't exist on a given machine is `NOT_PRESENT`, not an
+error. A present malformed or unsupported config is `PARTIAL` or
+`UNSUPPORTED`, never equivalent to absence. Valid siblings remain visible.
+JSON output includes a per-location `discovery_coverage` ledger. A symlinked
+config file or skill-tree root is never followed.
 
 ## Example
 

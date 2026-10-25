@@ -56,3 +56,4 @@ This threat model outlines the assets, trust boundaries, threat actors, attack v
 1. **Exact Subject Binding**: Evidence signed by `skil` is cryptographically bound to `sha256(artifact)`. Any modification to the artifact invalidates the signature and subject digest in `skgate`.
 2. **Fail-Closed Incomplete Scans**: An incomplete scan (`AnalysisIncomplete = true`, budget exhausted, or provider timeout) under `--require-complete` must yield Exit Code 1 (`StatusFail`).
 3. **No Unauthenticated Booleans**: Trust assessments rely on verified signatures, immutable digests, and deterministic scores, never on unsigned boolean flags.
+

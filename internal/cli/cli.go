@@ -143,131 +143,21 @@ func (a *App) Run(ctx context.Context, args []string) int {
 			return ExitOK
 		}
 	}
-	var code int
-	switch args[0] {
-	case "help", "--help", "-h":
+	if args[0] == "help" || args[0] == "--help" || args[0] == "-h" {
 		a.help()
 		return ExitOK
-	case "version", "--version":
+	}
+	if args[0] == "version" || args[0] == "--version" {
 		return a.version(args[1:])
-	case "validate":
-		code = a.validate(args[1:])
-	case "lint":
-		code = a.lint(args[1:])
-	case "lint-all":
-		code = a.lintAll(args[1:])
-	case "scan":
-		code = a.scan(ctx, args[1:])
-	case "scan-all":
-		code = a.scanAll(ctx, args[1:])
-	case "compose":
-		if len(args) > 1 && args[1] == "assure" {
-			code = a.composeAssure(ctx, append([]string{}, args[2:]...))
-		} else {
-			code = a.compose(ctx, args[1:])
-		}
-	case "serve":
-		code = a.serve(ctx, args[1:])
-	case "mcp":
-		code = a.mcp(ctx, args[1:])
-	case "registry":
-		code = a.registryCommand(ctx, args[1:])
-	case "trust":
-		code = RunTrust(args[1:], a.Out, a.Err)
-	case "card":
-		code = RunCard(args[1:], a.Out, a.Err)
-	case "optimize":
-		code = RunOptimize(args[1:], a.Out, a.Err)
-	case "graph":
-		code = RunGraph(args[1:], a.Out, a.Err)
-	case "compare", "drift":
-		code = RunCompare(args[1:], a.Out, a.Err)
-	case "probe", "redteam":
-		code = RunProbe(args[1:], a.Out, a.Err)
-	case "proxy":
-		code = RunProxy(args[1:], a.Out, a.Err)
-	case "telemetry":
-		code = RunTelemetry(args[1:], a.Out, a.Err)
-	case "admission":
-		code = a.admission(ctx, args[1:])
-	case "verify":
-		code = a.verify(ctx, args[1:])
-	case "eval":
-		if len(args) > 1 && args[1] == "run" {
-			code = RunEval(args[1:], a.Out, a.Err)
-		} else {
-			code = a.evaluate(ctx, args[1:])
-		}
-	case "assure":
-		code = a.assure(ctx, args[1:])
-	case "attest":
-		code = a.attest(ctx, args[1:])
-	case "provenance":
-		code = a.provenance(args[1:])
-	case "key":
-		code = a.key(args[1:])
-	case "package":
-		code = a.packageBuild(args[1:])
-	case "install":
-		code = a.install(ctx, args[1:])
-	case "update":
-		code = a.update(ctx, args[1:])
-	case "uninstall":
-		code = a.uninstall(args[1:])
-	case "lock":
-		code = a.lock(args[1:])
-	case "evidence":
-		code = a.evidence(args[1:])
-	case "policy":
-		code = a.policyCheck(ctx, args[1:])
-	case "baseline":
-		code = a.baselineCreate(ctx, args[1:])
-	case "rules":
-		code = a.rules(args[1:])
-	case "conform":
-		code = a.conform(args[1:])
-	case "analyzers":
-		code = a.analyzers(args[1:])
-	case "capabilities":
-		code = a.capabilities(args[1:])
-	case "inspect":
-		code = a.inspect(args[1:])
-	case "sbom":
-		code = a.sbom(args[1:])
-	case "discover":
-		code = a.discover(args[1:])
-	case "fix":
-		code = a.fix(args[1:])
-	case "watch":
-		code = a.watch(ctx, args[1:])
-	case "gate":
-		code = a.gate(args[1:])
-	case "hook":
-		code = a.hook(args[1:])
-	case "ci":
-		code = a.ci(args[1:])
-	case "contract":
-		code = a.contract(ctx, args[1:])
-	case "mesh":
-		code = a.mesh(args[1:])
-	case "stego":
-		code = a.stego(args[1:])
-	case "sandbox":
-		code = a.sandbox(args[1:])
-	case "revoke":
-		code = a.revoke(args[1:])
-	case "zk":
-		code = a.zk(ctx, args[1:])
-	case "completeness":
-		code = RunCompleteness(args[1:], a.Out, a.Err)
-	case "receipt":
-		code = RunReceipt(args[1:], a.Out, a.Err)
-	default:
+	}
+	if handler, ok := a.commandHandlers()[args[0]]; ok {
+		return handler(ctx, args[1:])
+	}
+	{
 		fmt.Fprintf(a.Err, "unknown command %q\n", args[0])
 		a.help()
 		return ExitInput
 	}
-	return code
 }
 
 func (a *App) version(args []string) int {
@@ -314,6 +204,7 @@ Usage:
               [--format terminal|json|markdown|sarif] [--compact] [--output file] [--baseline file] [--show-suppressed=false] [--domain domain] [--list-domains]
               [--transitive [--transitive-depth N] [--transitive-allow-prefix p1,p2] [--transitive-deny-prefix p1,p2]]
   skil scan-all <collection> [analysis flags] [--workers N] [--format terminal|json|markdown] [--output file]
+  skil explain <scan.json> [--format terminal|json] [--output file]
   skil compose <collection> [analysis flags] [--format terminal|json] [--output file]
   skil compose assure <collection> --runtime-command executable [--runtime-args a,b] [--format terminal|json] [--output file]
   skil serve (--stdio | --listen 127.0.0.1:port --token-env ENV) --root <directory>
@@ -322,6 +213,7 @@ Usage:
   skil verify <skill> [--format json] [--osv] [--yara-rules file] [--semantic --semantic-model model] [--semantic-validation review|strict] [--semantic-runs N]
   skil eval <skill> [--test file] [--runtime mock|isolated] [--runtime-command executable] [--runs N] [--output file]
   skil assure <skill> --runtime-command executable [--test file] [--runs N] [--full] [--format terminal|json]
+  skil continuous check <skill> --policy file --state file [--format terminal|json] [--output file]
   skil attest <skill> [--output file] [--eval-result file] [--signing-key key.pem] [analysis flags]
   skil provenance create <skill.tgz> --repository URL --commit SHA --builder ID --signing-key key.pem
   skil key generate --output key.pem
@@ -657,20 +549,7 @@ func activeFindings(findings []skil.Finding) []skil.Finding {
 	return active
 }
 
-func severityRankCLI(severity skil.Severity) int {
-	switch severity {
-	case skil.SeverityCritical:
-		return 4
-	case skil.SeverityHigh:
-		return 3
-	case skil.SeverityMedium:
-		return 2
-	case skil.SeverityLow:
-		return 1
-	default:
-		return 0
-	}
-}
+func severityRankCLI(severity skil.Severity) int { return skil.SeverityRank(severity) }
 
 func applyClosureOutcome(result *skil.ScanResult) {
 	if result == nil || result.Closure == nil {
@@ -1595,13 +1474,17 @@ func (a *App) baselineCreate(ctx context.Context, args []string) int {
 	if err != nil {
 		return a.inputError(err)
 	}
-	file := baseline.CreateForScan(scan, *approved, *reason)
-	writer, closeFn, err := outputWriter(a.Out, *output)
+	file, err := baseline.CreateForScanStrict(scan, *approved, *reason)
 	if err != nil {
 		return a.inputError(err)
 	}
-	defer closeFn()
-	encoder := yaml.NewEncoder(writer)
+	if *output != "" {
+		if err := baseline.Save(*output, file); err != nil {
+			return a.inputError(err)
+		}
+		return ExitOK
+	}
+	encoder := yaml.NewEncoder(a.Out)
 	encoder.SetIndent(2)
 	if err := encoder.Encode(file); err != nil {
 		return a.internalError(err)

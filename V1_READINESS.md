@@ -39,3 +39,4 @@ Upon reaching v1.0.0, SKIL guarantees backward compatibility for the following i
 - [x] Formal threat model published in `THREAT_MODEL.md`.
 - [x] `ExecutableIdentity` abstraction established across Python, JS/TS, Shell, MCP, and native executables.
 - [x] Benchmark regression gate enforced in release validation.
+

@@ -29,6 +29,7 @@ type ExecutableIdentity struct {
 	Subcommand string              `json:"subcommand,omitempty" yaml:"subcommand,omitempty"`
 	Canonical  string              `json:"canonical" yaml:"canonical"`
 	Provenance []string            `json:"provenance,omitempty" yaml:"provenance,omitempty"`
+	Resolution string              `json:"resolution" yaml:"resolution"`
 }
 
 // BuildExecutableIdentity creates a canonical ExecutableIdentity across any supported ecosystem.
@@ -53,6 +54,7 @@ func BuildExecutableIdentity(eco ExecutableEcosystem, module, symbol, subcommand
 		Subcommand: subClean,
 		Canonical:  canonical,
 		Provenance: provenance,
+		Resolution: "EXACT",
 	}
 }
 

@@ -499,17 +499,4 @@ func scanAnalysisStatus(scan skil.ScanResult) skil.AnalysisStatus {
 	return skil.AnalysisCompleted
 }
 
-func severityRank(s skil.Severity) int {
-	switch s {
-	case skil.SeverityCritical:
-		return 4
-	case skil.SeverityHigh:
-		return 3
-	case skil.SeverityMedium:
-		return 2
-	case skil.SeverityLow:
-		return 1
-	default:
-		return 0
-	}
-}
+func severityRank(s skil.Severity) int { return skil.SeverityRank(s) }

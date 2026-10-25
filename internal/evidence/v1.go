@@ -117,16 +117,18 @@ func NewSecurityEvidenceV1(subjectDigest, artifactType, name, version string, sc
 		verdict = "REVIEW"
 	}
 
-	tScore := 100.0
-	tLevel := "VERIFIED"
+	tScore := 0.0
+	tLevel := "UNVERIFIED"
 	if assessment != nil {
 		tScore = assessment.TrustScore.Score
 		tLevel = string(assessment.TrustLevel)
 	}
 
-	closureState := "SAFE"
+	closureState := "UNKNOWN"
 	if scanRes.Closure != nil {
 		switch scanRes.Closure.State {
+		case skil.AssuranceSafe:
+			closureState = "SAFE"
 		case skil.AssuranceUnsafe:
 			closureState = "UNSAFE"
 		case skil.AssuranceUnknown:
@@ -136,11 +138,12 @@ func NewSecurityEvidenceV1(subjectDigest, artifactType, name, version string, sc
 		closureState = "UNSAFE"
 	}
 
-	compClass := "FULL"
-	compRatio := 1.0
-	if scanRes.Completeness.Completeness < 1.0 {
+	compClass := "PARTIAL"
+	compRatio := scanRes.Completeness.Completeness
+	if scanRes.Completeness.Total > 0 && scanRes.Completeness.Applicable > 0 && scanRes.Completeness.Completeness == 1.0 {
+		compClass = "FULL"
+	} else {
 		compClass = "PARTIAL"
-		compRatio = scanRes.Completeness.Completeness
 	}
 
 	caps := []string{}
@@ -168,8 +171,8 @@ func NewSecurityEvidenceV1(subjectDigest, artifactType, name, version string, sc
 			LowCount:      low,
 		},
 		Verification: VerificationSummaryV1{
-			DeclaredVsObservedMatch: true,
-			Mismatches:              []string{},
+			DeclaredVsObservedMatch: false,
+			Mismatches:              []string{"verification evidence unavailable in scan result"},
 		},
 		Assurance: AssuranceSummaryV1{
 			ClosureState:               closureState,
@@ -181,7 +184,7 @@ func NewSecurityEvidenceV1(subjectDigest, artifactType, name, version string, sc
 			TrustScore: tScore,
 			TrustLevel: tLevel,
 		},
-		Complete:  compRatio == 1.0 && closureState != "UNKNOWN",
+		Complete:  compClass == "FULL" && scanRes.Closure != nil && scanRes.Closure.Complete && scanRes.Closure.Verified && closureState != "UNKNOWN",
 		IssuedAt:  now,
 		ExpiresAt: now.Add(24 * time.Hour),
 	}

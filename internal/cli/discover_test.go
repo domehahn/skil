@@ -34,6 +34,9 @@ func TestDiscoverFindsSkillsAndMCPServersUnderHome(t *testing.T) {
 	if result.Home != home || len(result.Components) != 2 {
 		t.Fatalf("unexpected discover result: %#v", result)
 	}
+	if len(result.Coverage) == 0 {
+		t.Fatal("discovery coverage was not exposed")
+	}
 	var haveSkill, haveServer bool
 	for _, component := range result.Components {
 		if component.Name == "repo-review" && string(component.Kind) == "skill" {

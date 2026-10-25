@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/domehahn/skil/internal/completeness"
 	"github.com/domehahn/skil/internal/registry"
 	"github.com/domehahn/skil/internal/trust"
 	"github.com/domehahn/skil/pkg/skil"
@@ -84,6 +85,7 @@ type CardGovernance struct {
 
 // Generate creates a SkillCard from artifact evidence and trust assessment.
 func Generate(art *skil.Artifact, assessment *trust.TrustAssessment, caps registry.CapabilityFingerprint, findings []skil.Finding) *SkillCard {
+	observer := completeness.RuntimeObserverIdentity("unknown", "unknown", "CARD")
 	name := "unknown-skill"
 	version := ""
 	digest := ""
@@ -162,10 +164,10 @@ func Generate(art *skil.Artifact, assessment *trust.TrustAssessment, caps regist
 			LowFindings:      low,
 		},
 		Quality: CardQuality{
-			Rating: "PASS",
+			Rating: "UNKNOWN",
 		},
 		Evaluation: CardEvaluation{
-			Status: "EVALUATED",
+			Status: "NOT_EVALUATED",
 		},
 		Governance: CardGovernance{
 			TrustScore:        tScore,
@@ -175,12 +177,9 @@ func Generate(art *skil.Artifact, assessment *trust.TrustAssessment, caps regist
 			HasProvenance:     art != nil && art.Builder != "",
 		},
 		Completeness: CardCompleteness{
-			ObserverDigest:      "a1b2c3d4e5f67890",
-			AttestationIdentity: "skil-observer:0.7.0:CLI",
-			Classification:      "FULL",
-			CompletionRatio:     1.0,
-			ScheduledWork:       10,
-			ProcessedWork:       10,
+			ObserverDigest:      observer.Digest,
+			AttestationIdentity: observer.AttestationIdentity,
+			Classification:      "PARTIAL",
 		},
 		Timestamp: time.Now().UTC(),
 	}

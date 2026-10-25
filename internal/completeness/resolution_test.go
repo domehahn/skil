@@ -50,6 +50,9 @@ func TestResultCommitProtocol(t *testing.T) {
 	if !rcp.CommitBeforeAck {
 		t.Errorf("Expected CommitBeforeAck to be true")
 	}
+	if !rcp.EvidenceCommitted || rcp.Complete {
+		t.Errorf("valid evidence must remain committed while truncated analysis stays incomplete")
+	}
 }
 
 func TestObserverIdentity(t *testing.T) {

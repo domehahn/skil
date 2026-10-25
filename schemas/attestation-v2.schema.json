@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://skil.dev/schemas/attestation-v2.schema.json",
+  "title": "SKIL Continuous Agentic Assurance Attestation v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "inputs", "digest"],
+  "properties": {
+    "schema_version": {"const": "2.0"},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subject_identity", "closure_digest", "policy_digest", "evidence_graph_digest", "observer_digest", "analysis_plan_digest", "work_ledger_digest", "budget_policy_digest", "analysis_completeness", "resolution_completeness", "discovery_completeness", "authorization_constraint_digest", "effective_authority_digest", "final_decision"],
+      "properties": {
+        "subject_identity": {"type": "string"}, "closure_digest": {"type": "string"}, "policy_digest": {"type": "string"},
+        "evidence_graph_digest": {"type": "string"}, "observer_digest": {"type": "string"}, "analysis_plan_digest": {"type": "string"},
+        "work_ledger_digest": {"type": "string"}, "budget_policy_digest": {"type": "string"},
+        "analysis_completeness": {"enum": ["FULL", "PARTIAL", "OPAQUE", "UNSUPPORTED", "BUDGET_LIMITED"]},
+        "resolution_completeness": {"enum": ["EXACT", "BOUNDED_SET", "PARTIAL", "RUNTIME_UNKNOWN"]},
+        "discovery_completeness": {"enum": ["COMPLETE", "PARTIAL", "UNSUPPORTED", "FAILED", "NOT_PRESENT"]},
+        "authorization_constraint_digest": {"type": "string"}, "effective_authority_digest": {"type": "string"},
+        "behavioral_suite_digest": {"type": "string"}, "runtime_evidence_digest": {"type": "string"}, "loss_of_control_digest": {"type": "string"},
+        "model_identity": {"type": "object"}, "final_decision": {"type": "string"}
+      }
+    }
+  }
+}
