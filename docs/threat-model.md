@@ -67,3 +67,8 @@ The implementation and regression suite preserve these monotonic properties:
 11. Missing, weakened, or conflicting authorization constraints reduce assurance.
 12. Runtime claims become `VERIFIED` only through identified external observers.
 13. A malformed configuration sibling, completion envelope, or summary cannot erase valid security evidence.
+14. An invalid, expired, or revoked `ExecutionAuthorization` never permits runtime execution, and single-use nonces prevent concurrent replay (`internal/receipt`).
+15. Any mutation to operation target, capability, or canonical argument digest invalidates the operation authorization (`internal/receipt`).
+16. Runtime drift across skill digests, MCP schemas, RAG sources, memory stores, providers, or policies invalidates affected assurance proofs and propagates immediately to dependent policy decisions (`internal/continuous`).
+17. Unverified or LLM-proposed attack paths cannot be labeled `VERIFIED_EXPLOITABLE` or `VERIFIED_BLOCKED`, and inconclusive dynamic runs remain `INCONCLUSIVE` (`internal/attackpath`, `internal/redteam`).
+18. A valid cryptographic signature on a portable assurance certificate never implies `SubjectSafe` or `PolicyAccepted` when the subject is `UNSAFE`, `PARTIAL`, or `UNKNOWN` (`internal/evidence`).

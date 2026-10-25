@@ -38,6 +38,22 @@ Typed facts provide a stable correlation boundary. New decision rules progress t
 
 Attestation v2 binds subject, closure, policy, graph, observer, plan, work ledger, budget policy, completeness dimensions, authorization/effective authority, optional behavioral/runtime/LoC evidence, optional honest model identity, and final decision. Missing required evidence prevents construction. Any bound change invalidates the digest. Model fingerprint fields are optional because SKIL does not claim reliable black-box provider fingerprinting.
 
+## Next-Generation Continuous Assurance (Change 0016)
+
+1. **Proof-Carrying Agent Execution (`internal/receipt/authorization.go`)**:
+   - `ExecutionAuthorization` binds subject digest, agent/subagent identity, session, tool/MCP server, capability, scope, canonical `OperationID`, canonical `ArgumentDigest`, policy digest, decision ID, assurance evidence digest, single-use nonce, and optional TOCTOU-checked `FileIdentityBinding` / `MCPInvocationBinding`.
+   - `ExecutionGateway` enforces a 10-point runtime check before any protected operation executes and emits signed `OperationEnforcementReceipt` payloads distinguishing `AUTHORIZED`, `ATTEMPTED`, `ACCEPTED`, `EXECUTED`, `DENIED`, `FAILED`, `TIMED_OUT`, and `UNKNOWN`.
+2. **Continuous Re-Assurance Engine (`internal/continuous/engine.go`)**:
+   - Tracks 15 typed `AssuranceDependencyKind` categories, projects them into `skil.EvidenceGraphSummary`, and invalidates affected assurance records and dependent policy decisions via both event-driven drift ingestion (`IngestDriftEvent`) and periodic ground-truth reconciliation (`Reconcile`).
+   - `PlanSelectiveReAssurance` selectively re-evaluates only affected controls while refusing cache reuse across incompatible subject, source, artifact digest, provider, schema, policy, or environment dimensions.
+3. **Verified Multi-Agent Attack Paths (`internal/attackpath/verified.go`)**:
+   - Models multi-agent, subagent, RAG, memory, credential, and MCP interactions with strict confidence gating (`HYPOTHETICAL`, `STATICALLY_SUPPORTED`, `DYNAMICALLY_TESTED`, `VERIFIED_EXPLOITABLE`, `VERIFIED_BLOCKED`, `INCONCLUSIVE`). LLM reasoning alone can never produce `VERIFIED_EXPLOITABLE` or `VERIFIED_BLOCKED`.
+4. **Adaptive Adversarial Assurance (`internal/redteam/adaptive.go`)**:
+   - Deterministically synthesizes isolated candidate tests from 8 trigger sources, validates containment and synthetic-only payloads (`ValidateCandidateTest`), and promotes only reproducible outcomes into `RegressionCorpus` or `TestedControls` (`RunAdaptiveAssuranceLoop`).
+5. **Portable Agent Assurance Certificate (`internal/evidence/portable.go`)**:
+   - Wraps an in-toto Statement v1 (`https://skil.security/assurance-certificate/v1`) inside an Ed25519 DSSE envelope (`SignedPortableCertificate`).
+   - `VerifyPortableCertificateOffline` and `ImportCertificateForEnvironment` verify certificates offline and strictly separate `CryptographicallyValid`, `SubjectSafe`, and `PolicyAccepted`.
+
 ## Known limitations and deferred integrations
 
 - The new v2 and session/LoC primitives are library APIs; not every legacy CLI command emits v2 yet. V1 remains supported and now fails closed when closure, inspection, verification, or trust evidence is absent.
