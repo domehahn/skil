@@ -451,3 +451,77 @@ func TestAuthorizationRejectsEmbeddedSecretsAndDistinguishesTransportFromEnforce
 		t.Fatal("expected VerifyOperationReceipt(..., requireExecutedAndEnforced=true) to reject transport-only OutcomeAttempted receipt")
 	}
 }
+
+func TestDurableNonceLedgerCrossRestartAndConcurrentReplay(t *testing.T) {
+	m := newTestGatewayMaterial(t)
+	nonceDir := filepath.Join(t.TempDir(), "nonces")
+
+	memLedger := NewNonceLedger()
+	if memLedger.Scope() != ReplayScopeProcessLocal || memLedger.IsDistributed() {
+		t.Fatalf("unexpected memory ledger scope=%s distributed=%v", memLedger.Scope(), memLedger.IsDistributed())
+	}
+
+	durable1, err := NewDurableNonceLedger(nonceDir)
+	if err != nil {
+		t.Fatalf("NewDurableNonceLedger failed: %v", err)
+	}
+	if durable1.Scope() != ReplayScopeHostDurable || durable1.IsDistributed() {
+		t.Fatalf("unexpected durable ledger scope=%s distributed=%v", durable1.Scope(), durable1.IsDistributed())
+	}
+
+	gw1 := m.gateway(nil)
+	gw1.cfg.Nonces = durable1
+	req, auth := m.baseRequest(t.TempDir())
+	auth.Nonce = "durable-nonce-001"
+	if err := auth.Sign(m.issuerPriv, m.issuerKeyID); err != nil {
+		t.Fatal(err)
+	}
+
+	// First execution on instance 1 succeeds.
+	if _, err := gw1.AuthorizeAndExecute(context.Background(), auth, req, m.runtimePriv, m.rtKeyID, nil); err != nil {
+		t.Fatalf("first durable execution failed: %v", err)
+	}
+
+	// Simulate process restart or sibling host worker sharing the same durable directory.
+	durable2, err := NewDurableNonceLedger(nonceDir)
+	if err != nil {
+		t.Fatalf("NewDurableNonceLedger second instance failed: %v", err)
+	}
+	gw2 := m.gateway(nil)
+	gw2.cfg.Nonces = durable2
+
+	if _, err := gw2.AuthorizeAndExecute(context.Background(), auth, req, m.runtimePriv, m.rtKeyID, nil); err == nil {
+		t.Fatal("expected cross-restart/cross-process replay against shared durable nonce directory to be rejected")
+	}
+
+	// Concurrent multi-instance race on a fresh nonce across two durable ledger instances.
+	req2, auth2 := m.baseRequest(t.TempDir())
+	auth2.Nonce = "durable-nonce-race-002"
+	if err := auth2.Sign(m.issuerPriv, m.issuerKeyID); err != nil {
+		t.Fatal(err)
+	}
+
+	const workers = 16
+	var wg sync.WaitGroup
+	var successes, denials int32
+	wg.Add(workers)
+	for i := 0; i < workers; i++ {
+		idx := i
+		go func() {
+			defer wg.Done()
+			gw := gw1
+			if idx%2 == 1 {
+				gw = gw2
+			}
+			if _, err := gw.AuthorizeAndExecute(context.Background(), auth2, req2, m.runtimePriv, m.rtKeyID, nil); err == nil {
+				atomic.AddInt32(&successes, 1)
+			} else {
+				atomic.AddInt32(&denials, 1)
+			}
+		}()
+	}
+	wg.Wait()
+	if successes != 1 || denials != workers-1 {
+		t.Fatalf("durable concurrent replay race: successes=%d (want 1), denials=%d (want %d)", successes, denials, workers-1)
+	}
+}

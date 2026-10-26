@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/domehahn/skil/internal/receipt"
 	"github.com/domehahn/skil/pkg/enforcement"
 	"github.com/domehahn/skil/pkg/skil"
 )
@@ -38,14 +39,23 @@ func (MockRuntime) Execute(_ context.Context, request skil.EvalRequest) (skil.Ev
 }
 
 type ProcessRuntime struct {
-	Executable  string
-	Args        []string
-	Timeout     time.Duration
-	MaxOutput   int64
-	MaxMemoryMB int64
-	Contract    skil.SkillContract
-	Isolation   IsolationProvider
-	Tools       map[string]skil.GatewayTool
+	Executable                string
+	Args                      []string
+	Timeout                   time.Duration
+	MaxOutput                 int64
+	MaxMemoryMB               int64
+	Contract                  skil.SkillContract
+	Isolation                 IsolationProvider
+	Tools                     map[string]skil.GatewayTool
+	ExecutionGateway          *receipt.ExecutionGateway
+	RequireProofAuthorization bool
+	Authorizer                func(ctx context.Context, req receipt.ProtectedOperationRequest, op skil.Operation) (*receipt.ExecutionAuthorization, error)
+	GatewaySubjectID          string
+	GatewayAgentID            string
+	GatewaySessionID          string
+	GatewayParentAgentID      string
+	GatewayPolicyID           string
+	GatewayPolicyDigest       string
 }
 
 func (p ProcessRuntime) ID() string { return "isolated-process" }
@@ -129,7 +139,7 @@ func (p ProcessRuntime) Execute(ctx context.Context, request skil.EvalRequest) (
 			if message.Final == nil {
 				return trace, errors.New("gateway final message requires a final trace")
 			}
-			if message.ID != "" || message.Tool != "" || len(message.Arguments) > 0 {
+			if message.ID != "" || message.Tool != "" || len(message.Arguments) > 0 || len(message.Authorization) > 0 {
 				return trace, errors.New("gateway final message contains tool-call fields")
 			}
 			trace = *message.Final
@@ -270,6 +280,66 @@ func (p ProcessRuntime) executeGatewayTool(ctx context.Context, request skil.Eva
 			return result, call, operations, authorizations,
 				[]skil.ContainmentViolation{containmentViolation(operation, message.Tool, step, err.Error(),
 					"skill.capabilities."+operation.Capability)}, nil
+		}
+		authorizations[len(authorizations)-1] = true
+	}
+	if p.RequireProofAuthorization || p.ExecutionGateway != nil || len(bytes.TrimSpace(message.Authorization)) > 0 {
+		authorizations[len(authorizations)-1] = false
+		if p.ExecutionGateway == nil {
+			result.Error, result.Denied = "operation denied", true
+			return result, call, operations, authorizations,
+				[]skil.ContainmentViolation{containmentViolation(operation, message.Tool, step,
+					"proof-carrying ExecutionGateway is required but not configured",
+					"runtime-gateway.execution-authorization")}, nil
+		}
+		protReq := receipt.ProtectedOperationRequest{
+			ExecutionID:        fmt.Sprintf("eval-run-%d-step-%d-%s", request.Run, step, message.ID),
+			SubjectID:          firstEvalStr(p.GatewaySubjectID, request.Artifact.Name),
+			SubjectDigest:      normalizeEvalDigest(request.Artifact.SubjectDigest()),
+			AgentID:            firstEvalStr(p.GatewayAgentID, "agent://eval-runtime"),
+			SessionID:          firstEvalStr(p.GatewaySessionID, fmt.Sprintf("eval-session-%d", request.Run)),
+			ParentAgentID:      p.GatewayParentAgentID,
+			ToolOrServerID:     message.Tool,
+			Capability:         operation.Capability,
+			Target:             firstEvalStr(operation.Target, message.Tool),
+			CommandText:        strings.Join(operation.Command, " "),
+			Arguments:          message.Arguments,
+			ActivePolicyID:     p.GatewayPolicyID,
+			ActivePolicyDigest: p.GatewayPolicyDigest,
+		}
+		var auth *receipt.ExecutionAuthorization
+		if len(bytes.TrimSpace(message.Authorization)) > 0 && !bytes.Equal(bytes.TrimSpace(message.Authorization), []byte("null")) {
+			var parsed receipt.ExecutionAuthorization
+			if uErr := json.Unmarshal(message.Authorization, &parsed); uErr != nil {
+				result.Error, result.Denied = "operation denied", true
+				return result, call, operations, authorizations,
+					[]skil.ContainmentViolation{containmentViolation(operation, message.Tool, step,
+						fmt.Sprintf("malformed execution authorization: %v", uErr),
+						"runtime-gateway.execution-authorization")}, nil
+			}
+			auth = &parsed
+		} else if p.Authorizer != nil {
+			issued, aErr := p.Authorizer(ctx, protReq, operation)
+			if aErr != nil {
+				result.Error, result.Denied = "operation denied", true
+				return result, call, operations, authorizations,
+					[]skil.ContainmentViolation{containmentViolation(operation, message.Tool, step,
+						aErr.Error(), "runtime-gateway.execution-authorization")}, nil
+			}
+			auth = issued
+		}
+		if auth == nil {
+			result.Error, result.Denied = "operation denied", true
+			return result, call, operations, authorizations,
+				[]skil.ContainmentViolation{containmentViolation(operation, message.Tool, step,
+					"missing required proof-carrying ExecutionAuthorization",
+					"runtime-gateway.execution-authorization")}, nil
+		}
+		if vErr := p.ExecutionGateway.ValidateAuthorization(*auth, protReq); vErr != nil {
+			result.Error, result.Denied = "operation denied", true
+			return result, call, operations, authorizations,
+				[]skil.ContainmentViolation{containmentViolation(operation, message.Tool, step,
+					vErr.Error(), "runtime-gateway.execution-authorization")}, nil
 		}
 		authorizations[len(authorizations)-1] = true
 	}
@@ -747,4 +817,24 @@ func max(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func firstEvalStr(vals ...string) string {
+	for _, v := range vals {
+		if strings.TrimSpace(v) != "" {
+			return strings.TrimSpace(v)
+		}
+	}
+	return ""
+}
+
+func normalizeEvalDigest(d string) string {
+	d = strings.TrimSpace(d)
+	if d == "" {
+		return ""
+	}
+	if !strings.HasPrefix(d, "sha256:") {
+		return "sha256:" + d
+	}
+	return d
 }

@@ -15,6 +15,12 @@ import (
 	"github.com/domehahn/skil/pkg/skil"
 )
 
+// OperationAuthorizer validates proof-carrying operation-bound authorization
+// before an Enforcer permits an operation.
+type OperationAuthorizer interface {
+	AuthorizeOperation(operation skil.Operation) error
+}
+
 type Enforcer struct {
 	mu                sync.Mutex
 	contract          skil.SkillContract
@@ -26,6 +32,18 @@ type Enforcer struct {
 	externalMutations int
 	decisions         []skil.DecisionRecord
 	startupError      error
+	opAuthorizer      OperationAuthorizer
+	requireOpAuth     bool
+}
+
+// WithOperationAuthorizer attaches a mandatory proof-carrying operation authorizer
+// to the Enforcer. If require is true and auth is nil, Authorize fails closed.
+func (e *Enforcer) WithOperationAuthorizer(auth OperationAuthorizer, require bool) *Enforcer {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.opAuthorizer = auth
+	e.requireOpAuth = require
+	return e
 }
 
 func New(contract skil.SkillContract) *Enforcer {
@@ -171,6 +189,14 @@ func (e *Enforcer) Authorize(operation skil.Operation) error {
 	}
 	if err := e.verifyReviewedClosure(operation); err != nil {
 		return e.record(operation, err)
+	}
+	if e.requireOpAuth || e.opAuthorizer != nil {
+		if e.opAuthorizer == nil {
+			return e.record(operation, errors.New("mandatory proof-carrying operation authorizer is required but not configured"))
+		}
+		if err := e.opAuthorizer.AuthorizeOperation(operation); err != nil {
+			return e.record(operation, fmt.Errorf("proof-carrying authorization failed: %w", err))
+		}
 	}
 	if operation.Capability == "tools.call" || operation.Capability == "tool.invoke" ||
 		operation.Capability == "mcp.tool" || operation.Capability == "mcp.invoke" {

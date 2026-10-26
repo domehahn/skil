@@ -32,6 +32,11 @@ memory, tools, MCP servers, organizational systems, CI/CD, and registries.
 - task correctness and policy, capability, and containment compliance are
   independent results bound to artifact and eval-spec digests
 - analysis coverage prevents a partial scan from masquerading as full assurance
+- proof-carrying runtime gateways validate cryptographic operation tokens before tool execution
+- dual-phase proxy checks enforce both guardrails and proof authorization, rejecting mutated arguments without reauthorization
+- MCP interceptors enforce strict JSON-RPC structure, Surface Lock schemas, and operation-bound tokens, isolating blocked calls from upstream servers
+- continuous re-assurance invalidates active tokens upon skill, schema, policy, capability, or provider drift
+- durable host-atomic nonces prevent token replay across concurrent requests and service restarts
 
 Residual risk includes static-analysis evasion, unknown dependencies,
 compromised providers, malicious but policy-compliant behavior, TOCTOU after
@@ -72,3 +77,7 @@ The implementation and regression suite preserve these monotonic properties:
 16. Runtime drift across skill digests, MCP schemas, RAG sources, memory stores, providers, or policies invalidates affected assurance proofs and propagates immediately to dependent policy decisions (`internal/continuous`).
 17. Unverified or LLM-proposed attack paths cannot be labeled `VERIFIED_EXPLOITABLE` or `VERIFIED_BLOCKED`, and inconclusive dynamic runs remain `INCONCLUSIVE` (`internal/attackpath`, `internal/redteam`).
 18. A valid cryptographic signature on a portable assurance certificate never implies `SubjectSafe` or `PolicyAccepted` when the subject is `UNSAFE`, `PARTIAL`, or `UNKNOWN` (`internal/evidence`).
+19. In mandatory enforcement mode, unverified, expired, replayed, or forged operations never reach tool execution callbacks (`internal/eval`, `internal/runtimeproxy`, `pkg/enforcement`).
+20. Blocked, malformed, or drifted MCP requests are terminated at the interceptor and never forwarded to upstream servers (`internal/mcpinterceptor`).
+21. Argument sanitization that mutates operation arguments invalidates the authorization binding and requires explicit reauthorization over the effective digest (`internal/runtimeproxy`).
+22. Durable replay protection scope is explicitly reported (`host-durable` vs `process-local`), and distributed protection is never claimed without an external distributed store (`internal/receipt`).

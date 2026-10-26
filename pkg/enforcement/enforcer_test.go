@@ -437,3 +437,39 @@ func TestEnforcerDestructiveEffectRequiresConfirmation(t *testing.T) {
 		t.Fatal("expected an Effect-derived destructive operation to require confirmation")
 	}
 }
+
+func TestEnforcerWithOperationAuthorizer(t *testing.T) {
+	contract := skil.SkillContract{Capabilities: skil.Capabilities{
+		Tools: skil.ToolCapability{Allow: []string{"git.read", "git.write"}},
+	}}
+	enforcer := New(contract).WithOperationAuthorizer(testOpAuthorizerFunc(func(op skil.Operation) error {
+		if op.Target == "git.write" {
+			return &errProofDenied{reason: "missing proof-carrying authorization for git.write"}
+		}
+		return nil
+	}), true)
+	if err := enforcer.Authorize(skil.Operation{Capability: "tools.call", Target: "git.read"}); err != nil {
+		t.Fatalf("expected git.read to be allowed: %v", err)
+	}
+	if err := enforcer.Authorize(skil.Operation{Capability: "tools.call", Target: "git.write"}); err == nil {
+		t.Fatal("expected operation authorizer to reject git.write")
+	}
+	decisions := enforcer.Decisions()
+	if len(decisions) != 2 || decisions[1].Decision != "deny" || !strings.Contains(decisions[1].Reason, "missing proof-carrying authorization") {
+		t.Fatalf("unexpected enforcer decisions: %#v", decisions)
+	}
+
+	// If require=true and authorizer is nil, Authorize must fail closed.
+	failClosedEnforcer := New(contract).WithOperationAuthorizer(nil, true)
+	if err := failClosedEnforcer.Authorize(skil.Operation{Capability: "tools.call", Target: "git.read"}); err == nil {
+		t.Fatal("expected nil required OperationAuthorizer to fail closed")
+	}
+}
+
+type testOpAuthorizerFunc func(op skil.Operation) error
+
+func (f testOpAuthorizerFunc) AuthorizeOperation(op skil.Operation) error { return f(op) }
+
+type errProofDenied struct{ reason string }
+
+func (e *errProofDenied) Error() string { return e.reason }
