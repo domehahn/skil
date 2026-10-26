@@ -1,0 +1,48 @@
+version: 1
+profile: secure
+environment: staging-secure
+topology: single_process
+
+gateway:
+  audience_id: runtime://skil-staging-eu
+  trusted_issuers:
+    skgate://security-authority:
+      - sec-key-2026
+  trusted_public_keys:
+    sec-key-2026: O23b8Ld2vYy/c5pY0qD7U8m5BwH2e1k4L7n0P9q3Z1Y=
+
+enforcement:
+  mandatory_authorization: true
+  require_proof_carrying: true
+  audit_outcome_persistence: true
+  audit_log_path: /var/log/skil/enforcement-staging.jsonl
+  fail_closed: true
+
+mcp:
+  require_surface_lock: true
+  surface_lock_path: .skil/mcp-surface.lock.json
+  validate_schemas: true
+  strict_tools: true
+
+replay:
+  scope: process-local
+
+assurance:
+  oracle_enabled: true
+  policy_id: policy://strict-v1
+  policy_path: examples/policy.yaml
+  max_reconciliation_interval_seconds: 600
+  freshness_threshold_seconds: 3600
+  require_active_reconciliation: true
+
+resources:
+  max_tool_calls: 16
+  max_runtime_seconds: 15
+  max_memory_mb: 1024
+  max_network_bytes: 5242880
+
+readiness:
+  liveness_check_enabled: true
+  readiness_check_enabled: true
+  security_check_enabled: true
+  require_fresh_assurance: true
