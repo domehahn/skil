@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/domehahn/skil/schemas/deployment-profile-v1.schema.json",
+  "title": "skil deployment profile v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "profile", "environment", "topology"],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "const": 1
+    },
+    "profile": {
+      "type": "string",
+      "enum": ["development", "secure", "production"]
+    },
+    "environment": {
+      "type": "string",
+      "minLength": 1
+    },
+    "topology": {
+      "type": "string",
+      "enum": ["single_process", "multi_process_host", "distributed"]
+    },
+    "gateway": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "audience_id": { "type": "string" },
+        "trusted_issuers": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        },
+        "trusted_public_keys": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "key_rotation": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "max_key_age_hours": { "type": "integer", "minimum": 1 },
+            "rotation_notice_days": { "type": "integer", "minimum": 1 },
+            "require_active_key": { "type": "boolean" }
+          }
+        }
+      }
+    },
+    "enforcement": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mandatory_authorization": { "type": "boolean" },
+        "require_proof_carrying": { "type": "boolean" },
+        "audit_outcome_persistence": { "type": "boolean" },
+        "audit_log_path": { "type": "string" },
+        "fail_closed": { "type": "boolean" }
+      }
+    },
+    "mcp": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "require_surface_lock": { "type": "boolean" },
+        "surface_lock_path": { "type": "string" },
+        "validate_schemas": { "type": "boolean" },
+        "strict_tools": { "type": "boolean" }
+      }
+    },
+    "replay": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "scope": {
+          "type": "string",
+          "enum": ["process-local", "host-durable", "distributed"]
+        },
+        "durable_dir": { "type": "string" },
+        "distributed_store": { "type": "string" }
+      }
+    },
+    "assurance": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "oracle_enabled": { "type": "boolean" },
+        "policy_id": { "type": "string" },
+        "policy_path": { "type": "string" },
+        "max_reconciliation_interval_seconds": { "type": "integer", "minimum": 1 },
+        "freshness_threshold_seconds": { "type": "integer", "minimum": 1 },
+        "require_active_reconciliation": { "type": "boolean" }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "max_tool_calls": { "type": "integer", "minimum": 1 },
+        "max_runtime_seconds": { "type": "integer", "minimum": 1 },
+        "max_memory_mb": { "type": "integer", "minimum": 1 },
+        "max_network_bytes": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "readiness": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "liveness_check_enabled": { "type": "boolean" },
+        "readiness_check_enabled": { "type": "boolean" },
+        "security_check_enabled": { "type": "boolean" },
+        "require_fresh_assurance": { "type": "boolean" }
+      }
+    }
+  }
+}

@@ -81,3 +81,7 @@ The implementation and regression suite preserve these monotonic properties:
 20. Blocked, malformed, or drifted MCP requests are terminated at the interceptor and never forwarded to upstream servers (`internal/mcpinterceptor`).
 21. Argument sanitization that mutates operation arguments invalidates the authorization binding and requires explicit reauthorization over the effective digest (`internal/runtimeproxy`).
 22. Durable replay protection scope is explicitly reported (`host-durable` vs `process-local`), and distributed protection is never claimed without an external distributed store (`internal/receipt`).
+23. Production profile deployments cannot silently fall back or downgrade to development or compatibility behaviors, and profile downgrades fail closed (`internal/profile`).
+24. Startup validation evaluates all security-critical dependencies before exposing network listeners or execution loops, failing closed on blocking findings (`internal/profile`).
+25. Operational readiness decouples process liveness from security readiness: drifted assurance or failed security dependencies place running processes into `StatusSecurityBlocked`, blocking protected operations while remaining live for observability (`internal/profile`).
+26. Production release approval requires satisfactory evaluation of the 10-point release gate (`CHECK-01` through `CHECK-10`), and cannot produce `READY` status if any mandatory verification is incomplete or failing (`internal/profile`).

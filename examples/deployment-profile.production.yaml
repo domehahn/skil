@@ -1,0 +1,53 @@
+version: 1
+profile: production
+environment: production
+topology: multi_process_host
+
+gateway:
+  audience_id: runtime://skil-prod-eu-1
+  trusted_issuers:
+    skgate://corporate-authority:
+      - prod-key-2026-q4
+  trusted_public_keys:
+    prod-key-2026-q4: O23b8Ld2vYy/c5pY0qD7U8m5BwH2e1k4L7n0P9q3Z1Y=
+  key_rotation:
+    max_key_age_hours: 720
+    rotation_notice_days: 14
+    require_active_key: true
+
+enforcement:
+  mandatory_authorization: true
+  require_proof_carrying: true
+  audit_outcome_persistence: true
+  audit_log_path: /var/log/skil/enforcement-audit.jsonl
+  fail_closed: true
+
+mcp:
+  require_surface_lock: true
+  surface_lock_path: .skil/mcp-surface.lock.json
+  validate_schemas: true
+  strict_tools: true
+
+replay:
+  scope: host-durable
+  durable_dir: /var/run/skil/nonces
+
+assurance:
+  oracle_enabled: true
+  policy_id: policy://prod-strict-v1
+  policy_path: examples/policy.yaml
+  max_reconciliation_interval_seconds: 300
+  freshness_threshold_seconds: 1800
+  require_active_reconciliation: true
+
+resources:
+  max_tool_calls: 16
+  max_runtime_seconds: 10
+  max_memory_mb: 2048
+  max_network_bytes: 10485760
+
+readiness:
+  liveness_check_enabled: true
+  readiness_check_enabled: true
+  security_check_enabled: true
+  require_fresh_assurance: true

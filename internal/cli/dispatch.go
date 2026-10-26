@@ -53,6 +53,7 @@ func (a *App) assuranceCommands() map[string]commandHandler {
 		"attest":     func(ctx context.Context, args []string) int { return a.attest(ctx, args) },
 		"evidence":   func(_ context.Context, args []string) int { return a.evidence(args) },
 		"policy":     func(ctx context.Context, args []string) int { return a.policyCheck(ctx, args) },
+		"profile":    func(_ context.Context, args []string) int { return a.profileCommand(args) },
 		"gate":       func(_ context.Context, args []string) int { return a.gate(args) },
 		"contract":   func(ctx context.Context, args []string) int { return a.contract(ctx, args) },
 		"receipt":    func(_ context.Context, args []string) int { return RunReceipt(args, a.Out, a.Err) },

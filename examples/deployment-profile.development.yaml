@@ -1,0 +1,42 @@
+version: 1
+profile: development
+environment: local-dev
+topology: single_process
+
+gateway:
+  audience_id: runtime://skil-dev
+  trusted_issuers:
+    skgate://dev-authority:
+      - dev-key-1
+  trusted_public_keys:
+    dev-key-1: O23b8Ld2vYy/c5pY0qD7U8m5BwH2e1k4L7n0P9q3Z1Y=
+
+enforcement:
+  mandatory_authorization: false
+  require_proof_carrying: false
+  audit_outcome_persistence: false
+  fail_closed: false
+
+mcp:
+  require_surface_lock: false
+  validate_schemas: false
+  strict_tools: false
+
+replay:
+  scope: process-local
+
+assurance:
+  oracle_enabled: false
+  require_active_reconciliation: false
+
+resources:
+  max_tool_calls: 32
+  max_runtime_seconds: 30
+  max_memory_mb: 512
+  max_network_bytes: 1048576
+
+readiness:
+  liveness_check_enabled: true
+  readiness_check_enabled: true
+  security_check_enabled: false
+  require_fresh_assurance: false
