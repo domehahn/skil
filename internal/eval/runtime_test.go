@@ -4,6 +4,9 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/ed25519"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,6 +17,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/domehahn/skil/internal/receipt"
+	"github.com/domehahn/skil/internal/signing"
 	"github.com/domehahn/skil/pkg/skil"
 )
 
@@ -484,5 +489,149 @@ func TestEvalRejectsUnknownAssertions(t *testing.T) {
 	result := Run(context.Background(), MockRuntime{}, spec, skil.Artifact{}, 1)
 	if result.Status != skil.StatusFail {
 		t.Fatal("unknown assertions must fail closed")
+	}
+}
+
+func TestProcessRuntimeMandatoryExecutionGatewayEnforcement(t *testing.T) {
+	pub, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	keyID := signing.KeyID(pub)
+	now := time.Date(2026, 10, 26, 15, 0, 0, 0, time.UTC)
+
+	contract := skil.SkillContract{Capabilities: skil.Capabilities{
+		Tools:     skil.ToolCapability{Allow: []string{"artifact.read"}},
+		Resources: skil.ResourceLimits{MaxToolCalls: 4},
+	}}
+	request := skil.EvalRequest{
+		Artifact: skil.Artifact{Name: "skill://readme-reader@1.0.0", Digest: "1111111111111111111111111111111111111111111111111111111111111111"},
+		Test:     skil.EvalSpec{Tools: skil.EvalTools{Available: []string{"artifact.read"}}},
+	}
+
+	args := map[string]any{"path": "README.md"}
+	argDigest, err := receipt.CanonicalArgumentDigest(args)
+	if err != nil {
+		t.Fatal(err)
+	}
+	opID := receipt.CanonicalOperationID("tools.call", "artifact.read", "artifact.read")
+
+	makeValidAuth := func(nonce string) receipt.ExecutionAuthorization {
+		auth := receipt.ExecutionAuthorization{
+			AuthorizationID:         "auth-" + nonce,
+			SubjectID:               request.Artifact.Name,
+			SubjectDigest:           "sha256:" + request.Artifact.Digest,
+			AgentID:                 "agent://eval-worker",
+			SessionID:               "sess-eval-1",
+			ToolOrServerID:          "artifact.read",
+			RequestedCapability:     "tools.call",
+			EffectiveScope:          []string{"tools.call:artifact.read"},
+			AllowedTargets:          []string{"artifact.read"},
+			OperationID:             opID,
+			ArgumentDigest:          argDigest,
+			PolicyID:                "policy://eval-strict",
+			PolicyDigest:            "sha256:pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp",
+			DecisionID:              "dec-eval-1",
+			AssuranceState:          skil.AssuranceSafe,
+			AssuranceEvidenceDigest: "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+			IssuerID:                "skgate://org-authority",
+			AudienceID:              "runtime://eval-gateway",
+			IssuedAt:                now.Add(-1 * time.Minute),
+			ExpiresAt:               now.Add(5 * time.Minute),
+			Nonce:                   nonce,
+			SingleUse:               true,
+		}
+		if err := auth.Sign(priv, keyID); err != nil {
+			t.Fatal(err)
+		}
+		return auth
+	}
+
+	newGateway := func() *receipt.ExecutionGateway {
+		return receipt.NewExecutionGateway(receipt.ExecutionGatewayConfig{
+			RuntimeAudienceID: "runtime://eval-gateway",
+			TrustedIssuers: map[string][]string{
+				"skgate://org-authority": {keyID},
+			},
+			TrustedPublicKeys: map[string]string{
+				keyID: base64.StdEncoding.EncodeToString(pub),
+			},
+			RevokedDigests:   map[string]string{},
+			RevokedDecisions: map[string]string{},
+			Nonces:           receipt.NewNonceLedger(),
+			Now:              func() time.Time { return now },
+		})
+	}
+
+	finalStep := `{"type":"final","final":{"messages":[],"tool_calls":[],"outputs":["done"],"side_effects":[],"capabilities":[],"errors":[]}}`
+
+	// 1. Missing authorization when RequireProofAuthorization=true must block before tool.Execute.
+	recToolMissing := &RecordedTool{Name: "artifact.read", Result: "README content"}
+	rtMissing := ProcessRuntime{
+		Executable:                "/usr/bin/false",
+		Timeout:                   time.Second,
+		Contract:                  contract,
+		Isolation:                 &sequenceIsolation{outputs: []string{`{"type":"tool_call","id":"c1","tool":"artifact.read","arguments":{"path":"README.md"}}`, finalStep}},
+		Tools:                     map[string]skil.GatewayTool{"artifact.read": recToolMissing},
+		ExecutionGateway:          newGateway(),
+		RequireProofAuthorization: true,
+		GatewayAgentID:            "agent://eval-worker",
+		GatewaySessionID:          "sess-eval-1",
+		GatewayPolicyID:           "policy://eval-strict",
+		GatewayPolicyDigest:       "sha256:pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp",
+	}
+	traceMissing, err := rtMissing.Execute(context.Background(), request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(recToolMissing.Calls) != 0 {
+		t.Fatalf("tool executed without required proof authorization: %#v", recToolMissing.Calls)
+	}
+	if len(traceMissing.ToolCalls) != 1 || traceMissing.ToolCalls[0].Allowed || len(traceMissing.ContainmentViolations) != 1 {
+		t.Fatalf("missing authorization was not recorded as denied containment violation: %#v", traceMissing)
+	}
+
+	// 2. Valid proof-carrying authorization succeeds and executes tool exactly once.
+	validAuth := makeValidAuth("nonce-eval-valid-1")
+	authJSON, err := json.Marshal(validAuth)
+	if err != nil {
+		t.Fatal(err)
+	}
+	toolCallWithAuth := fmt.Sprintf(`{"type":"tool_call","id":"c2","tool":"artifact.read","arguments":{"path":"README.md"},"authorization":%s}`, string(authJSON))
+
+	gwShared := newGateway()
+	recToolValid := &RecordedTool{Name: "artifact.read", Result: "README content"}
+	rtValid := ProcessRuntime{
+		Executable:                "/usr/bin/false",
+		Timeout:                   time.Second,
+		Contract:                  contract,
+		Isolation:                 &sequenceIsolation{outputs: []string{toolCallWithAuth, finalStep}},
+		Tools:                     map[string]skil.GatewayTool{"artifact.read": recToolValid},
+		ExecutionGateway:          gwShared,
+		RequireProofAuthorization: true,
+		GatewayAgentID:            "agent://eval-worker",
+		GatewaySessionID:          "sess-eval-1",
+		GatewayPolicyID:           "policy://eval-strict",
+		GatewayPolicyDigest:       "sha256:pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp",
+	}
+	traceValid, err := rtValid.Execute(context.Background(), request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(recToolValid.Calls) != 1 || !traceValid.ToolCalls[0].Allowed || len(traceValid.ContainmentViolations) != 0 {
+		t.Fatalf("valid proof authorization should allow tool execution: calls=%d trace=%#v", len(recToolValid.Calls), traceValid)
+	}
+
+	// 3. Replaying the exact same authorization message against the same gateway is rejected before tool.Execute.
+	recToolReplay := &RecordedTool{Name: "artifact.read", Result: "README content"}
+	rtReplay := rtValid
+	rtReplay.Isolation = &sequenceIsolation{outputs: []string{toolCallWithAuth, finalStep}}
+	rtReplay.Tools = map[string]skil.GatewayTool{"artifact.read": recToolReplay}
+	traceReplay, err := rtReplay.Execute(context.Background(), request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(recToolReplay.Calls) != 0 || traceReplay.ToolCalls[0].Allowed {
+		t.Fatalf("replayed authorization must not execute tool: calls=%d trace=%#v", len(recToolReplay.Calls), traceReplay)
 	}
 }

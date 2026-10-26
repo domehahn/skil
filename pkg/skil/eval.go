@@ -1,6 +1,9 @@
 package skil
 
-import "context"
+import (
+	"context"
+	"encoding/json"
+)
 
 type EvalSpec struct {
 	Version     int               `json:"version" yaml:"version"`
@@ -88,11 +91,12 @@ type GatewayExchange struct {
 }
 
 type GatewayMessage struct {
-	Type      string         `json:"type"`
-	ID        string         `json:"id,omitempty"`
-	Tool      string         `json:"tool,omitempty"`
-	Arguments map[string]any `json:"arguments,omitempty"`
-	Final     *EvalTrace     `json:"final,omitempty"`
+	Type          string          `json:"type"`
+	ID            string          `json:"id,omitempty"`
+	Tool          string          `json:"tool,omitempty"`
+	Arguments     map[string]any  `json:"arguments,omitempty"`
+	Authorization json.RawMessage `json:"authorization,omitempty"`
+	Final         *EvalTrace      `json:"final,omitempty"`
 }
 type ToolCall struct {
 	Name      string         `json:"name"`

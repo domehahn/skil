@@ -345,15 +345,71 @@ func VerifyFileIdentityAtUse(expected FileIdentityBinding) error {
 	return nil
 }
 
+// ReplayProtectionScope describes the durability and coordination boundary of a NonceLedger.
+type ReplayProtectionScope string
+
+const (
+	// ReplayScopeProcessLocal indicates in-memory replay protection limited to a single OS process lifetime.
+	ReplayScopeProcessLocal ReplayProtectionScope = "process-local"
+	// ReplayScopeHostDurable indicates atomic filesystem-backed replay protection surviving process restarts
+	// and coordinating across processes sharing the same local filesystem directory. It does not provide
+	// multi-node distributed consensus across separate hosts.
+	ReplayScopeHostDurable ReplayProtectionScope = "host-durable"
+)
+
 // NonceLedger provides thread-safe replay tracking for single-use and bounded
-// execution authorizations.
+// execution authorizations, optionally backed by an atomic host-durable directory.
 type NonceLedger struct {
-	mu   sync.Mutex
-	seen map[string]time.Time
+	mu         sync.Mutex
+	seen       map[string]time.Time
+	durableDir string
+	scope      ReplayProtectionScope
 }
 
 func NewNonceLedger() *NonceLedger {
-	return &NonceLedger{seen: make(map[string]time.Time)}
+	return &NonceLedger{
+		seen:  make(map[string]time.Time),
+		scope: ReplayScopeProcessLocal,
+	}
+}
+
+// NewDurableNonceLedger creates a host-durable NonceLedger backed by atomic
+// O_CREATE|O_EXCL file creation in dir. It prevents replay across process restarts
+// and across concurrent processes sharing dir on the same host filesystem.
+func NewDurableNonceLedger(dir string) (*NonceLedger, error) {
+	cleaned := strings.TrimSpace(dir)
+	if cleaned == "" {
+		return nil, errors.New("durable nonce ledger directory path is required")
+	}
+	absDir, err := filepath.Abs(cleaned)
+	if err != nil {
+		return nil, fmt.Errorf("resolve durable nonce directory: %w", err)
+	}
+	if err := os.MkdirAll(absDir, 0o700); err != nil {
+		return nil, fmt.Errorf("create durable nonce directory: %w", err)
+	}
+	return &NonceLedger{
+		seen:       make(map[string]time.Time),
+		durableDir: absDir,
+		scope:      ReplayScopeHostDurable,
+	}, nil
+}
+
+// Scope returns the replay protection scope ("process-local" or "host-durable").
+func (l *NonceLedger) Scope() ReplayProtectionScope {
+	if l == nil {
+		return ""
+	}
+	if l.scope == "" {
+		return ReplayScopeProcessLocal
+	}
+	return l.scope
+}
+
+// IsDistributed returns false for process-local and host-durable ledgers so SKIL
+// never claims multi-node distributed replay protection without a distributed consensus store.
+func (l *NonceLedger) IsDistributed() bool {
+	return false
 }
 
 // Consume atomically records a nonce if it has not been used before.
@@ -371,7 +427,31 @@ func (l *NonceLedger) Consume(authID, nonce string, usedAt time.Time) error {
 		return fmt.Errorf("replay attack detected: authorization %q nonce %q already consumed at %s",
 			authID, nonce, prior.Format(time.RFC3339Nano))
 	}
-	l.seen[key] = usedAt.UTC()
+	ts := usedAt.UTC()
+	if l.durableDir != "" {
+		sum := sha256.Sum256([]byte(key))
+		entryPath := filepath.Join(l.durableDir, "nonce-"+hex.EncodeToString(sum[:])+".lock")
+		f, err := os.OpenFile(entryPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+		if err != nil {
+			if errors.Is(err, os.ErrExist) {
+				priorStr := "earlier execution"
+				if data, readErr := os.ReadFile(entryPath); readErr == nil && len(data) > 0 {
+					priorStr = strings.TrimSpace(string(data))
+				}
+				return fmt.Errorf("replay attack detected (durable store): authorization %q nonce %q already consumed at %s",
+					authID, nonce, priorStr)
+			}
+			return fmt.Errorf("persist durable nonce: %w", err)
+		}
+		_, writeErr := f.WriteString(ts.Format(time.RFC3339Nano) + "\n")
+		syncErr := f.Sync()
+		closeErr := f.Close()
+		if writeErr != nil || syncErr != nil || closeErr != nil {
+			_ = os.Remove(entryPath)
+			return fmt.Errorf("commit durable nonce entry: write=%v sync=%v close=%v", writeErr, syncErr, closeErr)
+		}
+	}
+	l.seen[key] = ts
 	return nil
 }
 
@@ -384,20 +464,21 @@ type AssuranceValidityOracle interface {
 // ProtectedOperationRequest represents the actual runtime operation about to be
 // executed by the gateway.
 type ProtectedOperationRequest struct {
-	ExecutionID          string
-	SubjectID            string
-	SubjectDigest        string
-	AgentID              string
-	SessionID            string
-	ParentAgentID        string
-	ToolOrServerID       string
-	Capability           string
-	Target               string
-	CommandText          string
-	Arguments            map[string]any
-	NegotiatedToolSchema any
-	ActivePolicyID       string
-	ActivePolicyDigest   string
+	ExecutionID            string
+	SubjectID              string
+	SubjectDigest          string
+	AgentID                string
+	SessionID              string
+	ParentAgentID          string
+	ToolOrServerID         string
+	Capability             string
+	Target                 string
+	CommandText            string
+	Arguments              map[string]any
+	NegotiatedToolSchema   any
+	NegotiatedSchemaDigest string
+	ActivePolicyID         string
+	ActivePolicyDigest     string
 }
 
 // ExecutionGatewayConfig holds the trust roots, runtime identity, and validity
@@ -416,6 +497,7 @@ type ExecutionGatewayConfig struct {
 // ExecutionGateway enforces mandatory 10-point proof-carrying authorization
 // validation, TOCTOU protection, and signed enforcement receipt generation.
 type ExecutionGateway struct {
+	mu  sync.RWMutex
 	cfg ExecutionGatewayConfig
 }
 
@@ -426,7 +508,33 @@ func NewExecutionGateway(cfg ExecutionGatewayConfig) *ExecutionGateway {
 	if cfg.Now == nil {
 		cfg.Now = func() time.Time { return time.Now().UTC() }
 	}
+	if cfg.RevokedDigests == nil {
+		cfg.RevokedDigests = make(map[string]string)
+	}
+	if cfg.RevokedDecisions == nil {
+		cfg.RevokedDecisions = make(map[string]string)
+	}
 	return &ExecutionGateway{cfg: cfg}
+}
+
+// RevokeDecision dynamically revokes a policy decision ID on this gateway.
+func (g *ExecutionGateway) RevokeDecision(decisionID, reason string) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.cfg.RevokedDecisions == nil {
+		g.cfg.RevokedDecisions = make(map[string]string)
+	}
+	g.cfg.RevokedDecisions[decisionID] = reason
+}
+
+// RevokeDigest dynamically revokes a subject or assurance evidence digest on this gateway.
+func (g *ExecutionGateway) RevokeDigest(digest, reason string) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.cfg.RevokedDigests == nil {
+		g.cfg.RevokedDigests = make(map[string]string)
+	}
+	g.cfg.RevokedDigests[digest] = reason
 }
 
 // ValidateAuthorization performs the mandatory 10-point security verification
@@ -534,16 +642,21 @@ func (g *ExecutionGateway) ValidateAuthorization(auth ExecutionAuthorization, re
 	if req.ActivePolicyDigest != "" && auth.PolicyDigest != req.ActivePolicyDigest {
 		return fmt.Errorf("policy digest changed: authorized under %s, active is %s", auth.PolicyDigest, req.ActivePolicyDigest)
 	}
-	if reason, revoked := g.cfg.RevokedDecisions[auth.DecisionID]; revoked {
-		return fmt.Errorf("policy decision %q has been invalidated: %s", auth.DecisionID, reason)
+	g.mu.RLock()
+	revDecisionReason, decisionRevoked := g.cfg.RevokedDecisions[auth.DecisionID]
+	revSubjectReason, subjectRevoked := g.cfg.RevokedDigests[auth.SubjectDigest]
+	revEvidenceReason, evidenceRevoked := g.cfg.RevokedDigests[auth.AssuranceEvidenceDigest]
+	g.mu.RUnlock()
+	if decisionRevoked {
+		return fmt.Errorf("policy decision %q has been invalidated: %s", auth.DecisionID, revDecisionReason)
 	}
 
 	// 9. Underlying assurance evidence validity & revocation check
-	if reason, revoked := g.cfg.RevokedDigests[auth.SubjectDigest]; revoked {
-		return fmt.Errorf("subject digest %s is revoked: %s", auth.SubjectDigest, reason)
+	if subjectRevoked {
+		return fmt.Errorf("subject digest %s is revoked: %s", auth.SubjectDigest, revSubjectReason)
 	}
-	if reason, revoked := g.cfg.RevokedDigests[auth.AssuranceEvidenceDigest]; revoked {
-		return fmt.Errorf("assurance evidence %s is revoked: %s", auth.AssuranceEvidenceDigest, reason)
+	if evidenceRevoked {
+		return fmt.Errorf("assurance evidence %s is revoked: %s", auth.AssuranceEvidenceDigest, revEvidenceReason)
 	}
 	if g.cfg.AssuranceOracle != nil {
 		valid, reason := g.cfg.AssuranceOracle.IsAssuranceValid(
@@ -573,14 +686,23 @@ func (g *ExecutionGateway) ValidateAuthorization(auth ExecutionAuthorization, re
 		if auth.MCPBinding.ServerID != req.ToolOrServerID || auth.MCPBinding.ArgumentDigest != actualArgDigest {
 			return errors.New("MCP invocation binding server or argument digest mismatch")
 		}
-		if req.NegotiatedToolSchema == nil {
+		if auth.MCPBinding.ToolName != "" && req.Target != "" && auth.MCPBinding.ToolName != req.Target {
+			return fmt.Errorf("MCP invocation binding tool %q does not match requested tool %q", auth.MCPBinding.ToolName, req.Target)
+		}
+		var actualSchemaDigest string
+		if req.NegotiatedToolSchema != nil {
+			var err error
+			actualSchemaDigest, err = CanonicalSchemaDigest(req.NegotiatedToolSchema)
+			if err != nil {
+				return err
+			}
+		} else if strings.TrimSpace(req.NegotiatedSchemaDigest) != "" {
+			actualSchemaDigest = normalizeDigestPrefix(req.NegotiatedSchemaDigest)
+		} else {
 			return errors.New("MCP operation requires negotiated tool schema at execution time")
 		}
-		actualSchemaDigest, err := CanonicalSchemaDigest(req.NegotiatedToolSchema)
-		if err != nil {
-			return err
-		}
-		if actualSchemaDigest != auth.MCPBinding.NegotiatedSchemaDigest {
+		expectedSchemaDigest := normalizeDigestPrefix(auth.MCPBinding.NegotiatedSchemaDigest)
+		if actualSchemaDigest != expectedSchemaDigest {
 			return fmt.Errorf("MCP tool schema drift detected: authorized %s != negotiated %s",
 				auth.MCPBinding.NegotiatedSchemaDigest, actualSchemaDigest)
 		}
@@ -594,6 +716,17 @@ func (g *ExecutionGateway) ValidateAuthorization(auth ExecutionAuthorization, re
 	}
 
 	return nil
+}
+
+func normalizeDigestPrefix(d string) string {
+	d = strings.TrimSpace(d)
+	if d == "" {
+		return ""
+	}
+	if !strings.HasPrefix(d, "sha256:") {
+		return "sha256:" + d
+	}
+	return d
 }
 
 func scopePermitsOperation(scopes, allowedTargets []string, req ProtectedOperationRequest) bool {
