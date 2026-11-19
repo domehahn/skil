@@ -94,4 +94,3 @@ func TestOperationalReadiness_LivenessVsSecurityReadinessSeparation(t *testing.T
 		t.Fatalf("expected operation to be blocked, got allowed=%t reason=%s", allowed, reason)
 	}
 }
-

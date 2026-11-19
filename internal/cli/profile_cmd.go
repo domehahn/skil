@@ -96,4 +96,3 @@ func (a *App) profileCheck(args []string) int {
 	}
 	return ExitOK
 }
-

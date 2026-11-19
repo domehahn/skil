@@ -65,4 +65,3 @@ func TestProfileDowngradePrevention(t *testing.T) {
 		t.Fatalf("upgrade must succeed: %v", err)
 	}
 }
-

@@ -113,4 +113,3 @@ func TestEvaluateReleaseGate_IncompleteWhenMissingProductionPrerequisites(t *tes
 		t.Fatalf("expected INCOMPLETE when production attestation/policy path is missing, got %s: %#v", report.Status, report)
 	}
 }
-
