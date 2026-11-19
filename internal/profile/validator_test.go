@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/domehahn/skil/internal/mcpassure"
 	"github.com/domehahn/skil/internal/signing"
@@ -186,9 +185,3 @@ func TestValidateStartup_ZeroSecretsPrinted(t *testing.T) {
 	}
 }
 
-func (c *DeploymentConfig) nowOrSystem(nowFn func() time.Time) time.Time {
-	if nowFn != nil {
-		return nowFn().UTC()
-	}
-	return time.Now().UTC()
-}
