@@ -184,4 +184,3 @@ func TestValidateStartup_ZeroSecretsPrinted(t *testing.T) {
 		t.Fatalf("report must never leak raw sensitive tokens: %s", string(rawReport))
 	}
 }
-
