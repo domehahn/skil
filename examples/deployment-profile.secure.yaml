@@ -46,3 +46,4 @@ readiness:
   readiness_check_enabled: true
   security_check_enabled: true
   require_fresh_assurance: true
+

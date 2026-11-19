@@ -192,3 +192,4 @@ func (c *DeploymentConfig) nowOrSystem(nowFn func() time.Time) time.Time {
 	}
 	return time.Now().UTC()
 }
+

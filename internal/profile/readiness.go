@@ -179,3 +179,4 @@ func (t *ReadinessTracker) evaluateLocked() OperationalReadiness {
 		LastChecked:         now,
 	}
 }
+
